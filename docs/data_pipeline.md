@@ -82,3 +82,18 @@ The sample has 2,952 synthetic hourly rows from October 2025 through January 202
 at one fictional centroid location. It is below 1 MB. It supports pipeline testing
 and future split mechanics, not city forecasting claims. Target and weather labels
 are synthetic independently. Regenerate only deliberately and inspect the result.
+
+## Implemented model and forecast-weather path
+
+`fetch_weather.py` also fetches forecast context and archived previous-run weather
+for lead times 24/48/72 hours. Archive valid timestamps are shifted back by the
+lead time before joining at model issue time. Columns are
+`forecast_24_temperature_2m` and the analogous horizon/variable names. Missing
+archive values use issue-weather persistence during feature building. Future
+realized reanalysis is never shifted into horizon features.
+
+`backend/scripts/train_model.py` trains direct LightGBM/quantile models, evaluates
+a separate chronological holdout, runs purged TimeSeriesSplit, saves ignored
+artifacts/metrics and generates docs/model_card.md. `scripts/run_all.sh` executes
+fetch → build → train → serve. Startup regenerates artifacts if necessary without
+silently claiming a real-data model when only the synthetic sample is available.

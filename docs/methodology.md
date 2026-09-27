@@ -55,8 +55,9 @@ local_weight_source = source_raw / Σ(raw_sources)
 
 These constants are arbitrary illustrative assumptions, not emission inventory
 measurements. The demo does not use OSM road density, time-of-day traffic,
-industrial polygon area, upwind cosine or construction dryness. Those remain
-planned backend features and must not be inferred from the map's outlines.
+industrial polygon area, upwind cosine or construction dryness. The implemented backend uses time profiles, upwind weighting and dryness, as
+documented in assumptions.md. The frontend fallback uses only these simpler
+illustrative formulas. Neither engine uses a measured emissions inventory.
 
 For positive concentration C, displayed total shares are:
 
@@ -66,7 +67,7 @@ background_share = background / C
 ```
 
 The four displayed shares sum to one. The engine's seed values are positive;
-a future API implementation must explicitly define zero-concentration shares.
+the backend defines zero-concentration shares as 100% background.
 
 ## 5. Action cuts and central result
 
@@ -128,3 +129,23 @@ coverage_percent = 100 × count(p10 ≤ actual ≤ p90) / evaluated_count
 Actual UI metrics are computed from the series. This documentation does not
 publish demo numbers as city forecast evidence. See model_card.md for the
 separate requirements governing future real-model evaluation.
+
+## Implemented backend (distinct from the frontend-only mock above)
+
+The backend reads all constants from `config/assumptions.yaml`. Its local distance
+uses kilometers, industry weights incorporate wind-from direction and zone-center
+proximity, traffic uses an assumed corridor/hour profile, and dust uses humidity/
+rain plus construction-zone proximity. These are still proxy assumptions.
+`docs/assumptions.md` describes the full current backend method.
+
+LightGBM direct forecasts now cover hours 1–24, 48 and 72; intervening horizons are
+interpolated. Features are built on a complete station-hour axis. Archived forecast
+weather is aligned to issue time for 24/48/72-hour models. Target-calendar features
+are known in advance; rolling statistics use past values; current PM2.5 is known
+at the issue timestamp. Data gaps remain gaps rather than shortening a lag.
+
+The real holdout model is trained before the earliest test issue time. Purged CV
+also excludes targets reaching each validation origin. Seasonal hourly means use
+training data only. Serving models are subsequently refit on available targets;
+stored holdout predictions are never replaced by refit-model predictions.
+Read generated model_card.md for actual target provenance and computed metrics.

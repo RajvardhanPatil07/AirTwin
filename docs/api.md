@@ -1,52 +1,86 @@
-# Frontend API contract
+# Implemented API contract
 
-Status: adapter implemented; FastAPI endpoints are not implemented yet.
-The definitive types are `frontend/src/types.ts`. No backend integration is claimed.
+FastAPI serves `/api`; interactive OpenAPI documentation is at
+`http://127.0.0.1:8000/docs`. `frontend/src/types.ts` and `backend/app/schemas.py`
+share the contract. Provider credentials never appear in responses.
 
-All concentrations use µg/m³. All responses have `source_type` and `assumptions`.
-The adapter rejects missing provenance and missing assumptions for modeled responses.
-Station and population provenance are independent of response-level provenance.
+All concentrations are µg/m³. Responses carry `source_type`; modeled responses
+carry `assumptions[]`. Nested station/history/target/population/weather provenance
+is independent. Null chart points mean absence, not zero.
 
-| Method / path | Query or body | Response type |
+| Method / path | Inputs | Response |
 | --- | --- | --- |
-| GET `/api/stations` | None | `StationsResponse`: `stations: Station[]` |
-| GET `/api/hotspots` | `mode=before` | `HotspotsResponse`: `cells: Cell[]` |
-| GET `/api/forecast` | `location_id`, `hours=24\|48\|72` | `ForecastResponse` |
-| GET `/api/backtest` | `location_id` | `BacktestResponse` |
-| GET `/api/attribution` | `location_id` | `AttributionResponse` |
-| POST `/api/scenarios` | `{location_id, cuts: {traffic, industry, dust}}` | `ScenarioResponse` |
+| GET `/health` | None | Status, dataset rows/time, target provenance and warnings |
+| GET `/stations` | optional replay_at | Stations at shared snapshot, warnings, weather, proxy zones |
+| GET `/hotspots` | mode=before\|after, scenario_id, replay_at | 144 modeled cells; after returns combined scenario grid |
+| GET `/forecast` | location_id, hours=1–72, replay_at | History + forecast + quantiles + TreeSHAP groups |
+| GET `/backtest` | location_id, replay_at | Held-out target/model/persistence series and metrics |
+| GET `/attribution` | location_id, replay_at | Background, shares and complete assumptions config |
+| POST `/scenarios` | location_id, cuts, optional replay_at | Ranked actions with selected-location values and after grids |
+| GET `/replay` | None | High held-out target timestamp and reference location |
+| POST `/explain` | location_id, question, optional replay_at | Grounded answer, method, actual context and assumptions |
 
-Cuts are percentages on a 0–100 scale (not fractions). UI limits: traffic 50,
-industry 60, dust 70. Results include individual actions and `combined`, each
-with its own full after-grid. The frontend uses those grids directly rather
-than reapplying backend scenario math. Server hotspot after queries can be added
-later if the contract changes to avoid transmitting duplicate grids.
+`replay_at` is an ISO timestamp with timezone offset. Snapshot selection never
+fills a missing observation. Replay forecasts use the pre-holdout 24-hour model;
+hours >24 are rejected in replay mode. The UI reloads all data when replay changes.
 
-## Data shapes
+## Scenario request
 
-- `Station`: `id`, `name`, `short_name`, latitude/longitude, `pm25`, ISO timestamp,
-  source type and assumptions. Synthetic demo locations are not monitoring stations.
-- `Cell`: `id`, center, `bounds: [[south, west], [north, east]]`, concentration,
-  background, population and its source type, `local_weights` (traffic/industry/dust),
-  source type and assumptions.
-- `SeriesPoint`: timestamp, nullable actual/predicted/persistence/p10/p90.
-  Null distinguishes absent history/forecast points from zero concentration.
-- `ForecastResponse`: location ID, series, history source type, source type,
-  assumptions. Demo interval is explicitly illustrative.
-- `BacktestResponse`: location ID, method, series, target source type, metrics,
-  source type, assumptions. Metrics: `mae`, `rmse`, `r2`, `persistence_mae`,
-  `improvement_percent`, `interval_coverage` (percent).
-- `AttributionResponse`: location ID, background, shares (`name`, fraction `value`,
-  color), source type, assumptions. Shares including background sum to one.
-- `ScenarioResponse`: scenario ID, location ID, ranked `results`, source type,
-  assumptions. Every result contains action ID/name/cuts/rank, before/after,
-  reduction and its low/high range, reduction percent, exposure benefit,
-  population provenance and after-grid cells. Reductions are positive magnitudes.
+```json
+{
+  "location_id": "12304615",
+  "cuts": {"traffic": 20, "industry": 30, "dust": 30}
+}
+```
 
-`local_weights` sum to one over local sources; concentration `shares` include
-background. The simulator multiplies local weights by local excess, avoiding
-double-discounting background. Population-weighted exposure benefit is the sum
-of cell reductions × cell population, in person·µg/m³.
+IDs above are an example from the fetched dataset, not guaranteed future IDs.
+Discover current IDs through `/stations`. Cuts are percentages, bounded to
+traffic 0–50, industry 0–60 and dust 0–70. The response returns `combined`,
+`traffic`, `industry`, `dust`, ranked by AOI-wide exposure reduction.
 
-`/api/health`, `/api/explain`, SHAP groups, real backtests, historical replay,
-and operational forecast weather are still pending backend work.
+Each result includes `before`, `after`, positive `reduction`, low/high sensitivity,
+percentage reduction, `exposure_benefit`, synthetic population provenance and a
+full `cells[]` after-grid. One selected result drives every frontend scenario view.
+Scenario IDs are held in a bounded in-memory cache and disappear on restart.
+
+## Shapes and interpretation
+
+- Station: ID/name/short_name, coordinates, concentration, timestamp, provenance.
+- Cell: ID/center/bounds, concentration/background, population/provenance,
+  local_weights, modeled provenance/assumptions. Bounds are latitude/longitude pairs.
+- Forecast: history provenance and reference sensor, nullable series, source and
+  assumptions, TreeSHAP groups/base/prediction, forecast-weather context.
+- Backtest: target provenance, method, series, metrics, pooled seasonal baseline,
+  purged CV details and validation-reference assumptions.
+- Metrics: MAE/RMSE in concentration units, R², persistence MAE, improvement percent
+  and interval coverage percent. Negative improvement is a model loss.
+- Attribution: four total concentration shares summing to one, separate from
+  normalized local excess weights used by scenarios.
+- Explanation: source-tagged answer, grounded_template or llm_context_checked,
+  context built from actual location/model/attribution/scenario/backtest outputs.
+
+Grid forecasts/history and validation reference a nearby station. If a current
+sensor lacks holdout data, backtest uses a disclosed nearest held-out reference
+sensor; that result must not be interpreted as selected-sensor accuracy.
+
+## Errors and fallback
+
+Unknown IDs/scenarios and unavailable replay timestamps produce 404; malformed
+inputs, cut limits and unsupported replay horizons produce 422. The frontend
+initially falls back as a complete synthetic demo if the API is unavailable or
+fails provenance checks. Later analysis failures show a retry state.
+
+The backend falls back to the sample if processed input is missing/unreadable and
+regenerates models when artifacts are absent/mismatched. Such targets remain
+SYNTHETIC and trigger warnings. Stale data are reported rather than relabeled live.
+
+## Local examples
+
+```sh
+curl http://127.0.0.1:8000/api/health
+curl http://127.0.0.1:8000/api/stations
+curl 'http://127.0.0.1:8000/api/forecast?location_id=12304615&hours=24'
+```
+
+No environmental API key is required by local frontend requests; keys stay on
+the backend machine. CORS permits the local Vite origins on port 5173.

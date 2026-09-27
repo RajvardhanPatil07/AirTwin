@@ -7,7 +7,7 @@ licenses do not grant a license to all repository code.
 
 | Source | Current use | Provenance | Attribution/terms |
 | --- | --- | --- | --- |
-| OpenAQ v3 | Fetcher implemented; real local coverage unverified | Observed target when returned by provider | Preserve underlying provider attribution and review dataset terms |
+| OpenAQ v3 | Fetched 15 sensors with usable hourly data; see data_report.md for dates and gaps | Observed target when returned by provider | Preserve underlying provider attribution and review dataset terms |
 | Open-Meteo archive | Centroid weather fetcher | Modeled reanalysis | API data CC BY 4.0; credit Open-Meteo and applicable underlying sources |
 | Open-Meteo air quality / CAMS | Sparse-target fallback | Modeled concentration | Credit Open-Meteo and the relevant Copernicus/CAMS product |
 | OpenStreetMap | Frontend basemap tiles | Map context, not pollution observations | © OpenStreetMap contributors; ODbL data and separate tile-use policy |
@@ -39,3 +39,11 @@ Retain dataset/provider IDs, dates, source type, attribution strings and process
 steps. Credit data close to where it is displayed. Explain modifications and
 avoid suggesting provider endorsement. Update screenshots if their source changes.
 Do not label CAMS or reanalysis as observed, even after ML training.
+
+## Archived forecast weather
+
+[Open-Meteo Previous Runs](https://open-meteo.com/en/docs/previous-runs-api)
+provides forecasts at fixed lead-time offsets. The ingestion aligns valid time
+back to issue time for 24/48/72-hour covariates. The same modeled-data attribution
+rules apply. This is different from shifting future realized reanalysis into a
+forecast feature.
