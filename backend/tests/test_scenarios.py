@@ -39,3 +39,17 @@ def test_zero_cuts_and_additivity_bounds():
     for before, after in zip(cells, combined['cells']):
         assert before['background'] <= after['pm25'] <= before['pm25']
     assert combined['reduction_low'] <= combined['reduction'] <= combined['reduction_high']
+
+
+def test_exposure_sensitivity_uses_grid_population_not_selected_location():
+    cells, background = make_grid(STATIONS, WEATHER, TIME)
+    cuts = dict(traffic=50, industry=60, dust=70)
+    for location in [STATIONS[0], {**STATIONS[0], 'pm25': 0}]:
+        result = simulate(location, cells, background, cuts, WEATHER, TIME)
+        for action in result['results']:
+            assert action['exposure_benefit_low'] <= action['exposure_benefit'] <= action['exposure_benefit_high']
+            assert action['exposure_benefit_high'] <= sum(max(c['pm25'] - c['background'], 0) * c['population'] for c in cells)
+            assert action['exposure_benefit_low'] == pytest.approx(action['exposure_benefit'] * .6 / .7 * .8)
+            assert action['exposure_benefit_high'] == pytest.approx(action['exposure_benefit'] * .8 / .7 * 1.2)
+    zero = simulate(STATIONS[0], cells, background, dict(traffic=0, industry=0, dust=0), WEATHER, TIME)
+    assert all(r['exposure_benefit_low'] == r['exposure_benefit_high'] == 0 for r in zero['results'])
