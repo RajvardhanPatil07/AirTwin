@@ -1,60 +1,55 @@
 # AirTwin PCMC frontend
 
-React + Vite + TypeScript, Tailwind CSS, React Leaflet, and Recharts. The visual
-reference is the provided Kombai civic dashboard screenshot, not a new design.
+React/Vite/TypeScript dashboard preserving the supplied Kombai screenshot.
+It now connects to the FastAPI backend by default at `http://127.0.0.1:8000`.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-No API keys or backend are required for the frontend demo. Fonts are bundled
-locally. The OpenStreetMap basemap requires network access; if tiles fail, the
-grid, location markers, charts, and scenarios remain usable with an explicit notice.
+Provider keys belong in the root backend `.env`, never frontend variables.
+To change the public backend URL, copy `.env.example` to `.env` and restart Vite.
+Set `VITE_API_BASE_URL=` explicitly for frontend-only illustrative demo mode.
+
+## Working views
+
+- Map: 12×12 grid, actual snapshot stations, proxy zones, layer toggles and after view.
+- Forecast: LightGBM series, quantile band, source badge and exact TreeSHAP groups.
+- Backtest: actual held-out series/model/persistence, computed metrics, coverage,
+  seasonal baseline and underperformance warnings.
+- Sources: proxy concentration shares; assumptions distinguish them from SHAP.
+- Scenarios: three cuts, combined package and synthetic-population exposure ranking.
+- Historical replay: labeled date/source, synchronized API queries and pre-holdout model.
+- Ask AirTwin: actual-output context, optional LLM or grounded no-key template.
+
+Initial API failure switches the whole input set to the synthetic mock with DEMO
+DATA and a warning. Subsequent analysis failures show retry rather than mixing
+real inputs with mock output. The backend can also train on the offline sample;
+that is real model execution on synthetic targets, labeled SYNTHETIC TARGET · ML,
+and distinct from the illustrative frontend mock.
+
+## Consistency and caveats
+
+One scenario result drives banner, cards, table and map; baseline station readings
+stay unchanged in after view. Population is synthetic even when targets are observed.
+Cell history/validation uses disclosed reference stations. Data timestamps and
+stale warnings matter: successful API fetches do not guarantee current observations.
+Forecast issue time is the last available snapshot, not automatically the wall clock.
+
+Proxy zones are approximate. The basemap needs network; grid/charts/scenarios work
+without tiles and display a notice. Fonts are bundled. Source labels and assumptions
+must remain visible in screenshots and video.
+
+## Checks
 
 ```sh
-npm run build
 npm run lint
 npm test
+npm run build
+npm run test:sites
 ```
 
-To connect a future backend, copy `.env.example` to `.env`, set
-`VITE_API_BASE_URL`, and restart Vite. These variables are public configuration;
-never put an API key in a `VITE_` variable. The exact contract is in `src/types.ts`
-and `../docs/api.md`. If initial loading fails, the entire dashboard switches to
-synthetic demo data with a warning. A later request failure displays a retry state,
-so real inputs are never silently combined with synthetic analysis.
-
-## What works
-
-- Interactive 12×12 grid, six selectable demo locations, illustrative zone outlines,
-  map layer toggles, and before/after views.
-- Three emission-cut sliders, a combined package, uncertainty ranges, and ranking
-  by computed population-weighted exposure reduction.
-- One selected scenario response drives the banner, concentration cards, result table,
-  and map. Markers remain at their original baseline in after view.
-- Overview, illustrative forecast, synthetic backtest, proxy source shares, and
-  assumptions. Real LightGBM/SHAP work is a later backend step.
-- Light/dark themes, responsive layout, keyboard map selection, and one map tooltip.
-
-## Demo provenance
-
-`src/mocks/engine.ts` contains synthetic input readings and populations plus all
-demo calculations. The location values follow the visual reference; they are
-**not observations**. The forecast is an illustrative daily-cycle projection,
-not a trained ML forecast. Its interval is illustrative, not calibrated.
-
-The backtest predictor is 24-hour persistence on a deterministic synthetic series.
-MAE, RMSE, R², baseline improvement, and interval coverage are computed from the
-displayed series; they do not establish real-world accuracy. There is no winter
-holdout or TimeSeriesSplit validation yet.
-
-Scenario cuts apply to local-excess weights normalized across traffic, industry,
-and dust. Regional background is capped at each cell's baseline. Combined benefits
-equal the sum of individual actions, including exposure benefit, before rounding.
-Display rounding can cause tiny differences when summing visible table values.
-The benefit unit is person·µg/m³, not a number of people protected.
-
-The source screenshot's contour logo is reused as a small supplied raster asset.
-Inter is supplied by `@fontsource/inter` (SIL Open Font License); map tiles retain
-OpenStreetMap attribution. Approximate zone geometry is illustrative and unverified.
+See `../docs/api.md`, `src/types.ts`, `DESIGN.md` and `design-qa.md`. The original
+mock calculations remain tested in `src/mocks/engine.ts`; they do not describe
+backend model accuracy. Inter is SIL OFL; retain OpenStreetMap and provider credits.

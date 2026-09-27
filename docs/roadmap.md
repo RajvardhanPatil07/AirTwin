@@ -1,64 +1,42 @@
-# Prioritized roadmap
+# Implementation status and remaining roadmap
 
-The deadline favors a complete, honest path over extra screens. This plan records
-future work; checkboxes require implementation and evidence before completion.
+## Completed core path
 
-## P0: establish real data and forecast evidence
+- [x] OpenAQ station discovery, paginated hourly downloads and failure fallback.
+- [x] Historical weather, live forecast context and archived 24/48/72-hour weather.
+- [x] Hourly cleaning, explicit provenance, ignored Parquet and small offline sample.
+- [x] Gap-aware lag/rolling/cyclical/wind/stagnation features without future target leakage.
+- [x] Direct LightGBM models and quantile bounds for 1–24, 48 and 72 hours.
+- [x] Winter holdout when available, purged TimeSeriesSplit and both baselines.
+- [x] Computed metrics, per-sensor underperformance and generated model card.
+- [x] FastAPI contract with health, stations, forecasts, backtests, hotspots and attribution.
+- [x] Centralized YAML assumptions, IDW and wind-aware proxy source weights.
+- [x] Three additive interventions, combined package and synthetic population ranking.
+- [x] Existing frontend connected without redesign; mock fallback retained.
+- [x] Exact TreeSHAP groups displayed separately from proxy source shares.
+- [x] Grounded explanation endpoint and matching chat drawer; no-key template.
+- [x] Historical replay with date banner and pre-holdout forecast model.
+- [x] Backend/math/API tests, frontend checks and CI offline training.
 
-- [ ] Fetch observed station coverage and report sensors, dates, gaps and units.
-- [ ] Determine if a real winter holdout exists; expose modeled target fallback.
-- [ ] Build station-separated hourly lags without treating gaps as prior hours.
-- [ ] Add lag/rolling, cyclical, wind, humidity, rain and stagnation features.
-- [ ] Choose one clearly defined forecast issue time and 24-hour direct target.
-- [ ] Separate train, CV and winter holdout with horizon-aware temporal gaps.
-- [ ] Fit LightGBM; compare persistence and training-only seasonal hourly mean.
-- [ ] Compute MAE/RMSE/R²/improvement/coverage and write a generated model card.
-- [ ] Document whether future weather uses archived forecasts or retrospective reanalysis.
-- [ ] Save ignored artifacts and make training reproducible from scripts.
+Completion means implementation exists; validation evidence is in model_card.md,
+testing.md and the latest CI run. It does not mean the model outperforms persistence
+at every station or that source-share hypotheses have been chemically validated.
 
-Evidence: generated metrics + exact dates/provenance + tests detecting leakage.
-48/72-hour ML is optional after the 24-hour model works.
+## Remaining limitations and improvements
 
-## P0: serve a coherent contract
+- [ ] Improve forecast skill using training/CV decisions; retain a new untouched
+  evaluation period when selecting revised models after viewing current holdout.
+- [ ] Evaluate station-specific models, larger historical coverage and source-domain shifts.
+- [ ] Compare genuinely issue-time station/weather availability with provider publication delays.
+- [ ] Train every 25–71-hour horizon independently instead of interpolating anchors.
+- [ ] Calibrate intervals on a separate validation set and verify coverage by station/season.
+- [ ] Replace synthetic zones/proxies with verified road and industrial inventories.
+- [ ] Replace synthetic population with a licensed, cited WorldPop product.
+- [ ] Ground optional LLM answers with stronger claim verification beyond numeric/tag checks.
+- [ ] Test a configured LLM provider; this build verifies the no-key path only.
+- [ ] Add confirmed team names, final video link and optional public deployment.
+- [ ] Additional pollutants, richer spatial rendering and validated alerting for Round 2.
 
-- [ ] Implement FastAPI with Pydantic models matching frontend/src/types.ts.
-- [ ] Implement health, stations, hotspots, forecast, backtest and attribution.
-- [ ] Implement scenarios returning consistent selected-location and grid results.
-- [ ] Return provenance and assumptions, including sample-fallback warnings.
-- [ ] Configure development CORS and test invalid IDs, horizons and cut values.
-- [ ] Load/regenerate models without pretending unavailable models exist.
-
-Evidence: endpoint integration tests and frontend running against the API.
-
-## P0: source and scenario consistency
-
-- [ ] Centralize weights and assumptions in config/assumptions.yaml.
-- [ ] Verify approximate locations and ship clearly sourced zone GeoJSON.
-- [ ] Add road/industrial/construction proxies and explicit wind convention.
-- [ ] Keep SHAP weather/temporal/persistence groups separate from source shares.
-- [ ] Test background bounds, IDW identity, shares, zero cuts and additivity.
-- [ ] Use a sourced population product or retain SYNTHETIC labels and limitations.
-
-## P1: frontend integration and submission
-
-- [ ] Replace demo responses with tested API outputs without redesigning the UI.
-- [ ] Surface target, weather and population provenance where relevant.
-- [ ] Show actual held-out coverage and underperformance warnings.
-- [ ] Add one reproducible run workflow: fetch → build → train → serve.
-- [ ] Record a three-minute video using real computed results when available.
-- [ ] Add confirmed team names and contribution roles.
-- [ ] Complete docs/acceptance.md with evidence for every required outcome.
-
-## P2: standout features after the full path works
-
-- [ ] Grounded explainer with provider-configurable LLM and no-key template fallback.
-- [ ] Claims restricted to actual model context with provenance tags.
-- [ ] Historical replay with date banner and synchronized map/chart data.
-- [ ] More pollutants and validated alerts.
-- [ ] Higher-detail spatial visualization only if it improves interpretation.
-
-## Working checkpoints
-
-Each implementation step ends with a summary, changed files, actual test output
-and several meaningful commit groups. Do not mark an item complete because its
-screen exists or because a dependency has been installed.
+BLH is optional and currently missing. Reanalysis still supplies issue-time weather
+covariates retrospectively; this limitation is disclosed. Provider data freshness
+is controlled by the source, not by how recently the fetch script was run.

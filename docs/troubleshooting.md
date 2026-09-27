@@ -10,8 +10,8 @@ the lockfile rather than deleting it to make an error disappear.
 URL, or start `npm run dev -- --port 5174`. A running older server can show older
 files; identify its working directory before stopping a process.
 
-**Backend warning:** no backend exists in this release. Unset VITE_API_BASE_URL
-and restart Vite for the pure demo. If using a future backend, verify its URL,
+**Backend warning:** start FastAPI on port 8000. Set VITE_API_BASE_URL to an empty value
+and restart Vite for the frontend-only demo. For API mode, verify its URL,
 CORS, response source_type and modeled assumptions. Initial incompatibility
 switches the entire dashboard to synthetic demo inputs; later request failures
 show a retry state instead of mixing synthetic and real analysis.
@@ -38,8 +38,8 @@ provider coverage. A successful fallback is not a successful observed download.
 Inspect source_type and target_provider in the resulting dataset.
 
 **Weather is missing:** missing join hours remain null and weather_source_type
-becomes missing. The model must later define how to handle this; the current
-pipeline does not invent weather observations.
+becomes missing. LightGBM accepts missing weather features; horizon features use issue-weather
+persistence where possible. The pipeline does not invent weather observations.
 
 **CAMS date range is short:** the implemented fallback uses recent output, not an
 18-month archive. If there is no winter holdout, report that limitation.
@@ -55,3 +55,30 @@ models, node_modules or dist. Run scripts/check_repository.py after staging.
 
 **A secret was already published:** rotate/revoke it first. Do not post it in an
 issue; follow SECURITY.md. History cleanup needs a coordinated plan.
+
+## Backend and ML
+
+**LightGBM cannot load on macOS:** its native wheel needs OpenMP; install libomp
+through your trusted package manager (for example Homebrew). Linux CI uses the
+normal wheel/runtime. The application does not silently replace LightGBM with a
+different model.
+
+**First startup takes longer:** absent/mismatched models are regenerated from the
+selected dataset before the server accepts traffic. Explicitly run train_model.py
+first when preparing a recording. Artifacts remain ignored.
+
+**Model loses to persistence:** this is a computed result, not an application
+error. Show the warning and use training/CV decisions plus a new evaluation period
+for improvements. Never tune repeatedly against the final holdout and still call
+it untouched.
+
+**Backtest references another sensor:** a current sensor may lack winter history.
+The response discloses its nearest held-out reference; do not claim selected-sensor
+accuracy from that series.
+
+**Replay horizon is limited:** replay uses the pre-holdout 24-hour model. It is
+limited to 24 hours and interpolates shorter points. Normal serving supports 72.
+
+**Ask AirTwin uses a template:** expected without LLM_API_KEY, on provider failure,
+or when output adds numbers/tags that fail context checks. No LLM subscription is
+required for the core project.

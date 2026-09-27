@@ -1,6 +1,6 @@
 # Three-minute demonstration script
 
-Use the default frontend without VITE_API_BASE_URL. Prepare it before recording;
+Run FastAPI and use the default frontend backend connection. Prepare it before recording;
 keep visible provenance badges and assumptions. Use 1920×1080 if possible.
 
 ## 0:00–0:25: problem and scope
@@ -9,13 +9,14 @@ keep visible provenance badges and assumptions. Use 1920×1080 if possible.
 happen next, what may contribute, and which intervention could help more exposed
 people. Our area is Pune and Pimpri-Chinchwad.”
 
-State immediately: “This build uses synthetic demo inputs. Real ML and the API
-are pending; we are showing the interaction and calculation workflow.”
+State the actual source badge and timestamp immediately. Observed data may be
+stale; population and zone proxies are synthetic. If the backend falls back to
+the sample, explicitly state that targets are synthetic.
 
 ## 0:25–0:55: spatial view and honesty
 
 Select Bhosari MIDC. Show one location tooltip, the modeled hatch grid, the
-SYNTHETIC badge and fixed data timestamp. Toggle Hotspots and Zones to show the
+actual source badge and data timestamp. Toggle Hotspots and Zones to show the
 layer distinction. Explain IDW as interpolation, not a new sensor measurement.
 
 ## 0:55–1:35: compare actions
@@ -32,21 +33,21 @@ result currently displayed. Explain that pass-through and ranges are assumptions
 
 Open Sources and expand assumptions. Traffic, industry, dust and background are
 transparent proxy shares; they are not measured chemical source apportionment.
-SHAP will eventually explain forecast features separately.
+TreeSHAP explains forecast features separately in the Forecast tab.
 
-## 2:00–2:35: forecast and validation plan
+## 2:00–2:35: forecast and validation
 
-Open Forecast and Backtest. Point out the illustrative forecast/band notices and
-synthetic target. The demo predictor equals persistence; metrics are computed,
-but this is not real forecasting skill. Explain the planned winter holdout and
-baseline comparison. Never rename this demonstration “validated ML”.
+Open Forecast and Backtest. Show the LightGBM projection, quantile band and
+TreeSHAP groups, separately from source shares. Read the computed winter metrics
+and persistence comparison. Report stations where the model loses. Explain
+coverage and data freshness; do not claim operational or causal validation.
 
 ## 2:35–3:00: reproducibility and impact
 
 Show README status, test commands and the GitHub Actions workflow. Summarize the
 next milestone and intended SDG 3/11/13 contribution. Use confirmed team names
-only. If real backend/model work is completed later, update this script and
-screenshots around the actual evidence before recording.
+only. Show the replay date banner and Ask AirTwin grounded answer if time allows.
+Update recording content around the actual model card and source timestamp.
 
 ## Recording checklist
 

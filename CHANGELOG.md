@@ -15,10 +15,15 @@ User-visible changes are recorded here; planned work belongs in docs/roadmap.md.
 - Detailed setup, methodology, source attribution and judge-facing status docs.
 - GitHub Actions, issue forms, PR checklist and repository hygiene check.
 
-### Known incomplete work
+### End-to-end implementation
 
-- FastAPI endpoints, LightGBM training, SHAP and real winter validation.
-- Backend-configured spatial inputs, real population and scenario serving.
-- Grounded explanation assistant and historical replay.
+- Added FastAPI/Pydantic endpoints and connected the existing dashboard.
+- Added LightGBM direct forecasts, quantiles, winter holdout, purged CV and baselines.
+- Added generated observed-target metrics/model card; underperformance is disclosed.
+- Added archived issue-aligned forecast weather and exact TreeSHAP feature groups.
+- Added configured spatial/source/scenario engine with synthetic population labels.
+- Added grounded explanation drawer and historical replay with pre-holdout model.
+- Added backend leakage, split, spatial, scenario and endpoint tests.
+- Added fetch → build → train → serve runner and CI training checks.
 
-No release tag or production readiness is implied by this entry.
+Data availability/freshness and calibrated policy or health effects remain limited.

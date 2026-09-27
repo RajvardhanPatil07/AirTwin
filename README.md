@@ -7,235 +7,257 @@
   <a href="https://github.com/RajvardhanPatil07/AirTwin/actions/workflows/ci.yml"><img src="https://github.com/RajvardhanPatil07/AirTwin/actions/workflows/ci.yml/badge.svg" alt="Quality checks" /></a>
 </div>
 
-## What AirTwin is building
+## What AirTwin answers
 
-A pollution map tells us where air is bad. A useful environmental digital twin
-should also help explain likely drivers and compare what could improve it.
-AirTwin brings those questions into one map-based workspace for Pune and PCMC:
+Pollution maps show where concentrations are high. AirTwin connects that map to
+three questions: **what may happen next, what may contribute, and which action
+could help more exposed people?** It combines PM2.5 forecasts, historical evidence,
+transparent source hypotheses and population-weighted intervention comparison
+for Pune and Pimpri-Chinchwad.
 
-1. **What might PM2.5 be next?** Compare a forecast with historical evidence.
-2. **What might contribute?** Separate regional background from local proxy sources.
-3. **Which action could help most?** Compare traffic restrictions, industrial controls
-   and dust suppression using population-weighted exposure reduction.
+**The local system now works end to end:** ingestion → cleaned data → LightGBM →
+FastAPI → the existing React dashboard. It also works without keys using explicitly
+synthetic sample targets. Source labels and assumptions are part of the product,
+not a footnote.
 
-The differentiator is transparency: provenance badges, assumptions next to modeled
-results, comparison against persistence, and action rankings that account for the
-population exposed. The current implementation demonstrates these interactions;
-real forecasting and operational validation are still being built.
+> **Interpret the evidence honestly.** Model skill differs by station; the pooled
+> model can lose to persistence. Quantile coverage is measured, not guaranteed.
+> Population and zones remain synthetic proxies. Provider readings may be delayed,
+> so every view keeps its data timestamp and the app warns about stale snapshots.
+> A forecast begins at its available data origin, not automatically at today's clock.
 
-> **Current release: frontend demo + data ingestion pipeline.**
-> The dashboard runs with **SYNTHETIC** inputs. Its forecast is illustrative and its
-> backtest predictor equals persistence. No trained LightGBM model, SHAP output,
-> FastAPI server, real winter holdout, or measured city-level forecast skill is
-> included yet. This repository does not claim a finished Round 1 submission.
+## Dashboard
 
-## Dashboard preview
+![AirTwin implemented dashboard](docs/screenshots/dashboard-desktop.jpg)
 
-![AirTwin PCMC desktop dashboard showing synthetic inputs and modeled interventions](docs/screenshots/dashboard-desktop.jpg)
-
-*Actual running frontend at 1920×1080. The visible reduction is a computed synthetic
-scenario, not a measured intervention effect. Screenshot text is less sharp because
-of the browser capture scale; the application uses vector text.*
+*Actual application capture. Check the source badges and date in the image;
+modeled intervention effects are not measured policy outcomes.*
 
 <details>
-<summary>View the compact laptop layout</summary>
+<summary>Compact laptop layout</summary>
 
-![AirTwin compact laptop layout](docs/screenshots/dashboard-laptop.jpg)
-
-*1366×768: ranking rows remain visible; expanded details scroll inside the panel.*
+![AirTwin laptop dashboard](docs/screenshots/dashboard-laptop.jpg)
 
 </details>
 
-## Judge-facing implementation status
+## Required outcomes and implementation
 
-| ENR-01 outcome | What exists now | What is still needed |
+| ENR-01 outcome | Implemented | Interpretation |
 | --- | --- | --- |
-| PM2.5 forecast for a defined urban area | AOI, selectable locations and 24/48/72-hour illustrative charts | Trained model, weather horizon features and real forecast serving |
-| ≥3 source categories with assumptions | Traffic, industry, dust and regional background; transparent frontend proxies | Backend proxy configuration, real spatial inputs and wind weighting |
-| ≥3 pollution reduction actions | Three sliders, individual results and additive combined package | Backend scenario endpoint and validated source inputs |
-| Hotspots and historical validation | IDW grid plus computed synthetic persistence demonstration | Observed/model-target winter holdout, CV and baseline comparison |
-| OBSERVED vs MODELED labels | Separate OBSERVED, MODELED and SYNTHETIC badge components; demo warnings | Preserve provenance in every future backend response |
+| PM2.5 forecast for a defined area | Direct LightGBM horizons 1–24, 48 and 72; selectable Pune/PCMC stations/cells | Other 25–71-hour points interpolate anchors; origin is data timestamp |
+| ≥3 source categories | Traffic, industry, dust and background; YAML-configured proxies | Not measured chemical source apportionment |
+| ≥3 interventions | Three individual cuts and an additive combined package | Weather held fixed; pass-through assumptions disclosed |
+| Map plus historical validation | 144 IDW cells and Nov–Jan holdout with persistence/seasonal baselines | Read actual metrics and underperformance warnings |
+| OBSERVED vs MODELED distinction | Dataset fields, API schemas, badges, hatch layers and warnings | Synthetic population/history are labeled independently |
 
-**Do not present a completed UI tab as proof that the corresponding ML/backend
-capability exists.** [Full acceptance checklist](docs/acceptance.md).
+[Acceptance evidence](docs/acceptance.md) · [Generated model card](docs/model_card.md)
+· [Fetched data coverage](docs/data_report.md).
 
-## Run the working demo
+## Start the project
 
-Requirements: Node.js 22 with npm. No API key or Python backend is needed.
+Requirements: **Python 3.11**, **Node.js 22**, npm. On macOS, LightGBM's native
+library may require OpenMP (`libomp` via your trusted package manager).
 
 ```sh
 git clone https://github.com/RajvardhanPatil07/AirTwin.git
-cd AirTwin/frontend
-npm ci
-npm run dev
-```
-
-Open the local URL printed by Vite (normally `http://localhost:5173`). Keep
-`VITE_API_BASE_URL` unset to use the deterministic demo immediately. Fonts are
-bundled locally; the OpenStreetMap basemap requires internet. If tiles fail,
-the app shows a notice and its grid, markers, charts and scenario controls continue
-working. A map without downloaded tiles is not a fully offline basemap.
-
-### Try these interactions
-
-- Select Bhosari MIDC, Chakan MIDC or another demo location.
-- Open **Scenarios** and change traffic, industry and dust cuts.
-- Click **Run scenario**. The banner, cards, table and map use the same result.
-- Click a ranked action to inspect its after-map; switch between before and after.
-- Set all cuts to zero and verify there is no concentration reduction.
-- Open **Sources** and read assumptions behind the proxy shares.
-- Open **Backtest** and see metrics calculated from a synthetic series.
-- Open **Forecast** and switch the horizon; read the illustrative-band notice.
-- Toggle map layers, select a cell, expand assumptions or switch the theme.
-
-[Frontend guide](frontend/README.md) · [Three-minute demo script](docs/demo.md).
-
-## Run the Python data pipeline
-
-Python 3.11 is the supported development/CI version. Run from the repository root:
-
-```sh
+cd AirTwin
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r backend/requirements.txt
 ```
 
-### Offline, reproducible path
+### Fastest backend startup
 
 ```sh
-bash scripts/pipeline.sh --offline
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-This runs fetch → weather → build using the committed synthetic sample. The result
-is `data/processed/dataset.parquet`, ignored by Git. It does **not** train a model
-or start a server, because those components do not exist yet.
+The backend loads processed data when available, otherwise the committed synthetic
+sample. Missing/mismatched models regenerate before requests are accepted.
+First startup can therefore take longer. Swagger: `http://127.0.0.1:8000/docs`.
 
-### Optional provider path
+In a second terminal:
+
+```sh
+cd AirTwin/frontend
+npm ci
+npm run dev
+```
+
+Open the URL printed by Vite, normally `http://localhost:5173`. The frontend uses
+`http://127.0.0.1:8000` by default. No environmental key is placed in the browser.
+
+### Reproducible offline workflow
+
+```sh
+bash scripts/run_all.sh --offline
+```
+
+This executes fetch → weather → build → train → serve using the small committed
+synthetic sample. The frontend connects to actual trained model execution on
+synthetic targets; those results are not real-world accuracy evidence.
+
+### Fetch real environmental data
 
 ```sh
 cp .env.example .env
-# Edit .env locally and set OPENAQ_API_KEY.
-bash scripts/pipeline.sh --live
+# Edit root .env locally: OPENAQ_API_KEY=your_key
+bash scripts/run_all.sh --live
 ```
 
-The OpenAQ fetcher requests up to 18 months of hourly PM2.5 inside the AOI, follows
-pagination, retries bounded failures/rate limits, and retains partial sensor
-results. Weather uses Open-Meteo centroid reanalysis. The builder filters invalid
-targets, aggregates station-hours, merges weather, and records provenance.
+Never put a key in `.env.example`, frontend variables, chat, screenshots or Git.
+The root `.env` is ignored. Open-Meteo needs no key for this prototype workflow.
 
-The initial threshold is one sensor with at least **720 valid hours**. It is a
-coverage heuristic, not proof of enough data for training. If observed targets are
-sparse, the builder tries recent CAMS model output with matching weather; if this
-fails, it uses the synthetic fixture. Logs explicitly name fallbacks.
+OpenAQ requests the last 18 months in the AOI. Pagination, bounded retries,
+partial downloads, unit checks and provider fallbacks are implemented. Weather
+includes centroid reanalysis, current forecast context and archived previous-run
+weather aligned to 24/48/72-hour issue times. If observed targets are sparse, the
+builder tries CAMS modeled targets; if providers fail, it uses the synthetic sample.
+Logs and source fields expose each fallback.
 
-Only the offline paths and simulated failure paths are verified in this release.
-Live provider responses and coverage must be checked before claiming real data.
-See [data pipeline](docs/data_pipeline.md) for the schema and failure behavior.
+Data refresh is deliberate: rerun the pipeline/training and restart the backend.
+There is no background alerting or hidden live polling service. Successful API
+access does not guarantee that the provider has published current measurements.
 
-### Optional convenience targets
+### Frontend-only fallback
 
-```sh
-make frontend
-make pipeline PYTHON=.venv/bin/python
-make check PYTHON=.venv/bin/python
-```
+If the backend is unavailable, the app switches the entire input set to the
+illustrative synthetic frontend engine with **DEMO DATA** and a warning. To select
+that mode explicitly, set `VITE_API_BASE_URL=` in `frontend/.env` and restart Vite.
+Later API analysis failures show retry instead of mixing real inputs with mocks.
 
-Backend/ML dependencies are separated in `backend/requirements-ml.txt` for the
-planned implementation. Installing them does not create those features.
+The basemap requires internet. Without tiles, the grid/markers/charts/scenarios
+still work with a notice; this is not an offline map-tile cache.
+
+## Explore the demo
+
+1. Select Bhosari or another monitoring location; inspect its source and timestamp.
+2. Change three cuts, notice OUTDATED status, then Run scenario.
+3. Select individual/combined ranking rows and switch before/after views.
+4. Set every cut to zero; concentrations must remain unchanged.
+5. Open Sources and its assumptions; then Forecast and its separate TreeSHAP groups.
+6. Open Backtest: compare actual/model/persistence, errors and band coverage.
+7. Use Historical replay to load a high held-out hour with a visible date banner.
+8. Open Ask AirTwin for a grounded actual-output summary; no LLM key is required.
+
+[Three-minute recording script](docs/demo.md).
+
+## Computed model evidence
+
+<!-- computed-model-summary:start -->
+| Observed-target winter holdout | Computed value |
+| --- | --- |
+| MAE | 21.92 µg/m³ |
+| RMSE | 33.95 µg/m³ |
+| Persistence MAE | 21.81 µg/m³ |
+| Improvement over persistence | -0.50% |
+| p10–p90 coverage | 78.28% |
+
+The pooled model loses to persistence on this holdout. Bhosari's measured
+improvement is 7.09%, with MAE 15.17 µg/m³.
+These values describe this recorded run; they are not performance guarantees.
+<!-- computed-model-summary:end -->
+
+The model card is generated by train_model.py from held-out output, not typed
+accuracy claims. Its dataset fingerprint identifies the run. Regenerating on the
+sample produces synthetic metrics; do not treat those as observed city skill.
+The table can legitimately show negative improvement.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  OA["OpenAQ · OBSERVED"] --> FETCH["Python ingestion"]
-  OM["Open-Meteo weather · MODELED"] --> FETCH
-  SAMPLE["Committed sample · SYNTHETIC"] --> FETCH
-  FETCH --> BUILD["Hourly cleaning + provenance"]
-  CAMS["CAMS fallback · MODELED"] --> BUILD
-  BUILD --> PARQUET["Ignored processed Parquet"]
-  PARQUET -. planned .-> ML["LightGBM + chronological backtest"]
-  ML -. planned .-> API["FastAPI"]
-  API -. optional adapter .-> UI["React dashboard"]
-  DEMO["Deterministic frontend demo engine"] --> UI
-  DEMO --> GRID["IDW + proxies + additive scenarios"]
-  GRID --> UI
+  OBS[OpenAQ observed PM2.5] --> DATA[Hourly cleaning and provenance]
+  WEATHER[Open-Meteo reanalysis and archived forecasts] --> DATA
+  FALLBACK[CAMS modeled or synthetic sample fallback] --> DATA
+  DATA --> FEAT[Issue-time features]
+  FEAT --> ML[LightGBM direct and quantile models]
+  ML --> TEST[Winter holdout and purged CV]
+  TEST --> CARD[Generated metrics and model card]
+  ML --> API[FastAPI]
+  DATA --> API
+  CONFIG[Assumptions YAML and proxy zones] --> SIM[IDW sources and scenarios]
+  SIM --> API
+  API --> UI[React dashboard]
+  API --> EXPLAIN[Grounded template or optional LLM]
+  EXPLAIN --> UI
 ```
 
-Solid arrows describe current paths. Dashed arrows describe planned integration.
-The Python sample and frontend fixtures are **separate** datasets; the frontend
-currently does not read the pipeline Parquet file.
+[Architecture details](docs/architecture.md) · [API contract](docs/api.md).
 
-## Technology and responsibility
+## ML design
 
-| Layer | Implemented | Planned |
-| --- | --- | --- |
-| Frontend | React, Vite, TypeScript, Tailwind, React Leaflet, Recharts, Lucide | Grounded explanation drawer and historical replay |
-| Ingestion | Python, pandas, NumPy, requests, python-dotenv, PyArrow | Forecast weather, more station diagnostics |
-| Modeling | Synthetic persistence demonstration in TypeScript | LightGBM direct horizons, quantile models, SHAP, TimeSeriesSplit |
-| API | Typed frontend adapter and provenance guards | FastAPI routes, Pydantic schemas, CORS |
-| Spatial | Frontend 12×12 IDW grid and illustrative proximity proxies | Configured backend proxies, wind direction, verified zones |
-| Quality | pytest, Vitest, ESLint, TypeScript build, GitHub Actions | Backend ML leakage/split and endpoint tests |
+- Gap-aware PM2.5 lags: 1, 2, 3, 6, 12, 24 and 48 hours; issue reading included.
+- Past-only rolling mean/std at 6 and 24 hours.
+- Target-calendar hour/day/month with cyclical encoding and a winter flag.
+- Issue weather, wind u/v, humidity/rain and calm-humid stagnation.
+- Archived horizon-weather covariates for 24/48/72 hours where available; otherwise
+  issue-weather persistence. BLH stays missing when unavailable.
+- Direct mean and alpha 0.1/0.9 quantile LightGBM models.
+- Chronological winter holdout when coverage allows; otherwise disclosed last-20% split.
+- Horizon-aware purging across stations in TimeSeriesSplit.
+- Persistence and training-only seasonal hourly mean baselines.
+- Computed MAE/RMSE/R²/improvement/coverage and per-sensor evidence.
+- Separate serving refit and held-out models; exact TreeSHAP grouped by feature category.
 
-## Calculation principles
+Reanalysis issue covariates are retrospective, and provider publication delay is
+not simulated. Archived horizon forecasts reduce future-weather leakage, but do
+not make this a fully operational availability experiment.
 
-For each cell, `background = min(regional 15th percentile, baseline)` and
-`local_excess = max(baseline − background, 0)`. Local traffic/industry/dust weights
-sum to one. The intervention engine applies:
+## Attribution and intervention math
+
+`background = min(shared-hour 15th percentile, cell baseline)` and
+`local_excess = max(baseline − background, 0)`. Local traffic/industry/dust proxy
+weights normalize to one; displayed total shares also include background.
 
 ```text
-reduction = local_excess × Σ(local_weight × emission_cut_fraction) × pass_through
-after     = max(background, before − reduction)
-benefit   = Σ(cell_reduction × cell_population)
+ΔPM2.5 = local_excess × Σ(local_weight × cut_fraction) × pass_through
+after   = max(background, before − ΔPM2.5)
+benefit = Σ(cell_reduction × cell_population)
 ```
 
-The central pass-through is 0.7. Low/high sensitivity uses 0.6/0.8 and ±20% source
-scaling. These are assumptions, not confidence bounds from observations.
+Central pass-through is 0.7; sensitivity uses 0.6–0.8 with ±20% aggregate source
+scaling. Combined central benefit equals individual sums before rounding.
+Background-inclusive shares are not multiplied by local excess a second time.
 
-**Local weights and total concentration shares are different.** Multiplying
-background-inclusive shares by local excess would discount local sources twice.
-The current demo uses local weights, so combined concentration and exposure
-benefits equal the sum of individual actions before display rounding.
+Traffic uses assumed corridor/hour profiles, industry uses proximity/upwind cosine,
+and dust uses construction proximity/dryness. The hand-drawn zones are synthetic
+proxy geometry. Population is synthetic too. Benefit units are **person·µg/m³**,
+not people protected, avoided deaths, cumulative dose or measured policy effectiveness.
 
-Benefit is in **person·µg/m³**, not a count of people protected, a health-risk
-estimate, or a cumulative dose. [Equations and worked checks](docs/methodology.md).
+[Assumptions](docs/assumptions.md) · [Methodology](docs/methodology.md).
 
-## Data provenance
+## Provenance and uncertainty
 
-| Label | Meaning | Current example |
+| Label | Meaning | Examples |
 | --- | --- | --- |
-| OBSERVED | A measured provider reading with attribution and timestamp | Supported by ingestion; not the dashboard's demo locations |
-| MODELED | Derived, interpolated or scenario output | IDW grid, proxy source shares, intervention results |
-| SYNTHETIC | Constructed fixture for demonstration/testing | Six demo locations, population grid and sample CSV |
+| OBSERVED | Measured provider readings | OpenAQ PM2.5 targets |
+| MODELED | Forecast/reanalysis/interpolation/scenario output | LightGBM, CAMS, weather, IDW and shares |
+| SYNTHETIC | Constructed development/demo input | Sample targets, population and proxy zones |
 
-Target and weather provenance are independent. CAMS never becomes observed when
-used as a target. Reanalysis weather is modeled and is not evidence of weather
-information available at a historic forecast issue time. Missing weather remains
-missing; target hours are never imputed and relabeled as observations.
+Target, weather and population provenance are independent. CAMS remains modeled
+after training. Missing target hours are not filled and relabeled observed.
+One scalar source label does not erase nested input provenance.
 
-## Forecast evidence and limitations
+Scenario sensitivity bounds and forecast quantile bands are different quantities.
+Forecast coverage is measured in the holdout; low coverage and model losses appear
+in the UI. SHAP is feature explanation, not causal source attribution.
 
-[Model card](docs/model_card.md) records the current **not trained** status.
-The frontend backtest computes MAE, RMSE, R², improvement over persistence and band
-coverage from its displayed synthetic sequence. The predictor is persistence, so
-this demonstration cannot establish superiority over persistence.
+## Standout features
 
-Real validation must use a chronological winter holdout, training-only baseline
-statistics, leakage-safe lag construction and future-weather availability rules.
-Report poor performance honestly, including stations where the model loses.
+**Historical replay:** selects a high held-out target hour, reloads the snapshot
+and shows its date/source. Replay forecasts use the pre-holdout 24-hour model;
+shorter points interpolate from the issue reading. Full independent archived
+forecasts at every replay horizon are not claimed.
 
-Other limitations:
+**Ask AirTwin:** builds context from actual forecast, TreeSHAP, shares, scenarios
+and backtest outputs. Without a key it returns a grounded template. Optional root
+environment values: LLM_API_KEY, LLM_BASE_URL and LLM_MODEL for an OpenAI-compatible
+provider. The prompt forbids outside numbers; numeric/tag checks reject invalid
+output. This is not proof of perfect semantic grounding, and no provider-backed
+LLM run has been verified without a configured key.
 
-- Sparse monitoring can make interpolation unrepresentative between stations.
-- Approximate coordinates and zone outlines are illustrative, not surveyed data.
-- Proximity proxy shares are not chemical source apportionment or causal estimates.
-- Current attribution omits real road density, construction activity, wind weighting
-  and measured industrial emissions.
-- Population is synthetic; demographic or public-health claims are unsupported.
-- The simulator is not a chemical transport model; weather is held constant.
-- Colors show PM2.5 concentration bands, not a calculated official city AQI.
-- No alerting, regulatory decision support or health advice is provided.
-
-## Tests and reproducibility
+## Quality checks
 
 ```sh
 python -m pytest backend/tests -q
@@ -246,85 +268,68 @@ npm run build
 npm run test:sites
 ```
 
-CI runs the Python tests and complete offline pipeline, plus frontend lint, tests,
-TypeScript/build and hosting-worker tests. It does not contact live environmental
-APIs or validate a nonexistent trained model. The workflow badge reports actual CI
-status, not a manually asserted passing result.
+`make check PYTHON=.venv/bin/python` runs the combined checks. CI tests the offline
+pipeline and trains on the sample without provider keys. API tests isolate their
+model artifacts so they cannot overwrite development models.
 
-[Testing guide](docs/testing.md) · [Troubleshooting](docs/troubleshooting.md) ·
-[Contributor guide](CONTRIBUTING.md).
+`python scripts/check_repository.py` rejects tracked secrets-by-path, generated
+outputs and oversized files; it is not a complete credential-content scanner.
+Review staged diffs as well. Raw data, processed files, model binaries, environment
+files, virtual environments, dependencies, videos and build outputs stay ignored.
 
-## Repository map
+[Testing](docs/testing.md) · [Troubleshooting](docs/troubleshooting.md) ·
+[Contribution guide](CONTRIBUTING.md).
+
+## Repository structure
 
 ```text
 AirTwin/
-├── .github/                 # CI, issue forms and PR checklist
+├── .github/                 # CI, issue forms, PR checklist
 ├── backend/
-│   ├── app/config.py        # Ingestion paths, AOI and settings
-│   ├── scripts/             # Fetch, weather, clean/build, synthetic generator
-│   ├── tests/               # Pipeline and fallback tests
-│   ├── requirements.txt     # Pinned current pipeline dependencies
-│   └── requirements-ml.txt  # Optional planned backend/ML dependencies
-├── data/sample/             # Small, explicitly synthetic committed fixture
-├── docs/                    # Architecture, API, methodology, demo, status
-├── frontend/
-│   ├── src/components/      # Map, charts, badges, assumptions, scenarios
-│   ├── src/lib/             # API adapter and formatting
-│   ├── src/mocks/           # Deterministic demo engine and tests
-│   ├── src/pages/           # Dashboard composition/state
-│   └── src/types.ts         # Canonical frontend API contract
-├── scripts/                 # Offline/live pipeline runner and hygiene check
-├── CONTRIBUTING.md
-├── CHANGELOG.md
+│   ├── app/main.py          # FastAPI and local CORS
+│   ├── app/schemas.py       # Typed response/input provenance
+│   ├── app/routers/         # Forecast, backtest, map, sources, scenarios, explain
+│   ├── app/services/        # Data, features, ML, spatial, simulation, context
+│   ├── scripts/             # Fetch → build → train
+│   └── tests/               # Pipeline, leakage, split, math and API tests
+├── config/assumptions.yaml  # Central source/intervention weights
+├── data/sample/             # Small synthetic offline fixture
+├── data/zones.geojson       # Hand-made synthetic proxy geometry
+├── docs/                    # Evidence, architecture, API and methodology
+├── frontend/src/            # Existing screenshot-matched dashboard
+├── scripts/run_all.sh       # Fetch → build → train → serve
 └── Makefile
 ```
 
-Raw downloads, processed datasets, model binaries, environment files, virtual
-environments, dependencies, archives, videos and build outputs stay out of Git.
-The sample is under 1 MB. Dependency lockfiles and sanitized environment examples
-are committed to support reproducibility.
+## Limits and next milestones
 
-## Sources, attribution and reuse
+Sparse/delayed observations, station gaps, retrospective weather and domain shifts
+limit forecast interpretation. Proximity source shares are not chemical transport
+or causal models. Synthetic population cannot support demographic or health claims.
+Colors are concentration bands, not a calculated official city AQI. No production
+security, regulatory support, health advice or alerting is claimed.
 
-- **OpenAQ:** intended observed station source. Provider attribution/terms must be
-  retained; access through OpenAQ does not imply a single blanket data license.
-- **Open-Meteo/CAMS:** modeled weather/air-quality inputs. Open-Meteo API data are
-  CC BY 4.0; retain required provider/Copernicus attribution for the selected product.
-- **OpenStreetMap:** current basemap; © OpenStreetMap contributors, ODbL data.
-- **WorldPop:** planned, not used. Check the specific dataset's license before reuse.
-- **Synthetic fixtures:** repository-authored demo data; they are not provider data.
-- **Inter:** font distributed through Fontsource under SIL Open Font License.
+Next: improve skill using training/CV and a new evaluation period; calibrate
+intervals; verify real road/industrial/population inputs; strengthen LLM claim
+checks; add pollutants and validated alerts. [Roadmap](docs/roadmap.md).
 
-[Attribution and license notes](docs/data_sources.md). No project-wide software
-license has been chosen by the team yet; public visibility is not a license grant.
-Third-party licenses continue to apply independently.
+## Sources and licenses
 
-## Social impact and SDGs
+OpenAQ observed readings retain station/provider names. Open-Meteo API data are
+CC BY 4.0; retain Open-Meteo/CAMS attribution where used. The current basemap is
+© OpenStreetMap contributors, ODbL data with separate tile-use conditions. WorldPop
+is planned, not used. Inter is SIL OFL. No downloaded provider dumps are committed.
 
-**SDG 3:** make the exposure dimension of pollution interventions understandable.
-**SDG 11:** help compare urban mobility, industrial and construction policy options.
-**SDG 13:** connect environmental data with transparent local decision scenarios.
-These are intended contributions; this prototype has not measured health benefits,
-policy effectiveness or emissions reductions.
+[Source and license notes](docs/data_sources.md). No project-wide software license
+has been chosen by the team; public repository visibility alone is not a license.
 
-## Roadmap
+## Social impact and team
 
-Round 1 priorities: real historical coverage → leakage-safe model/backtest →
-FastAPI contract → configured spatial/scenario engine → frontend integration.
-After this works end to end: grounded answer generation using actual outputs,
-historical replay, additional pollutants and better population inputs.
-Round 2 ideas include richer spatial views and validated live alerts.
-
-[Prioritized roadmap and completion evidence](docs/roadmap.md).
-
-## Team and contributions
+Intended contributions: **SDG 3** through exposure-aware comparison, **SDG 11**
+through transparent urban action scenarios, and **SDG 13** through environmental
+data interpretation. No health or policy impact has been measured.
 
 Built for a four-person student team. Repository maintainer:
-[Rajvardhan Patil](https://github.com/RajvardhanPatil07).
-Other members' names and affiliations have not been provided and are not invented.
-Suggested responsibilities: data/ML, API/spatial, frontend, and validation/docs/demo.
-Git history records actual authorship; task allocation is not a contribution claim.
-
-Small, reviewable contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md),
-open a focused issue, and include reproducible validation with your pull request.
-For sensitive reports, see [SECURITY.md](SECURITY.md).
+[Rajvardhan Patil](https://github.com/RajvardhanPatil07). Other member names have
+not been provided and are not invented. Suggested responsibilities: data/ML,
+API/spatial, frontend and validation/docs/demo. Git history records actual authorship.

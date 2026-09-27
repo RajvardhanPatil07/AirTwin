@@ -1,40 +1,29 @@
-# ENR-01 acceptance and evidence checklist
+# ENR-01 acceptance evidence
 
-This checklist distinguishes available demonstration behavior from required real
-system evidence. Read it before making submission claims.
-
-| Requirement | Current evidence | Verdict for full requirement |
+| Requirement | Implementation/evidence | Limits |
 | --- | --- | --- |
-| Forecast at least one air indicator | PM2.5 UI and illustrative daily-cycle projection | Pending real forecast model |
-| Defined urban area | Bounding box and six approximate Pune/PCMC locations | Defined, coordinates need verification |
-| ≥3 source categories | Demo traffic/industry/dust/background shares and assumptions | Demo available; real proxy inputs pending |
-| ≥3 actions | Traffic restriction, industry controls, dust suppression; combined package | Demo engine works |
-| Hotspot map | 144 IDW-derived modeled cells, selectable locations, provenance styling | Demo available |
-| Historical test validation | Synthetic seven-day persistence predictor and computed metrics | Pending real winter holdout |
-| Observed vs modeled distinction | Source types, badges, synthetic warnings, no invented observed readings | Present in current demo/pipeline |
-| End-to-end backend + frontend | API adapter exists, server does not | Pending |
-| Offline sample | Committed sub-1 MB CSV and independent frontend fixtures | Present; basemap tiles still need network |
-| Clean repository | Ignore rules and tracked-file hygiene CI | Automated check available |
+| Forecast PM2.5 for defined urban area | LightGBM direct forecasts; AOI and station/cell selection | Forecast origin is data timestamp; stale observations are warned |
+| ≥3 source categories | Traffic, industry, dust and background with YAML assumptions | Proxy hypotheses, not measured chemical shares |
+| ≥3 interventions | Individual and additive combined packages, after-grid and ranking | Pass-through and population are assumptions |
+| Hotspots and historical validation | IDW grid plus winter held-out model/persistence series | Read actual model card; model can lose to persistence |
+| Separate observed/modeled/synthetic | Dataset fields, typed responses, badges, warnings and replay banner | Weather/population/targets have independent provenance |
+| API + frontend end to end | FastAPI endpoints and existing dashboard adapter | Local runtime; no public production service |
+| Offline mode | Sample fallback and automatically regenerated trained models | Synthetic metrics are not real-world accuracy; map tiles need internet |
+| Reproducibility | run_all.sh, pinned dependencies, tests, generated card and CI | Raw downloads/model binaries remain ignored |
 
-## Required completion evidence
+## Submission checks
 
-- [ ] Document exact target provider and station coverage.
-- [ ] Commit scripts to regenerate a model; do not commit its binary.
-- [ ] Generate metrics and model card from held-out predictions.
-- [ ] Record persistence comparison, including negative improvement if applicable.
-- [ ] Demonstrate real API responses powering all linked scenario displays.
-- [ ] Confirm source shares sum to one and combined equals individual sums.
-- [ ] Verify source badges in every chart, map layer and tooltip.
-- [ ] Test API outage and missing-data behavior.
-- [ ] Capture updated screenshots with provenance/date intact.
-- [ ] Record the submission demo and keep video out of Git.
+- [ ] Confirm the latest CI run passes for the submitted commit.
+- [ ] Verify source timestamp and stale-data notice before recording.
+- [ ] Read actual held-out metrics, including negative improvements.
+- [ ] Demonstrate zero cuts, individual and combined action consistency.
+- [ ] Show forecast explanation separately from source hypotheses.
+- [ ] Keep assumptions and synthetic population labeling in the video.
+- [ ] Confirm team members and add final video link externally.
 
-## Presentation claims that are safe now
+Safe presentation: “The system trains on available hourly targets, serves forecasts
+and held-out evidence, and compares transparent proxy interventions. Data
+freshness, model underperformance and synthetic population are explicitly shown.”
 
-“We have built an interactive, transparent simulation demo and an ingestion
-pipeline. Current dashboard inputs are synthetic. The next milestone is a trained
-24-hour forecast and real held-out validation.”
-
-Claims that are not supported now: real forecast accuracy; measured industrial
-source percentages; causal policy benefits; a specific number of people protected;
-a complete digital twin; guaranteed regulatory or health usefulness.
+Unsupported claims: measured source percentages; causal policy effect; people
+saved/protected counts; medically validated benefits; guaranteed forecast accuracy.

@@ -32,7 +32,7 @@ weather outage fallback; sparse/CAMS failure fallback without rewriting the samp
 normalized source/local shares; exact-location IDW; background/maximum cut behavior;
 computed persistence demonstration/provenance; nonnegative sensitivity ranges.
 
-**API adapter:** no request with unconfigured backend; explicit initial demo
+**API adapter:** no request when the backend is explicitly disabled; explicit initial demo
 fallback; rejection of invalid response provenance and missing modeled assumptions.
 This is not full runtime schema validation of every nested response field.
 
@@ -49,14 +49,14 @@ The recorded frontend QA report is frontend/design-qa.md.
 
 ## What remains unproven
 
-No real-model accuracy, winter holdout, training leakage test, TimeSeriesSplit,
-quantile calibration, SHAP validation, FastAPI integration, observed-data provider
-coverage, real population weighting or causal intervention effect is established.
-Add corresponding tests and generated evidence with those implementations.
+Backend tests now verify gap-aware/no-future features, horizon forecast alignment,
+purged temporal boundaries, metrics, IDW, zero cuts/additivity, SHAP reconstruction,
+API contracts/CORS/errors, replay and template explanations. The model card contains
+real held-out evidence for the downloaded dataset. Live optional LLM integration,
+strong interval calibration, real population and causal policy effects remain unproven.
 
 ## Interpreting a green CI badge
 
-Green means the checked commit passed the configured jobs. It does not mean the
-planned system exists, live APIs are available, or the model is accurate. Inspect
+Green means the checked commit passed the configured jobs. It does not guarantee live APIs are available or the model is accurate. Inspect
 job logs and commit SHA. Do not keep a manually written “all tests pass” claim if
 changes have not been validated.

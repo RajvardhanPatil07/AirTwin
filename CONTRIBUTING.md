@@ -1,12 +1,12 @@
 # Contributing to AirTwin
 
 Keep changes understandable to a student presenter and reviewable by a teammate.
-The repository is a frontend demo and ingestion pipeline, not a finished ML service.
+The repository is an end-to-end research prototype with explicit data and model limitations.
 Start by reading README status, docs/roadmap.md and docs/assumptions.md.
 
 ## Local development
 
-Use Node 22 for the frontend and Python 3.11 for ingestion. Install with `npm ci`
+Use Node 22 for the frontend and Python 3.11 for the backend and ML. Install with `npm ci`
 and `python -m pip install -r backend/requirements.txt` in a virtual environment.
 The default frontend and `bash scripts/pipeline.sh --offline` need no keys.
 Do not replace the sample unless that replacement is the purpose of your change.
