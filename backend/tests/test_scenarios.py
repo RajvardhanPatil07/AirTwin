@@ -50,4 +50,4 @@ def test_idw_downweights_stale_station():
 
 def test_city_grid_is_dense():
     cells, _ = make_grid(STATIONS, WEATHER, TIME)
-    assert len(cells) == 24 * 24
+    assert len(cells) == 48 * 48

@@ -2740,3 +2740,124 @@ input[type="range"]::-moz-range-thumb {
     display: none;
   }
 }
+
+
+/* 1080p demo readability + dense-map controls */
+.brand h1 { font-size: 18px; }
+.brand p { font-size: 10px; }
+.header-status { font-size: 11px; }
+.status-chip { font-size: 11px; padding: 7px 10px; }
+.region-control select,
+.header-status select { font-size: 11px; }
+.data-time { font-size: 10px; }
+.data-badge { font-size: 9px; padding: 5px 8px; }
+.ask-trigger { min-height: 34px; font-size: 11px; padding: 7px 12px; }
+
+.map-banner { min-height: 34px; font-size: 10px; padding: 7px 11px; }
+.map-controls {
+  left: 124px;
+  min-height: 34px;
+  align-items: center;
+  gap: 3px;
+}
+.map-controls button {
+  min-height: 28px;
+  padding: 6px 9px;
+  font-size: 10px;
+}
+.map-area-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.map-area-control select {
+  max-width: 150px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+.wind-card strong { font-size: 10px; }
+.legend-title { font-size: 9px; }
+.band-grid { font-size: 9px; gap: 10px; }
+.station-tooltip { font-size: 12px; line-height: 1.35; }
+.leaflet-tooltip .data-badge { font-size: 8px; }
+
+.eyebrow { font-size: 10px; }
+.location-picker select { font-size: clamp(28px, 2vw, 36px); }
+.result-status { font-size: 10px; padding: 6px 9px; }
+
+.tabs button {
+  padding: 12px 11px 13px;
+  font-size: 12px;
+}
+.tabs button span { font-size: 9px; margin-right: 6px; }
+
+.section-heading h2,
+.tab-content > h2 {
+  font-size: 26px;
+}
+.section-heading select { font-size: 12px; min-height: 34px; }
+.overview-meta { font-size: 11px; }
+.overview-value span { font-size: 13px; }
+.overview-stats span,
+.metric-grid span { font-size: 9px; }
+.overview-stats strong { font-size: 22px; }
+.overview-stats small { font-size: 10px; }
+.quiet-cta { font-size: 12px; padding: 10px 12px; }
+.demo-notice { font-size: 11px; }
+
+.comparison-heading h2 { font-size: 23px; }
+.rank-badge { font-size: 10px; }
+.value-box > span { font-size: 10px; }
+.value-box strong { font-size: 32px; }
+.value-box em { font-size: 12px; }
+
+.slider-row { font-size: 13px; }
+.slider-row output { font-size: 13px; }
+.run-button {
+  min-height: 44px;
+  font-size: 13px;
+}
+.result-row { min-height: 56px; font-size: 11px; }
+.result-name b { font-size: 12px; }
+.result-name small { font-size: 9px; }
+.result-simple-grid > strong { font-size: 13px; }
+
+.metric-grid strong { font-size: 18px; }
+.validation-warning { font-size: 11px; }
+.chart-footnote,
+.helper { font-size: 10px; }
+.shap-row { font-size: 11px; grid-template-columns: 88px 1fr 52px; }
+.source-list > div { font-size: 12px; }
+.summary-note { font-size: 11px; }
+.assumptions { font-size: 10px; }
+.assumptions summary { font-size: 9px; }
+.loading-state,
+.error-state { font-size: 12px; }
+
+@media (max-width: 1180px) {
+  .map-controls {
+    left: 14px;
+    top: 54px;
+    right: 14px;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 820px) {
+  .map-area-control select { max-width: 125px; }
+  .location-picker select { font-size: 28px; }
+  .tabs button { font-size: 11px; }
+}

@@ -111,7 +111,7 @@ resolution**.
 - Interpolation applies spatial IDW plus exponential recency decay with a
   configurable 6-hour half-life, so a stale sensor contributes less than an
   equally distant fresh sensor.
-- The Pune + PCMC grid is 24 × 24 (576 MODELED cells), up from 12 × 12.
+- The Pune + PCMC grid is 48 × 48 (2,304 MODELED cells), up from 12 × 12. This is display/model resolution, not sensor count.
 - Every station preserves its own observation timestamp. Grid cells remain
   MODELED and must never be described as 576 physical sensors.
 - Centroid weather remains a limitation of the current training dataset; denser

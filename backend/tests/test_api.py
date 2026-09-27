@@ -36,7 +36,7 @@ def test_contract_and_provenance(client):
     health = client.get('/api/health').json()
     assert health['target_source_types'] == ['synthetic']
     stations = client.get('/api/stations').json()
-    assert stations['coverage']['grid_cells'] == 24 * 24
+    assert stations['coverage']['grid_cells'] == 48 * 48
     assert stations['coverage']['station_anchors'] >= 1
     location = stations['stations'][0]['id']
     assert stations['stations'][0]['source_type'] == 'synthetic'

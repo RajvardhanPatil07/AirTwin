@@ -73,12 +73,12 @@ function SeriesChart({
                 : timeLabel(value)
             }
             minTickGap={65}
-            tick={{ fontSize: 9, fill: "var(--muted)" }}
+            tick={{ fontSize: 12, fill: "var(--muted)" }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 9, fill: "var(--muted)" }}
+            tick={{ fontSize: 12, fill: "var(--muted)" }}
             axisLine={false}
             tickLine={false}
           />
@@ -91,7 +91,7 @@ function SeriesChart({
               color: "var(--text)",
               borderColor: "var(--border)",
               borderRadius: 8,
-              fontSize: 11,
+              fontSize: 12,
             }}
             formatter={(value) =>
               typeof value === "number"
@@ -99,7 +99,7 @@ function SeriesChart({
                 : String(value)
             }
           />
-          <Legend wrapperStyle={{ fontSize: 9, paddingTop: 8 }} />
+          <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
           <Area
             dataKey="band"
             name={demo ? "Illustrative band" : "p10–p90"}
@@ -346,7 +346,7 @@ export function AttributionChart({ data }: { data: AttributionResponse }) {
                   color: "var(--text)",
                   border: "1px solid var(--border)",
                   borderRadius: 8,
-                  fontSize: 11,
+                  fontSize: 12,
                 }}
               />
             </PieChart>

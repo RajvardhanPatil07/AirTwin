@@ -183,9 +183,9 @@ export function MapView({
               bounds={cell.bounds}
               pathOptions={{
                 color: "#ffffff",
-                weight: 0.45,
+                weight: 0.22,
                 fillColor: colorFor(cell.pm25),
-                fillOpacity: 0.4,
+                fillOpacity: 0.5,
               }}
               eventHandlers={{
                 add: (event) =>
