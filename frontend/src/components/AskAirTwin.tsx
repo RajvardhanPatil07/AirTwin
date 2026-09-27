@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
-import type { Station, ExplainResponse } from "../types";
+import type { Station, ExplainResponse, RegionId, Cuts } from "../types";
 import { api } from "../lib/api";
 import { DataBadge } from "./DataBadge";
 
@@ -8,14 +8,23 @@ export function AskAirTwin({
   location,
   demo,
   replayAt,
+  region,
+  cuts,
+  hours,
 }: {
   location: Station;
   demo: boolean;
   replayAt: string | null;
+  region: RegionId;
+  cuts: Cuts;
+  hours: number;
 }) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("Why is pollution high here?");
   const [answer, setAnswer] = useState<ExplainResponse | null>(null);
+  const [history, setHistory] = useState<{ role: string; content: string }[]>(
+    [],
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestVersion = useRef(0);
@@ -25,8 +34,9 @@ export function AskAirTwin({
     requestVersion.current += 1;
     setBusy(false);
     setAnswer(null);
+    setHistory([]);
     setError(null);
-  }, [location.id, replayAt]);
+  }, [location.id, replayAt, region, cuts, hours]);
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open]);
@@ -65,8 +75,9 @@ export function AskAirTwin({
           </header>
           <DataBadge source="modeled" detail="EXPLANATION" />
           <p className="helper">
-            No LLM key is required. A grounded template is used when no provider
-            is configured or its response fails checks.
+            Gemini reads this location’s forecast, weather, source proxies,
+            applied interventions and validation. Each answer cites computed
+            evidence.
           </p>
           <form
             onSubmit={async (event) => {
@@ -79,11 +90,28 @@ export function AskAirTwin({
                   location.id,
                   question,
                   replayAt,
+                  region,
+                  cuts,
+                  hours,
+                  history.slice(-8),
                 );
-                if (version === requestVersion.current) setAnswer(result);
-              } catch {
+                if (version === requestVersion.current) {
+                  setAnswer(result);
+                  setHistory((previous) =>
+                    [
+                      ...previous,
+                      { role: "user", content: question },
+                      { role: "assistant", content: result.answer },
+                    ].slice(-8),
+                  );
+                }
+              } catch (failure) {
                 if (version === requestVersion.current)
-                  setError("Could not generate an explanation. Please retry.");
+                  setError(
+                    failure instanceof Error
+                      ? failure.message
+                      : "Gemini could not answer. Please retry.",
+                  );
               } finally {
                 if (version === requestVersion.current) setBusy(false);
               }
@@ -105,8 +133,14 @@ export function AskAirTwin({
           {error && <p role="alert">{error}</p>}
           {answer && (
             <div className="ask-answer" aria-live="polite">
-              <p>{answer.answer}</p>
-              <small>Method: {answer.method.replaceAll("_", " ")}</small>
+              {answer.claims.map((claim, index) => (
+                <div key={index}>
+                  <DataBadge source={claim.source_type} />
+                  <p>{claim.text}</p>
+                  <small>Evidence: {claim.evidence_ids.join(", ")}</small>
+                </div>
+              ))}
+              <small>Model: {answer.model}</small>
             </div>
           )}
         </section>

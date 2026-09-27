@@ -1,4 +1,19 @@
 export type SourceType = "observed" | "modeled" | "synthetic";
+export type RegionId = "pcmc" | "maharashtra";
+export interface RegionInfo {
+  id: RegionId;
+  name: string;
+  bounds: [[number, number], [number, number]];
+  grid_size: number;
+  boundary?: ZoneCollection | null;
+  forecast_provider: string;
+}
+export interface DataPoint {
+  value: number;
+  unit: string;
+  source_type: SourceType;
+  timestamp: string;
+}
 export interface Provenance {
   source_type: SourceType;
   assumptions: string[];
@@ -11,6 +26,8 @@ export interface Station extends Provenance {
   longitude: number;
   pm25: number;
   timestamp: string;
+  pollutants?: Record<string, DataPoint>;
+  weather?: Weather;
 }
 export interface Cell extends Provenance {
   id: string;
@@ -55,6 +72,8 @@ export interface StationsResponse extends Provenance {
   data_mode?: string;
   weather?: Weather;
   zones?: ZoneCollection;
+  region?: RegionInfo;
+  coverage?: Record<string, string | number | string[]>;
 }
 export interface HotspotsResponse extends Provenance {
   cells: Cell[];
@@ -71,7 +90,7 @@ export interface ForecastResponse extends Provenance {
   location_id: string;
   history_source_type: SourceType;
   history_reference?: string;
-  shap?: ShapExplanation;
+  shap?: ShapExplanation | null;
   weather_forecast?: Weather[];
   series: SeriesPoint[];
 }
@@ -90,7 +109,8 @@ export interface BacktestResponse extends Provenance {
   seasonal_baseline?: Record<string, number>;
   cv?: Record<string, number | string>[];
   series: SeriesPoint[];
-  metrics: Metrics;
+  metrics: Metrics | null;
+  available?: boolean;
 }
 export interface AttributionResponse extends Provenance {
   location_id: string;
@@ -104,6 +124,8 @@ export interface DashboardData {
   warning: string | null;
   weather?: Weather;
   zones?: ZoneCollection;
+  region?: RegionInfo;
+  coverage?: Record<string, string | number | string[]>;
 }
 
 export interface ShapExplanation {
@@ -120,6 +142,8 @@ export interface Weather {
   temperature_2m?: number;
   relative_humidity_2m?: number;
   precipitation?: number;
+  surface_pressure?: number;
+  cloud_cover?: number;
 }
 export interface ZoneCollection {
   type: "FeatureCollection";
@@ -137,4 +161,6 @@ export interface ExplainResponse extends Provenance {
   answer: string;
   method: string;
   context: Record<string, unknown>;
+  model: string;
+  claims: { text: string; source_type: SourceType; evidence_ids: string[] }[];
 }

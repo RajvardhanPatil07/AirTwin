@@ -12,7 +12,13 @@ import {
 } from "react-leaflet";
 import { Check, Layers, Wind } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
-import type { Cell, Station, Weather, ZoneCollection } from "../types";
+import type {
+  Cell,
+  Station,
+  Weather,
+  ZoneCollection,
+  RegionInfo,
+} from "../types";
 import { colorFor } from "../mocks/engine";
 import { number } from "../lib/format";
 import { DataBadge } from "./DataBadge";
@@ -45,12 +51,14 @@ const BANDS = [
   ["Severe >250", "#7f1d1d"],
 ];
 
-function MapRuntime() {
+function MapRuntime({ region }: { region?: RegionInfo }) {
   const map = useMap();
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       map.invalidateSize();
-      map.setZoom(map.getContainer().clientHeight < 700 ? 10 : 11);
+      if (region?.id === "maharashtra")
+        map.fitBounds(region.bounds, { padding: [30, 30] });
+      else map.setZoom(map.getContainer().clientHeight < 700 ? 10 : 11);
     });
     observer.observe(map.getContainer());
     // This SVG pattern encodes modeled grid provenance; geography is rendered by Leaflet.
@@ -78,15 +86,17 @@ function MapRuntime() {
     };
     injectHatch();
     map.on("layeradd", injectHatch);
+    if (region) map.fitBounds(region.bounds, { padding: [30, 30] });
     return () => {
       observer.disconnect();
       map.off("layeradd", injectHatch);
     };
-  }, [map]);
+  }, [map, region]);
   return null;
 }
 
 interface Props {
+  region?: RegionInfo;
   stations: Station[];
   cells: Cell[];
   selected: Station;
@@ -109,6 +119,7 @@ export function MapView({
   demo,
   weather,
   zones,
+  region,
 }: Props) {
   const [layers, setLayers] = useState({
     Hotspots: true,
@@ -129,14 +140,14 @@ export function MapView({
   return (
     <section
       className={`map-shell ${dark ? "dark-map" : ""}`}
-      aria-label="Pune and PCMC pollution map"
+      aria-label={`${region?.name ?? "Pune and PCMC"} pollution map`}
     >
       <MapContainer
         center={[18.6, 73.82]}
         zoom={11}
         zoomControl={false}
         scrollWheelZoom
-        minZoom={9}
+        minZoom={5}
         maxZoom={15}
         className="map"
         attributionControl
@@ -257,7 +268,9 @@ export function MapView({
                   station.source_type === "observed" ? "#15803d" : "#4b5563",
                 weight: 3,
                 fillColor: colorFor(station.pm25),
-                fillOpacity: 1,
+                fillOpacity: station.source_type === "observed" ? 1 : 0.5,
+                dashArray:
+                  station.source_type === "modeled" ? "3 2" : undefined,
               }}
               eventHandlers={{
                 add: (event) =>
@@ -298,7 +311,9 @@ export function MapView({
                 tooltipStation
                   ? demo
                     ? "DEMO LOCATION"
-                    : "STATION"
+                    : tooltipStation.source_type === "modeled"
+                      ? "CAMS REFERENCE"
+                      : "STATION"
                   : after
                     ? "SCENARIO"
                     : "INTERPOLATED"
@@ -307,7 +322,14 @@ export function MapView({
             {demo && <div className="tooltip-note">Synthetic demo inputs</div>}
           </Tooltip>
         </CircleMarker>
-        <MapRuntime />
+        {region?.boundary && (
+          <GeoJSON
+            key={region.id}
+            data={region.boundary as unknown as GeoJsonObject}
+            style={{ color: "#0b4f6c", weight: 2, fill: false }}
+          />
+        )}
+        <MapRuntime region={region} />
       </MapContainer>
       <div className="map-banner">
         <DataBadge
@@ -345,7 +367,7 @@ export function MapView({
       <div className="map-context">
         <Layers size={14} />
         <span>
-          12 × 12 grid
+          {region?.grid_size ?? 12} × {region?.grid_size ?? 12} grid
           <br />
           <small>
             {layers.Zones ? "Illustrative zones shown" : "Zones hidden"}
@@ -387,7 +409,13 @@ export function MapView({
           <DataBadge source="modeled" detail="HATCH" />
           <DataBadge source="synthetic" />
         </div>
-        <p>Station markers stay at baseline in after view.</p>
+        <p>Reference markers stay at baseline in after view.</p>
+        {region?.id === "maharashtra" && (
+          <p>
+            CAMS via Open-Meteo · ~45 km model resolution. Boundary:
+            geoBoundaries / DataMeet, CC BY 2.5 IN.
+          </p>
+        )}
         {!demo &&
           stations.some((station) => station.source_type === "observed") && (
             <p>

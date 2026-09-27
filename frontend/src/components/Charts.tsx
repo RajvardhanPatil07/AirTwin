@@ -198,8 +198,14 @@ export function ForecastChart({
       />
       {data.history_reference && (
         <p className="helper">
-          Temporal history reference: sensor {data.history_reference}. Forecast
-          origin is the latest displayed history timestamp.
+          History reference: {data.history_reference}. Forecast origin is the
+          latest displayed history timestamp.
+        </p>
+      )}
+      {!demo && data.history_reference?.startsWith("cams-") && (
+        <p className="api-warning">
+          CAMS provider forecast (~45 km). Statewide LightGBM validation and
+          calibrated uncertainty bands are unavailable.
         </p>
       )}
       {data.shap && (
@@ -209,8 +215,8 @@ export function ForecastChart({
         >
           <div className="eyebrow">MODELED · WHY THE 24-HOUR FORECAST?</div>
           <p className="helper">
-            Contributions explain the 24-hour forecast in µg/m³, separately
-            from source shares. Positive values raise this forecast.
+            Contributions explain the 24-hour forecast in µg/m³, separately from
+            source shares. Positive values raise this forecast.
           </p>
           {Object.entries(data.shap.groups).map(([name, value]) => (
             <div className="shap-row" key={name}>
@@ -251,6 +257,22 @@ export function BacktestChart({
   demo: boolean;
 }) {
   const m = data.metrics;
+  if (!m || data.available === false)
+    return (
+      <section className="tab-content">
+        <DataBadge source="modeled" detail="VALIDATION UNAVAILABLE" />
+        <h2>Statewide validation is not yet available</h2>
+        <p className="helper">
+          This region uses CAMS provider forecasts. Switch to Pune + PCMC for
+          the measured LightGBM winter backtest; those metrics do not establish
+          Maharashtra accuracy.
+        </p>
+        <AssumptionsPanel
+          assumptions={data.assumptions}
+          title="Validation limits"
+        />
+      </section>
+    );
   return (
     <section className="tab-content">
       <div className="eyebrow">CHRONOLOGICAL VALIDATION</div>

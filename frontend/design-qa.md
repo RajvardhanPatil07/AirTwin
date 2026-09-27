@@ -48,3 +48,13 @@ the generated model card reports the measured loss. No causal policy effect,
 real population count, operational forecast skill or strong LLM semantic guarantee
 is claimed. This report is scoped to the tested local prototype, not accessibility
 certification or production readiness.
+
+## Maharashtra extension — 27 September 2026
+
+Preserved the existing layout, typography and scenario controls. Tested the live
+state view at 1920×1080, 1366×768 and 390×844. Region selection, additional pollutant
+readings, scenario response, statewide validation-unavailable card and PCMC measured
+backtest were checked. Horizontal document overflow was zero at the two smaller
+sizes; the map had one tooltip. Modeled reference markers are translucent/dashed.
+Gemini no-key error appeared visibly with no canned answer. Real LLM success remains
+unverified until a Gemini key is configured. Responsive map bounds refit on resize.

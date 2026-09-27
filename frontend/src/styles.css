@@ -1451,3 +1451,40 @@ input[type="range"]::-moz-range-thumb {
     bottom: 66px;
   }
 }
+
+.header-status select {
+  max-width: 150px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+.environment-readings {
+  margin: 16px 0;
+  padding: 14px;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.environment-readings h3 {
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+.environment-readings p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.environment-readings small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.ask-answer > div {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}

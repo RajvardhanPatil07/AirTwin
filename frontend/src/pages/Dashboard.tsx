@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Moon, Sun, RefreshCw, MapPin } from "lucide-react";
 import type {
+  RegionId,
   ActionId,
   AttributionResponse,
   BacktestResponse,
@@ -35,6 +36,7 @@ const TABS = [
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
+  const [region, setRegion] = useState<RegionId>("maharashtra");
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -64,13 +66,16 @@ export function Dashboard() {
 
   useEffect(() => {
     let active = true;
-    loadDashboard(replayAt).then((result) => {
+    loadDashboard(replayAt, region).then((result) => {
       if (active) {
         setData(result);
         if (!replayAt)
           setLocationId(
-            result.stations.find((station) => station.name.includes("Bhosari"))
-              ?.id ?? result.stations[0].id,
+            result.stations.find((station) =>
+              station.name.includes(
+                region === "maharashtra" ? "Pune" : "Bhosari",
+              ),
+            )?.id ?? result.stations[0].id,
           );
         setCellLocation(null);
         setSwitching(false);
@@ -79,7 +84,26 @@ export function Dashboard() {
     return () => {
       active = false;
     };
-  }, [replayAt]);
+  }, [replayAt, region]);
+  useEffect(() => {
+    if (replayAt) return;
+    let active = true;
+    const timer = window.setInterval(() => {
+      loadDashboard(null, region).then((next) => {
+        if (active)
+          setData((previous) =>
+            previous?.coverage?.updated_at === next.coverage?.updated_at &&
+            previous?.stations[0]?.timestamp === next.stations[0]?.timestamp
+              ? previous
+              : next,
+          );
+      });
+    }, 60000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [region, replayAt]);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
@@ -90,10 +114,10 @@ export function Dashboard() {
     setError(null);
     setScenario(null);
     Promise.all([
-      api.scenarios(location, appliedCuts, data.demo, replayAt),
-      api.forecast(location, data.demo, hours, replayAt),
-      api.backtest(location, data.demo, replayAt),
-      api.attribution(location, data.demo, replayAt),
+      api.scenarios(location, appliedCuts, data.demo, replayAt, region),
+      api.forecast(location, data.demo, hours, replayAt, region),
+      api.backtest(location, data.demo, replayAt, region),
+      api.attribution(location, data.demo, replayAt, region),
     ])
       .then(([nextScenario, nextForecast, nextBacktest, nextAttribution]) => {
         if (!active) return;
@@ -114,7 +138,7 @@ export function Dashboard() {
     return () => {
       active = false;
     };
-  }, [data, location, appliedCuts, hours, retry, replayAt]);
+  }, [data, location, appliedCuts, hours, retry, replayAt, region]);
 
   const currentScenario =
     scenario?.location_id === location?.id ? scenario : null;
@@ -154,7 +178,13 @@ export function Dashboard() {
     setRunning(true);
     setError(null);
     try {
-      const next = await api.scenarios(location, cuts, data.demo, replayAt);
+      const next = await api.scenarios(
+        location,
+        cuts,
+        data.demo,
+        replayAt,
+        region,
+      );
       setScenario(next);
       setAppliedCuts({ ...cuts });
       setAction("combined");
@@ -187,13 +217,33 @@ export function Dashboard() {
             alt="AirTwin contour logo"
           />
           <div>
-            <h1>AirTwin PCMC</h1>
+            <h1>AirTwin {region === "maharashtra" ? "Maharashtra" : "PCMC"}</h1>
             <p>
-              Urban Environmental Digital Twin · Pune &amp; Pimpri-Chinchwad
+              Urban Environmental Digital Twin ·{" "}
+              {region === "maharashtra"
+                ? "Maharashtra"
+                : "Pune & Pimpri-Chinchwad"}
             </p>
           </div>
         </div>
         <div className="header-status">
+          <label className="status-chip">
+            Region{" "}
+            <select
+              aria-label="Region"
+              value={region}
+              onChange={(event) => {
+                setReplayAt(null);
+                setCellLocation(null);
+                setData(null);
+                setScenario(null);
+                setRegion(event.target.value as RegionId);
+              }}
+            >
+              <option value="maharashtra">Maharashtra</option>
+              <option value="pcmc">Pune + PCMC</option>
+            </select>
+          </label>
           <Clock />
           <span className="status-chip data-time">
             Data as of {dateLabel(location.timestamp)} ·{" "}
@@ -206,7 +256,7 @@ export function Dashboard() {
                 ? "SYNTHETIC TARGET · ML"
                 : "API DATA"}
           </span>
-          {!data.demo && (
+          {!data.demo && region === "pcmc" && (
             <button
               className="status-chip replay-toggle"
               disabled={switching}
@@ -232,6 +282,9 @@ export function Dashboard() {
             location={location}
             demo={data.demo}
             replayAt={replayAt}
+            region={region}
+            cuts={appliedCuts}
+            hours={hours}
           />
         </div>
       </header>
@@ -245,6 +298,13 @@ export function Dashboard() {
       {data.warning && (
         <div className="api-warning" role="status">
           {data.warning}
+        </div>
+      )}
+      {data.coverage?.modeled_points !== undefined && (
+        <div className="api-warning">
+          Coverage: {data.coverage.modeled_points} CAMS model reference points ·{" "}
+          {data.coverage.observed_points} fresh observed points · provider cache
+          refreshed hourly while the backend is running.
         </div>
       )}
       <section className="story" aria-live="polite">
@@ -292,7 +352,10 @@ export function Dashboard() {
           onAfter={() => setAfter(!after)}
           dark={dark}
           demo={data.demo}
-          weather={data.weather}
+          weather={
+            location.weather?.source_type ? location.weather : data.weather
+          }
+          region={data.region}
           zones={data.zones}
         />
         <aside className="insight-panel">
@@ -440,6 +503,46 @@ export function Dashboard() {
                       Results are ranked by population-weighted exposure
                       reduction.
                     </p>
+                    {location.pollutants && (
+                      <div className="environment-readings">
+                        <h3>Environmental context · CAMS / Open-Meteo</h3>
+                        {Object.entries(location.pollutants).map(
+                          ([key, point]) => (
+                            <p key={key}>
+                              <span>
+                                {key === "pm2_5"
+                                  ? "PM2.5"
+                                  : key === "pm10"
+                                    ? "PM10"
+                                    : key.replaceAll("_", " ")}
+                              </span>{" "}
+                              <strong>
+                                {number(point.value)} {point.unit}
+                              </strong>{" "}
+                              <DataBadge source={point.source_type} />
+                            </p>
+                          ),
+                        )}
+                        {location.weather &&
+                          Object.entries(location.weather)
+                            .filter(
+                              ([key, value]) =>
+                                !["source_type", "timestamp"].includes(key) &&
+                                typeof value === "number",
+                            )
+                            .map(([key, value]) => (
+                              <p key={key}>
+                                {key.replaceAll("_", " ")}:{" "}
+                                {number(value as number)}{" "}
+                                <DataBadge source="modeled" />
+                              </p>
+                            ))}
+                        <small>
+                          Weather units: °C, % humidity/cloud, m/s wind, °
+                          direction, mm rain, hPa pressure.
+                        </small>
+                      </div>
+                    )}
                     {data.demo && (
                       <div className="demo-notice">
                         <b>Offline frontend demonstration</b>

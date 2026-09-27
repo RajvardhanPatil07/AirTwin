@@ -10,19 +10,31 @@ import type {
   ScenarioResponse,
   Station,
   StationsResponse,
+  RegionId,
 } from "../types";
 import * as demo from "../mocks/engine";
 
 const base = (
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  timeout = 8000,
+): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(timeout),
   });
-  if (!response.ok) throw new Error(`API returned ${response.status}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      typeof error.detail === "string"
+        ? error.detail
+        : `API returned ${response.status}`,
+    );
+  }
   const data = await response.json();
   if (!["observed", "modeled", "synthetic"].includes(data.source_type)) {
     throw new Error("API response is missing valid data provenance");
@@ -35,6 +47,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function loadDashboard(
   replayAt: string | null = null,
+  region: RegionId = "pcmc",
 ): Promise<DashboardData> {
   if (!base)
     return {
@@ -45,9 +58,11 @@ export async function loadDashboard(
     };
   try {
     const [stations, hotspots] = await Promise.all([
-      request<StationsResponse>(withReplay("/api/stations", replayAt)),
+      request<StationsResponse>(
+        withReplay(`/api/stations?region=${region}`, replayAt),
+      ),
       request<HotspotsResponse>(
-        withReplay("/api/hotspots?mode=before", replayAt),
+        withReplay(`/api/hotspots?mode=before&region=${region}`, replayAt),
       ),
     ]);
     if (!stations.stations?.length || !hotspots.cells?.length)
@@ -59,6 +74,8 @@ export async function loadDashboard(
       warning: stations.warnings?.join(" ") || null,
       weather: stations.weather,
       zones: stations.zones,
+      region: stations.region,
+      coverage: stations.coverage,
     };
   } catch {
     return {
@@ -77,26 +94,43 @@ function withReplay(path: string, replayAt: string | null) {
 }
 export const api = {
   replay: () => request<ReplayResponse>("/api/replay"),
-  explain: (locationId: string, question: string, replayAt: string | null) =>
-    request<ExplainResponse>("/api/explain", {
-      method: "POST",
-      body: JSON.stringify({
-        location_id: locationId,
-        question,
-        replay_at: replayAt,
-      }),
-    }),
+  explain: (
+    locationId: string,
+    question: string,
+    replayAt: string | null,
+    region: RegionId,
+    cuts: Cuts,
+    hours: number,
+    history: { role: string; content: string }[],
+  ) =>
+    request<ExplainResponse>(
+      "/api/explain",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          location_id: locationId,
+          question,
+          replay_at: replayAt,
+          region,
+          cuts,
+          hours,
+          history,
+        }),
+      },
+      60000,
+    ),
   forecast: (
     station: Station,
     isDemo: boolean,
     hours: number,
     replayAt: string | null = null,
+    region: RegionId = "pcmc",
   ) =>
     isDemo
       ? Promise.resolve(demo.forecast(station, hours))
       : request<ForecastResponse>(
           withReplay(
-            `/api/forecast?location_id=${encodeURIComponent(station.id)}&hours=${hours}`,
+            `/api/forecast?location_id=${encodeURIComponent(station.id)}&hours=${hours}&region=${region}`,
             replayAt,
           ),
         ),
@@ -104,12 +138,13 @@ export const api = {
     station: Station,
     isDemo: boolean,
     replayAt: string | null = null,
+    region: RegionId = "pcmc",
   ) =>
     isDemo
       ? Promise.resolve(demo.backtest(station))
       : request<BacktestResponse>(
           withReplay(
-            `/api/backtest?location_id=${encodeURIComponent(station.id)}`,
+            `/api/backtest?location_id=${encodeURIComponent(station.id)}&region=${region}`,
             replayAt,
           ),
         ),
@@ -117,12 +152,13 @@ export const api = {
     station: Station,
     isDemo: boolean,
     replayAt: string | null = null,
+    region: RegionId = "pcmc",
   ) =>
     isDemo
       ? Promise.resolve(demo.attribution(station))
       : request<AttributionResponse>(
           withReplay(
-            `/api/attribution?location_id=${encodeURIComponent(station.id)}`,
+            `/api/attribution?location_id=${encodeURIComponent(station.id)}&region=${region}`,
             replayAt,
           ),
         ),
@@ -131,6 +167,7 @@ export const api = {
     cuts: Cuts,
     isDemo: boolean,
     replayAt: string | null = null,
+    region: RegionId = "pcmc",
   ) =>
     isDemo
       ? Promise.resolve(demo.runScenario(station, cuts))
@@ -140,6 +177,7 @@ export const api = {
             location_id: station.id,
             cuts,
             replay_at: replayAt,
+            region,
           }),
         }),
 };
