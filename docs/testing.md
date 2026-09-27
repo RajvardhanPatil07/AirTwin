@@ -2,15 +2,16 @@
 
 ## Automated commands
 
-Run from root in the Python environment:
+Create a Python 3.11 environment and install the executable backend stack:
 
 ```sh
+python -m pip install -r backend/requirements-ml.txt
 python -m pytest backend/tests -q
 bash scripts/pipeline.sh --offline
 python scripts/check_repository.py
 ```
 
-Run from frontend:
+Run from `frontend/`:
 
 ```sh
 npm run lint
@@ -19,44 +20,50 @@ npm run build
 npm run test:sites
 ```
 
-`make check PYTHON=.venv/bin/python` combines tests, lint, build and hosting tests.
-CI additionally exercises the offline pipeline. Tests do not need provider keys.
+`make check PYTHON=.venv/bin/python` combines backend tests, frontend tests/lint/build
+and hosting-worker checks. CI splits ingestion, backend and frontend into separate jobs.
+No provider keys are needed for CI because the committed fallback is synthetic.
 
 ## What the suites prove
 
-**Python pipeline:** outlier rejection/duplicate averaging; provenance preservation;
-missing-weather merge; sample size/labels/hour continuity; missing-key fallback;
-weather outage fallback; sparse/CAMS failure fallback without rewriting the sample.
+**Python pipeline:** outlier rejection/duplicate averaging, provenance preservation,
+missing-weather handling, sample continuity and provider-failure fallback behavior.
 
-**TypeScript engine:** zero cuts; combined concentration/exposure additivity;
-normalized source/local shares; exact-location IDW; background/maximum cut behavior;
-computed persistence demonstration/provenance; nonnegative sensitivity ranges.
+**Forecasting backend:** chronological holdout construction, persistence baseline,
+requested recursive horizon length and preservation of target/history provenance.
 
-**API adapter:** no request with unconfigured backend; explicit initial demo
-fallback; rejection of invalid response provenance and missing modeled assumptions.
-This is not full runtime schema validation of every nested response field.
+**Spatial/scenario engine:** 12×12 modeled grid, observed station provenance,
+three local source categories plus background, normalized attribution shares,
+zero-cut invariance and consistent combined-action behavior.
 
-**Hosting worker:** static assets, SPA routing and worker behavior supplied by the
-prototype runtime. It does not test a FastAPI server.
+**FastAPI contract:** health, stations, hotspots, attribution, backtest, forecast
+and scenarios work end to end on the committed sample; analytical responses include
+`source_type` and `assumptions`.
+
+**TypeScript browser demo:** zero cuts, source/local share invariants, IDW behavior,
+synthetic persistence demonstration and sensitivity bounds.
+
+**Frontend API adapter:** no request when backend is unconfigured; complete initial
+fallback to the browser demo; rejection of invalid response provenance.
+
+**Hosting worker:** static assets, SPA routing and worker behavior. This is separate
+from FastAPI behavior, which is covered by `backend/tests/test_api.py`.
 
 ## Browser checks
 
-Use 1920×1080 and 1366×768, plus a narrow mobile viewport. Check all tabs,
-location/cell selection, map layers, before/after views, slider outdated status,
-Run scenario, zero cuts, ranked action selection, assumptions and themes.
-Verify one tooltip, keyboard access, no horizontal overflow and no console errors.
-The recorded frontend QA report is frontend/design-qa.md.
+Test both modes:
 
-## What remains unproven
+1. Browser-only deterministic demo with `VITE_API_BASE_URL` unset.
+2. Backend mode with FastAPI on port 8000 and
+   `VITE_API_BASE_URL=http://localhost:8000`.
 
-No real-model accuracy, winter holdout, training leakage test, TimeSeriesSplit,
-quantile calibration, SHAP validation, FastAPI integration, observed-data provider
-coverage, real population weighting or causal intervention effect is established.
-Add corresponding tests and generated evidence with those implementations.
+Check tabs, location/cell selection, map layers, before/after views, scenario
+outdated state, zero cuts, ranked actions, assumptions, error/retry behavior,
+responsive layout and console errors. Keep provenance/date visible in screenshots.
 
-## Interpreting a green CI badge
+## What a green CI badge does not prove
 
-Green means the checked commit passed the configured jobs. It does not mean the
-planned system exists, live APIs are available, or the model is accurate. Inspect
-job logs and commit SHA. Do not keep a manually written “all tests pass” claim if
-changes have not been validated.
+CI does not contact live environmental providers. A green badge therefore proves
+code paths, invariants and reproducibility—not observed Pune/PCMC forecast accuracy,
+chemical source apportionment, causal intervention effects or public-health impact.
+Those claims require live provider coverage and separately recorded evidence.

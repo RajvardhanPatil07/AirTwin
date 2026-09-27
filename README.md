@@ -20,14 +20,17 @@ AirTwin brings those questions into one map-based workspace for Pune and PCMC:
 
 The differentiator is transparency: provenance badges, assumptions next to modeled
 results, comparison against persistence, and action rankings that account for the
-population exposed. The current implementation demonstrates these interactions;
-real forecasting and operational validation are still being built.
+population exposed. The repository now includes an executable forecasting,
+spatial-attribution and scenario backend in addition to the deterministic browser
+demo.
 
-> **Current release: frontend demo + data ingestion pipeline.**
-> The dashboard runs with **SYNTHETIC** inputs. Its forecast is illustrative and its
-> backtest predictor equals persistence. No trained LightGBM model, SHAP output,
-> FastAPI server, real winter holdout, or measured city-level forecast skill is
-> included yet. This repository does not claim a finished Round 1 submission.
+> **Current release: frontend demo + ingestion pipeline + executable FastAPI backend.**
+> The committed fallback dataset is still **SYNTHETIC**, so the repository does not
+> claim measured Pune/PCMC forecast accuracy by default. When adequate observed data
+> are available, the backend trains a chronological one-hour PM2.5 model, compares it
+> with persistence, serves recursive 24/48/72-hour forecasts, and preserves target
+> provenance. Source shares remain transparent proxy estimates, not chemical source
+> apportionment or causal policy effects.
 
 ## Dashboard preview
 
@@ -50,11 +53,11 @@ of the browser capture scale; the application uses vector text.*
 
 | ENR-01 outcome | What exists now | What is still needed |
 | --- | --- | --- |
-| PM2.5 forecast for a defined urban area | AOI, selectable locations and 24/48/72-hour illustrative charts | Trained model, weather horizon features and real forecast serving |
-| ≥3 source categories with assumptions | Traffic, industry, dust and regional background; transparent frontend proxies | Backend proxy configuration, real spatial inputs and wind weighting |
-| ≥3 pollution reduction actions | Three sliders, individual results and additive combined package | Backend scenario endpoint and validated source inputs |
-| Hotspots and historical validation | IDW grid plus computed synthetic persistence demonstration | Observed/model-target winter holdout, CV and baseline comparison |
-| OBSERVED vs MODELED labels | Separate OBSERVED, MODELED and SYNTHETIC badge components; demo warnings | Preserve provenance in every future backend response |
+| PM2.5 forecast for a defined urban area | Runtime HistGradientBoosting model, chronological backtest, persistence baseline and 24/48/72 recursive serving | Run on adequate observed history before claiming city accuracy |
+| ≥3 source categories with assumptions | Backend traffic, industry, dust and regional-background proxy shares | Replace approximate anchors with sourced spatial proxy layers |
+| ≥3 pollution reduction actions | Backend traffic, industry and dust actions plus combined package and after-grids | Validate pass-through assumptions with domain evidence |
+| Hotspots and historical validation | Backend 12×12 IDW grid + chronological final-20% holdout metrics | Observed winter holdout when provider coverage permits |
+| OBSERVED vs MODELED labels | Provenance carried through station, forecast, backtest, grid, attribution and scenario responses | Keep this invariant for future features |
 
 **Do not present a completed UI tab as proof that the corresponding ML/backend
 capability exists.** [Full acceptance checklist](docs/acceptance.md).
@@ -107,8 +110,9 @@ bash scripts/pipeline.sh --offline
 ```
 
 This runs fetch → weather → build using the committed synthetic sample. The result
-is `data/processed/dataset.parquet`, ignored by Git. It does **not** train a model
-or start a server, because those components do not exist yet.
+is `data/processed/dataset.parquet`, ignored by Git. The FastAPI service trains its
+small forecasting model at runtime from this processed dataset (or the committed
+sample if no processed file exists), so generated model binaries are not committed.
 
 ### Optional provider path
 
@@ -140,8 +144,19 @@ make pipeline PYTHON=.venv/bin/python
 make check PYTHON=.venv/bin/python
 ```
 
-Backend/ML dependencies are separated in `backend/requirements-ml.txt` for the
-planned implementation. Installing them does not create those features.
+Backend/API dependencies are separated in `backend/requirements-ml.txt`. To run
+the end-to-end backend mode:
+
+```sh
+python -m pip install -r backend/requirements-ml.txt
+python -m uvicorn backend.app.main:app --reload --port 8000
+# In another shell:
+cd frontend
+VITE_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+With no `VITE_API_BASE_URL`, the frontend intentionally keeps using the deterministic
+synthetic browser demo.
 
 ## Architecture
 
@@ -153,17 +168,16 @@ flowchart LR
   FETCH --> BUILD["Hourly cleaning + provenance"]
   CAMS["CAMS fallback · MODELED"] --> BUILD
   BUILD --> PARQUET["Ignored processed Parquet"]
-  PARQUET -. planned .-> ML["LightGBM + chronological backtest"]
-  ML -. planned .-> API["FastAPI"]
-  API -. optional adapter .-> UI["React dashboard"]
+  PARQUET --> ML["HistGradientBoosting + chronological backtest"]
+  ML --> API["FastAPI"]
+  API --> TWIN["IDW + source proxies + scenario engine"]
+  TWIN --> UI["React dashboard"]
   DEMO["Deterministic frontend demo engine"] --> UI
-  DEMO --> GRID["IDW + proxies + additive scenarios"]
-  GRID --> UI
 ```
 
-Solid arrows describe current paths. Dashed arrows describe planned integration.
-The Python sample and frontend fixtures are **separate** datasets; the frontend
-currently does not read the pipeline Parquet file.
+The backend path is executable today. The Python sample and frontend fixtures are
+still **separate** deterministic fallbacks; setting `VITE_API_BASE_URL` switches the
+frontend to the API dataset instead of the browser fixture.
 
 ## Technology and responsibility
 
@@ -171,10 +185,10 @@ currently does not read the pipeline Parquet file.
 | --- | --- | --- |
 | Frontend | React, Vite, TypeScript, Tailwind, React Leaflet, Recharts, Lucide | Grounded explanation drawer and historical replay |
 | Ingestion | Python, pandas, NumPy, requests, python-dotenv, PyArrow | Forecast weather, more station diagnostics |
-| Modeling | Synthetic persistence demonstration in TypeScript | LightGBM direct horizons, quantile models, SHAP, TimeSeriesSplit |
-| API | Typed frontend adapter and provenance guards | FastAPI routes, Pydantic schemas, CORS |
-| Spatial | Frontend 12×12 IDW grid and illustrative proximity proxies | Configured backend proxies, wind direction, verified zones |
-| Quality | pytest, Vitest, ESLint, TypeScript build, GitHub Actions | Backend ML leakage/split and endpoint tests |
+| Modeling | Runtime scikit-learn gradient boosting, hourly lags/rolling features, chronological holdout, persistence comparison | Longer observed holdout, seasonal baseline, archived future-weather inputs |
+| API | FastAPI routes, Pydantic request validation, development CORS, typed frontend adapter | Cache reload endpoint and richer diagnostics |
+| Spatial | Backend 12×12 IDW grid, weather-aware traffic/industry/dust proxies, scenario after-grids | Sourced road/industry/construction layers and verified zones |
+| Quality | pytest model/spatial/API tests, Vitest, ESLint, TypeScript build, split GitHub Actions jobs | Live-provider evidence tests outside CI |
 
 ## Calculation principles
 
@@ -214,14 +228,15 @@ missing; target hours are never imputed and relabeled as observations.
 
 ## Forecast evidence and limitations
 
-[Model card](docs/model_card.md) records the current **not trained** status.
-The frontend backtest computes MAE, RMSE, R², improvement over persistence and band
-coverage from its displayed synthetic sequence. The predictor is persistence, so
-this demonstration cannot establish superiority over persistence.
+[Model card](docs/model_card.md) documents the executable backend model and its
+limitations. The backend reindexes each station to a proper hourly axis, builds
+past-only PM2.5 features, holds out the final 20% chronologically, and computes MAE,
+RMSE, R², improvement over one-hour persistence and empirical interval coverage.
+The browser-only fallback still uses its separate synthetic demonstration.
 
-Real validation must use a chronological winter holdout, training-only baseline
-statistics, leakage-safe lag construction and future-weather availability rules.
-Report poor performance honestly, including stations where the model loses.
+The committed sample is synthetic, so those offline metrics are reproducibility
+evidence rather than city forecast skill. Real validation still requires adequate
+observed provider coverage and should report underperformance honestly.
 
 Other limitations:
 
@@ -246,10 +261,10 @@ npm run build
 npm run test:sites
 ```
 
-CI runs the Python tests and complete offline pipeline, plus frontend lint, tests,
-TypeScript/build and hosting-worker tests. It does not contact live environmental
-APIs or validate a nonexistent trained model. The workflow badge reports actual CI
-status, not a manually asserted passing result.
+CI separately checks the ingestion fallback, forecasting/spatial/API contract, and
+frontend lint/tests/build. It does not contact live environmental providers, so CI
+proves reproducibility and contract behavior rather than observed-city accuracy.
+The workflow badge reports actual CI status, not a manually asserted result.
 
 [Testing guide](docs/testing.md) · [Troubleshooting](docs/troubleshooting.md) ·
 [Contributor guide](CONTRIBUTING.md).
@@ -260,11 +275,13 @@ status, not a manually asserted passing result.
 AirTwin/
 ├── .github/                 # CI, issue forms and PR checklist
 ├── backend/
+│   ├── app/main.py          # FastAPI ENR-01 contract
+│   ├── app/services/        # Forecasting, hotspots, attribution and scenarios
 │   ├── app/config.py        # Ingestion paths, AOI and settings
 │   ├── scripts/             # Fetch, weather, clean/build, synthetic generator
-│   ├── tests/               # Pipeline and fallback tests
-│   ├── requirements.txt     # Pinned current pipeline dependencies
-│   └── requirements-ml.txt  # Optional planned backend/ML dependencies
+│   ├── tests/               # Pipeline, model, spatial and API tests
+│   ├── requirements.txt     # Pinned ingestion dependencies
+│   └── requirements-ml.txt  # Executable backend/ML dependencies
 ├── data/sample/             # Small, explicitly synthetic committed fixture
 ├── docs/                    # Architecture, API, methodology, demo, status
 ├── frontend/
@@ -309,11 +326,11 @@ policy effectiveness or emissions reductions.
 
 ## Roadmap
 
-Round 1 priorities: real historical coverage → leakage-safe model/backtest →
-FastAPI contract → configured spatial/scenario engine → frontend integration.
-After this works end to end: grounded answer generation using actual outputs,
-historical replay, additional pollutants and better population inputs.
-Round 2 ideas include richer spatial views and validated live alerts.
+The executable model/API/spatial foundation is now in place. Round 1 evidence
+priorities are: verify real historical coverage → record observed holdout metrics →
+replace approximate source anchors with sourced proxy layers → capture the frontend
+while connected to the backend. After that: historical replay, additional pollutants,
+better population inputs and grounded explanations.
 
 [Prioritized roadmap and completion evidence](docs/roadmap.md).
 

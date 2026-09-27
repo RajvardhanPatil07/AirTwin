@@ -2,73 +2,50 @@
 
 ## Status and intended use
 
-**Not trained.** No LightGBM model, SHAP explanation or real station winter backtest
-is shipped. The planned model forecasts PM2.5 for Pune/PCMC for exploratory urban
-scenario comparison. It is not intended for clinical, regulatory or emergency use.
+**Executable prototype model.** `backend/app/services/forecasting.py` trains a
+scikit-learn `HistGradientBoostingRegressor` at runtime from the processed dataset
+(or the committed synthetic sample when no processed data exists). The model
+forecasts PM2.5 for exploratory AirTwin scenario comparison. It is not intended
+for clinical, regulatory or emergency use.
 
-There are no measured real-world MAE, RMSE, R², improvement or calibrated interval
-coverage values to report. The frontend's calculated synthetic demonstration
-metrics must never be described as city forecast accuracy.
+The repository still does **not** claim measured city-level accuracy by default.
+The committed fallback target is synthetic; observed validation is only possible
+after the live pipeline produces adequate observed station history.
 
-## Current demonstration
+## Implemented forecast
 
-`frontend/src/mocks/engine.ts` creates deterministic synthetic history and a
-sinusoidal future projection. The backtest predictor equals the same 24-hour
-persistence baseline. Its seven-day synthetic sequence is chronological, but is
-not the required winter holdout. Bounds are ±14 µg/m³ illustration, not trained
-quantiles. Metrics are computed from the displayed pairs, rather than hardcoded.
+- Target: next-hour PM2.5.
+- Features: current PM2.5, 1/3/24-hour lags, 6/24-hour rolling means, calendar
+  cycles and weather available at issue time.
+- Missing hours are reindexed as gaps so row adjacency cannot masquerade as a
+  one-hour lag.
+- Validation: final 20% of usable rows held out chronologically (bounded to 48
+  hours–14 days when coverage permits); no shuffled split.
+- Baseline: one-hour persistence (`y[t+1] = y[t]`).
+- Metrics: MAE, RMSE, R², improvement over persistence, empirical interval coverage.
+- 24/48/72-hour UI forecasts: recursive one-hour rollout.
+- Future weather assumption: latest available weather is held constant.
+- Interval: training-residual p10/p90 diagnostic band; not a calibrated regulatory
+  confidence interval.
 
-## Planned target and training data
+## Provenance behavior
 
-| Item | Planned specification | Current availability |
-| --- | --- | --- |
-| Indicator | PM2.5, µg/m³ | Pipeline/sample and frontend demo |
-| AOI | Lat 18.45–18.80, lon 73.70–73.98 | Defined |
-| Observed target | OpenAQ hourly station readings | Fetcher; real coverage unverified |
-| Sparse fallback | CAMS modeled target, disclosed | Builder path implemented |
-| Offline fixture | Synthetic sample | Committed; not real evaluation evidence |
-| Weather | Issue-time-available horizon weather | Centroid reanalysis only; operational forecasts pending |
-| Primary horizon | Direct 24-hour prediction | Not implemented |
-| Optional horizons | 48/72 hours | UI demonstrations only |
+Model output is always `MODELED`. Historical targets keep the dataset source type:
+`OBSERVED`, `MODELED` or `SYNTHETIC`. A CAMS fallback therefore never becomes an
+observed target, and the committed fixture never becomes evidence of real skill.
 
-## Feature and leakage plan
+## Leakage controls
 
-PM2.5 lags 1/2/3/6/12/24/48 hours; past-only rolling means/std at 6/24 hours;
-hour/day/month with cyclical encodings; wind u/v, humidity, rain, stagnation and
-winter indicators. Boundary-layer height is optional if available. Separate
-features known at issue time from later realized weather.
+Features are built on a regular hourly index. PM2.5 lags and rolling windows contain
+only values available at forecast issue time, and the target is shifted to the next
+hour. The chronological test period is never shuffled into training. Current
+weather can be used for next-hour prediction; retrospective reanalysis is not
+silently treated as archived future-weather forecasts.
 
-Define issue timestamp and target timestamp explicitly. Build features per
-station on a proper hourly time axis, so a gap is not confused with a one-hour
-lag. Shift before rolling where needed. Split chronologically and exclude training
-targets crossing the evaluation boundary. Fit encoders/imputers and seasonal
-means on training data only. Archive weather availability must be documented;
-retrospective reanalysis cannot silently masquerade as an operational forecast.
+## Limitations / next evidence gate
 
-## Evaluation plan
-
-1. Verify usable target dates and winter coverage before selecting a holdout.
-2. Hold out the most recent available Nov–Jan interval; report exact dates.
-3. Run TimeSeriesSplit inside training, with horizon-aware boundary separation.
-4. Compare LightGBM with 24-hour persistence and training-only seasonal hourly mean.
-5. Compute MAE, RMSE, R², improvement over persistence and p10–p90 coverage.
-6. Report per-station results and sample counts, including model underperformance.
-7. Generate metrics JSON and this model card from saved held-out predictions.
-
-If CAMS/sample fallback lacks a winter period or observed targets, report the
-limitation rather than calling that experiment an observed winter validation.
-
-## Intervals and interpretation
-
-The planned quantile models use alpha 0.1 and 0.9; evaluate empirical coverage
-and interval order. Quantile labels alone do not guarantee calibration. SHAP
-weather/temporal/persistence groups explain model feature contributions, not
-traffic/industry/dust emission shares and not causal source effects.
-
-## Limitations and release gate
-
-Station sparsity, data gaps, synthetic fallback, centroid weather, approximate
-spatial inputs and source-domain shifts limit usefulness. No public-health benefit
-or emission-reduction accuracy has been measured. Before a trained release,
-require reproducible training, generated metrics, provenance, leakage tests,
-calibration disclosure and frontend/API integration evidence.
+A stronger submission should still document exact live station coverage, validate
+on a sufficiently long observed winter period when available, compare multiple
+seasonal baselines, and replace held-constant future weather with archived or
+operational weather forecasts. Source-proxy attribution is separate from model
+feature importance and must not be described as causal source apportionment.

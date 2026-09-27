@@ -66,7 +66,9 @@ not 12–18 months of historical observed readings.
 
 CAMS also fetches matching centroid weather. Any failed build path falls back
 to the complete synthetic sample. Logs report final row count, target source
-counts and missing weather count. No trained model consumes the output yet.
+counts and missing weather count. The FastAPI forecasting service consumes this
+processed output at runtime; if the sample is used, forecast/backtest provenance
+remains SYNTHETIC.
 
 ## HTTP behavior
 

@@ -9,8 +9,9 @@ keep visible provenance badges and assumptions. Use 1920×1080 if possible.
 happen next, what may contribute, and which intervention could help more exposed
 people. Our area is Pune and Pimpri-Chinchwad.”
 
-State immediately: “This build uses synthetic demo inputs. Real ML and the API
-are pending; we are showing the interaction and calculation workflow.”
+State immediately: “The browser demo is synthetic for reproducibility. We also
+have an executable backend model/API; observed-data accuracy is only claimed after
+running the live provider pipeline and checking provenance.”
 
 ## 0:25–0:55: spatial view and honesty
 
@@ -36,17 +37,17 @@ SHAP will eventually explain forecast features separately.
 
 ## 2:00–2:35: forecast and validation plan
 
-Open Forecast and Backtest. Point out the illustrative forecast/band notices and
-synthetic target. The demo predictor equals persistence; metrics are computed,
-but this is not real forecasting skill. Explain the planned winter holdout and
-baseline comparison. Never rename this demonstration “validated ML”.
+For the strongest demo, run the frontend against the FastAPI backend. Open Forecast
+and Backtest, point out target provenance, the chronological holdout and persistence
+baseline. If the target label is SYNTHETIC, say explicitly that the metrics prove
+the pipeline works but do not establish Pune/PCMC forecast skill.
 
 ## 2:35–3:00: reproducibility and impact
 
-Show README status, test commands and the GitHub Actions workflow. Summarize the
-next milestone and intended SDG 3/11/13 contribution. Use confirmed team names
-only. If real backend/model work is completed later, update this script and
-screenshots around the actual evidence before recording.
+Show README status, the backend API health response, test commands and GitHub
+Actions. Summarize the next evidence milestone: observed provider coverage and
+recorded holdout metrics. Use confirmed team names only and keep the actual
+provenance badge visible while recording.
 
 ## Recording checklist
 

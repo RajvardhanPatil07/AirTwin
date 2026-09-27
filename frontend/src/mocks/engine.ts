@@ -314,7 +314,7 @@ export function forecast(location: Station, hours = 24): ForecastResponse {
     history_source_type: "synthetic",
     source_type: "modeled",
     assumptions: [
-      "Illustrative daily-cycle projection of synthetic data; no LightGBM model is trained yet.",
+      "Illustrative browser-only projection of synthetic data; this fallback does not call the backend model.",
       "The ±14 µg/m³ band is illustrative, not a calibrated p10–p90 interval.",
     ],
   };
@@ -373,7 +373,7 @@ export function backtest(location: Station): BacktestResponse {
     target_source_type: "synthetic",
     assumptions: [
       "Metrics are computed from the displayed synthetic series, not real station observations.",
-      "The demo predictor equals persistence. A trained LightGBM backtest will replace it in the backend phase.",
+      "The browser demo predictor equals persistence. Backend mode uses the chronological scikit-learn backtest.",
       "This is a seven-day chronological demonstration, not the required winter holdout.",
     ],
   };

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — executable ENR-01 backend
+
+- Added FastAPI endpoints for stations, hotspots, forecast, backtest, attribution and scenarios.
+- Added scikit-learn gradient-boosting PM2.5 forecasting with regular-hour lag features and a chronological holdout.
+- Added persistence-baseline metrics and recursive 24/48/72-hour serving.
+- Added backend IDW hotspots, weather-aware traffic/industry/dust proxy attribution and three intervention actions.
+- Added provenance-preserving API/model/spatial tests and a dedicated CI job.
+- Updated documentation to distinguish executable capability from observed-data evidence.
+
+
 User-visible changes are recorded here; planned work belongs in docs/roadmap.md.
 
 ## Unreleased

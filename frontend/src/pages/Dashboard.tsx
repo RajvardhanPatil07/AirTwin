@@ -363,9 +363,9 @@ export function Dashboard() {
                         <b>Offline frontend demonstration</b>
                         <p>
                           All location inputs and population counts are
-                          synthetic. Forecasts are illustrative; the backtest
-                          predictor is persistence. A trained backend is still
-                          to be implemented.
+                          synthetic. Forecasts in this browser-only fallback are
+                          illustrative and the backtest predictor is persistence.
+                          Connect VITE_API_BASE_URL to use the executable backend.
                         </p>
                       </div>
                     )}

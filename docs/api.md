@@ -1,52 +1,54 @@
 # Frontend API contract
 
-Status: adapter implemented; FastAPI endpoints are not implemented yet.
-The definitive types are `frontend/src/types.ts`. No backend integration is claimed.
+Status: **implemented in `backend/app/main.py`**. The React adapter in
+`frontend/src/lib/api.ts` consumes the same contract. All concentrations use µg/m³.
+Every analytical response carries `source_type` and `assumptions`; station,
+weather and population provenance remain separate.
 
-All concentrations use µg/m³. All responses have `source_type` and `assumptions`.
-The adapter rejects missing provenance and missing assumptions for modeled responses.
-Station and population provenance are independent of response-level provenance.
+Run the backend with:
 
-| Method / path | Query or body | Response type |
+```sh
+python -m pip install -r backend/requirements-ml.txt
+python -m uvicorn backend.app.main:app --reload --port 8000
+```
+
+Then start the frontend with `VITE_API_BASE_URL=http://localhost:8000`.
+If the backend or its provenance contract fails, the existing frontend adapter
+falls back to the explicitly synthetic browser demo.
+
+| Method / path | Query or body | Response |
 | --- | --- | --- |
-| GET `/api/stations` | None | `StationsResponse`: `stations: Station[]` |
-| GET `/api/hotspots` | `mode=before` | `HotspotsResponse`: `cells: Cell[]` |
-| GET `/api/forecast` | `location_id`, `hours=24\|48\|72` | `ForecastResponse` |
-| GET `/api/backtest` | `location_id` | `BacktestResponse` |
-| GET `/api/attribution` | `location_id` | `AttributionResponse` |
-| POST `/api/scenarios` | `{location_id, cuts: {traffic, industry, dust}}` | `ScenarioResponse` |
+| GET `/api/health` | None | service/data status |
+| GET `/api/stations` | None | `StationsResponse` |
+| GET `/api/hotspots` | `mode=before` | `HotspotsResponse` with 12×12 grid |
+| GET `/api/forecast` | `location_id`, `hours=24|48|72` | recursive PM2.5 forecast |
+| GET `/api/backtest` | `location_id` | chronological holdout + persistence baseline |
+| GET `/api/attribution` | `location_id` | traffic/industry/dust/background proxy shares |
+| POST `/api/scenarios` | `{location_id, cuts:{traffic,industry,dust}}` | ranked intervention results + after-grids |
 
-Cuts are percentages on a 0–100 scale (not fractions). UI limits: traffic 50,
-industry 60, dust 70. Results include individual actions and `combined`, each
-with its own full after-grid. The frontend uses those grids directly rather
-than reapplying backend scenario math. Server hotspot after queries can be added
-later if the contract changes to avoid transmitting duplicate grids.
+## Forecast semantics
 
-## Data shapes
+The backend trains a deterministic `HistGradientBoostingRegressor` from the
+available dataset. It predicts one hour ahead from PM2.5 lags/rolling history,
+calendar cycles and weather known at issue time. The final 20% of usable history
+is held out chronologically for validation. Persistence predicts the next hour as
+the latest PM2.5 value. Longer dashboard horizons recursively feed predictions
+forward; future weather is held at its latest available value and this assumption
+is returned to the client.
 
-- `Station`: `id`, `name`, `short_name`, latitude/longitude, `pm25`, ISO timestamp,
-  source type and assumptions. Synthetic demo locations are not monitoring stations.
-- `Cell`: `id`, center, `bounds: [[south, west], [north, east]]`, concentration,
-  background, population and its source type, `local_weights` (traffic/industry/dust),
-  source type and assumptions.
-- `SeriesPoint`: timestamp, nullable actual/predicted/persistence/p10/p90.
-  Null distinguishes absent history/forecast points from zero concentration.
-- `ForecastResponse`: location ID, series, history source type, source type,
-  assumptions. Demo interval is explicitly illustrative.
-- `BacktestResponse`: location ID, method, series, target source type, metrics,
-  source type, assumptions. Metrics: `mae`, `rmse`, `r2`, `persistence_mae`,
-  `improvement_percent`, `interval_coverage` (percent).
-- `AttributionResponse`: location ID, background, shares (`name`, fraction `value`,
-  color), source type, assumptions. Shares including background sum to one.
-- `ScenarioResponse`: scenario ID, location ID, ranked `results`, source type,
-  assumptions. Every result contains action ID/name/cuts/rank, before/after,
-  reduction and its low/high range, reduction percent, exposure benefit,
-  population provenance and after-grid cells. Reductions are positive magnitudes.
+If the dataset is the committed sample, `target_source_type` / `history_source_type`
+remain `synthetic`. Running the live ingestion pipeline is required before any
+observed-data accuracy claim is supportable.
 
-`local_weights` sum to one over local sources; concentration `shares` include
-background. The simulator multiplies local weights by local excess, avoiding
-double-discounting background. Population-weighted exposure benefit is the sum
-of cell reductions × cell population, in person·µg/m³.
+## Spatial and scenario semantics
 
-`/api/health`, `/api/explain`, SHAP groups, real backtests, historical replay,
-and operational forecast weather are still pending backend work.
+Hotspot cells are MODELED inverse-distance interpolation of latest station values.
+Traffic, industry and dust are transparent proximity/weather proxies, not measured
+chemical source apportionment. The background is the 15th percentile of latest
+station concentrations. Scenario cuts act only on local excess above background,
+with central pass-through 0.70. Exposure ranking uses a SYNTHETIC population
+surface and therefore supports relative comparison only.
+
+Cuts are percentages and are clamped to the UI limits: traffic 50, industry 60,
+dust 70. Each scenario result contains its own full after-grid; the frontend does
+not recompute backend scenario math.

@@ -43,8 +43,9 @@ verified actual viewport dimensions and absence of horizontal overflow.
   clamping, IDW at locations, computed demo metrics, and API fallback provenance.
 - Observations are never synthesized. Demo locations/population are marked
   SYNTHETIC, derived outputs MODELED, with assumptions and DEMO DATA status.
-- Demo forecast uncertainty is explicitly uncalibrated. No real model accuracy is
-  claimed. Backend and trained forecasting models remain pending.
+- Browser-demo forecast uncertainty is explicitly uncalibrated. No real model
+  accuracy is claimed from synthetic data; backend mode now has an executable
+  chronological model whose evidence still depends on target provenance.
 
 ## Antislop implementation gate
 

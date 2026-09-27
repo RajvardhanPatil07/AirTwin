@@ -33,8 +33,8 @@ so real inputs are never silently combined with synthetic analysis.
   by computed population-weighted exposure reduction.
 - One selected scenario response drives the banner, concentration cards, result table,
   and map. Markers remain at their original baseline in after view.
-- Overview, illustrative forecast, synthetic backtest, proxy source shares, and
-  assumptions. Real LightGBM/SHAP work is a later backend step.
+- Overview, illustrative browser forecast, synthetic backtest, proxy source shares,
+  and assumptions. Backend mode now uses the FastAPI forecasting/scenario service.
 - Light/dark themes, responsive layout, keyboard map selection, and one map tooltip.
 
 ## Demo provenance

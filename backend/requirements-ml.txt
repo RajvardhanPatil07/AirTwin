@@ -1,7 +1,6 @@
-# Planned backend/ML dependencies; not required for the current demo.
+# Executable forecasting/API layer (Python 3.11).
 -r requirements.txt
 fastapi==0.115.12
 uvicorn[standard]==0.34.2
-lightgbm==4.6.0
-shap==0.48.0
 scikit-learn==1.7.2
+httpx==0.28.1
