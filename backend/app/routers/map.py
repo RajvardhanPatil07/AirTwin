@@ -1,7 +1,7 @@
 from typing import Literal
 from fastapi import APIRouter, HTTPException
 from app.schemas import StationsResponse, HotspotsResponse, Region
-from app.services.state_data import get_state_runtime
+from app.services.state_data import get_state_runtime, STATE_ASSUMPTIONS
 from app.services.regions import region_metadata
 from app.services.runtime import get_runtime
 from app.services.spatial import ASSUMPTIONS
@@ -22,4 +22,4 @@ def hotspots(mode: Literal['before', 'after'] = 'before', scenario_id: str | Non
         cells = next(r['cells'] for r in result['results'] if r['id'] == 'combined')
     else:
         _, cells, _, _, _ = runtime.snapshot(replay_at)
-    return {'cells': cells, 'source_type': 'modeled', 'assumptions': ASSUMPTIONS}
+    return {'cells': cells, 'source_type': 'modeled', 'assumptions': STATE_ASSUMPTIONS if region == 'maharashtra' else ASSUMPTIONS}
