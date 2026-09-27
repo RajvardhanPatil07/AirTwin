@@ -53,6 +53,8 @@ class ScenarioResult(Provenance):
     reduction_high: float
     reduction_percent: float
     exposure_benefit: float
+    exposure_benefit_low: float
+    exposure_benefit_high: float
     population_source_type: SourceType
     cells: list[Cell]
 

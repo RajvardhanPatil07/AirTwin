@@ -60,6 +60,7 @@ export function AskAirTwin({
           className="ask-drawer"
           role="dialog"
           aria-label="Ask AirTwin"
+          aria-busy={busy}
           onKeyDown={(event) => {
             if (event.key === "Escape") close();
           }}
@@ -108,7 +109,7 @@ export function AskAirTwin({
                 if (version === requestVersion.current)
                   setError(
                     failure instanceof Error
-                      ? failure.message
+                      ? `The AI request could not complete: ${failure.message}. Retry the explanation.`
                       : "Gemini could not answer. Please retry.",
                   );
               } finally {
@@ -137,10 +138,12 @@ export function AskAirTwin({
               onChange={(event) => setQuestion(event.target.value)}
               required
             />
-            <button className="run-button" disabled={busy}>
-              {busy ? "Reading model outputs…" : "Explain this location"}
+            <button className="run-button" disabled={busy || demo}>
+              {busy ? "Reading model outputs…" : error ? "Retry explanation" : "Explain this location"}
             </button>
           </form>
+          {busy && <p role="status">Waiting for the backend to check the answer against computed evidence…</p>}
+          {demo && <p role="status">Connect the backend, then use Retry backend on the dashboard.</p>}
           {error && <p role="alert">{error}</p>}
           {answer && (
             <div className="ask-answer" aria-live="polite">

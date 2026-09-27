@@ -8,6 +8,7 @@ import type {
 } from "../types";
 import { ACTIONS } from "../mocks/engine";
 import { compact, number } from "../lib/format";
+import { compareInterventions } from "../lib/interventions";
 import { AssumptionsPanel } from "./AssumptionsPanel";
 
 interface Props {
@@ -32,6 +33,7 @@ export function ScenarioPanel({
   busy,
   inputSource,
 }: Props) {
+  const comparison = compareInterventions(response?.results ?? []);
   return (
     <div className="scenario-panel">
       {selected && (
@@ -77,6 +79,14 @@ export function ScenarioPanel({
           </div>
         </section>
       )}
+      {response && (
+        <section className="intervention-evidence" aria-label="Individual action comparison" aria-live="polite">
+          <h3>{outdated ? "Previous action comparison" : "Which individual action helps most?"}</h3>
+          <p>{comparison.best ? <><strong>{comparison.best.name}</strong> leads for the applied cuts, ranked across this region by population-weighted exposure reduction.</> : "No modeled exposure reduction at these cuts. Try increasing an intervention."}</p>
+          <p>{comparison.status === "separated" ? "Its benefit range stays above the other individual actions within the tested sensitivity envelope." : comparison.status === "overlap" ? "Exposure-benefit ranges overlap. These bounds alone do not establish a robust winner; overlap does not prove the ranking reverses." : comparison.status === "unavailable" ? "This backend does not supply exposure sensitivity bounds. Ranking robustness is unavailable." : "The combined package adds the three individual effects; it is not a fourth independent policy."}</p>
+          <small>Same snapshot and weather; cuts can differ by action. Sensitivity varies pass-through 0.6–0.8 and source scaling ±20%. These are assumption bounds, not confidence intervals. Population is synthetic.</small>
+        </section>
+      )}
       <h3 className="intervention-heading">Adjust interventions</h3>
       <section className="sliders" aria-label="Emission cut intensities">
         {ACTIONS.map((action) => (
@@ -104,8 +114,8 @@ export function ScenarioPanel({
         {busy ? "Calculating scenario…" : "Run scenario"}
       </button>
       {response && (
-        <details className="ranked-actions">
-          <summary>Compare ranked actions</summary>
+        <details className="ranked-actions" open>
+          <summary>Compare all three actions and combined package</summary>
         <div
           className="results-table"
           role="region"
@@ -151,6 +161,7 @@ export function ScenarioPanel({
               <b>{number(result.reduction_percent)}%</b>
               <span>
                 {compact(result.exposure_benefit)} <small>person·µg/m³</small>
+                {result.exposure_benefit_low !== undefined && result.exposure_benefit_high !== undefined && <small className="benefit-range">Range {compact(result.exposure_benefit_low)}–{compact(result.exposure_benefit_high)}</small>}
               </span>
             </button>
           ))}

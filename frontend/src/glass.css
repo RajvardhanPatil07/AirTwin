@@ -87,3 +87,27 @@ body { background:var(--page) url('/assets/air-landscape.png') center top / 100%
 @media(max-width:1200px) { .intro-summary { gap: 12px; } .intro-summary > div + div { padding-left: 12px; } .intro-summary strong { font-size: 16px; } .workspace-intro { column-gap: 14px; } .workspace-intro p { font-size: 13px; } }
 @media(max-width:900px) { .workspace-intro { display: block; } .intro-summary { margin-top: 16px; justify-content: space-between; } }
 @media(max-width:500px) { .intro-summary { flex-wrap: wrap; gap: 12px; } .intro-summary strong { font-size: 15px; } .intro-summary span { font-size: 9px; } .brand-mark { width: 40px; height: 40px; } }
+
+.intervention-evidence { margin: 14px 0; padding: 12px; border-left: 3px solid var(--teal, #087e86); background: var(--soft); border-radius: 8px; }
+.intervention-evidence h3 { margin: 0 0 8px; font-size: 14px; }
+.intervention-evidence p { margin: 8px 0; font-size: 12px; line-height: 1.6; }
+.intervention-evidence small { display: block; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.benefit-range { display: block; }
+.snapshot-stale { color: var(--text); font-size: 11px; }
+.api-warning .status-chip { margin: 6px 0 0 12px; }
+@media (max-width: 500px) {
+  .ranked-actions { padding: 8px; }
+  .result-grid { grid-template-columns: 24px minmax(0, 1.2fr) minmax(0, .85fr) minmax(0, .75fr) minmax(0, 1.15fr); }
+  .result-grid > * { padding: 8px 3px; overflow-wrap: anywhere; }
+  .ask-drawer { top: 12px; right: 12px; bottom: auto; width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+}
+@media (max-width: 500px) {
+  .result-head { display: none; }
+  .result-row.result-grid { grid-template-columns: 28px minmax(0, 1fr); font-size: 12px; }
+  .result-row > :first-child { grid-row: 1 / 5; align-self: start; }
+  .result-row > :nth-child(n + 3) { grid-column: 2; padding-top: 2px; }
+  .result-row > :nth-child(3)::before { content: "PM2.5 reduction range: "; }
+  .result-row > :nth-child(4)::before { content: "Central reduction: "; font-weight: 400; }
+  .result-row > :nth-child(5)::before { content: "Exposure benefit: "; }
+  .result-row small { font-size: 11px; }
+}

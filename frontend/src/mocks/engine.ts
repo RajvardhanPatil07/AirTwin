@@ -225,6 +225,8 @@ export function runScenario(
           (sum, cell, i) => sum + (cell.pm25 - next[i].pm25) * cell.population,
           0,
         ),
+        exposure_benefit_low: grid.reduce((sum, cell) => sum + delta(cell.pm25, cell.background, cell.local_weights, action.cuts, 0.6) * 0.8 * cell.population, 0),
+        exposure_benefit_high: grid.reduce((sum, cell) => sum + Math.min(Math.max(cell.pm25 - cell.background, 0), delta(cell.pm25, cell.background, cell.local_weights, action.cuts, 0.8) * 1.2) * cell.population, 0),
         cells: next,
         source_type: "modeled",
         population_source_type: "synthetic",

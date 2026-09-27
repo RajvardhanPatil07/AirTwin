@@ -85,7 +85,7 @@ npm run dev
 ```
 
 Open the URL printed by Vite, normally `http://localhost:5173`. The frontend uses
-`http://127.0.0.1:8000` by default. No environmental key is placed in the browser.
+the same-origin `/backend` proxy to `http://127.0.0.1:8000` by default. No environmental key is placed in the browser.
 
 ### Reproducible offline workflow
 
@@ -115,8 +115,10 @@ weather aligned to 24/48/72-hour issue times. If observed targets are sparse, th
 builder tries CAMS modeled targets; if providers fail, it uses the synthetic sample.
 Logs and source fields expose each fallback.
 
-Data refresh is deliberate: rerun the pipeline/training and restart the backend.
-There is no background alerting or hidden live polling service. Successful API
+PCMC training data refresh is deliberate: rerun the pipeline/training and restart
+the backend. Maharashtra provider caches refresh hourly while the backend runs
+(`LIVE_REFRESH_ENABLED=0` disables this). The dashboard checks for refreshed
+snapshots every minute. No background alerting is implemented. Successful API
 access does not guarantee that the provider has published current measurements.
 
 ### Frontend-only fallback
@@ -140,7 +142,7 @@ still work with a notice; this is not an offline map-tile cache.
 7. Use Historical replay to load a high held-out hour with a visible date banner.
 8. Open Ask AirTwin for a grounded actual-output summary; GEMINI_API_KEY is required for generated answers.
 
-[Three-minute recording script](docs/demo.md).
+[Three-minute recording script](docs/demo.md) · [End-to-end verification](docs/end_to_end.md).
 
 ## Computed model evidence
 
@@ -176,7 +178,7 @@ flowchart LR
   WEATHER[Open-Meteo reanalysis and archived forecasts] --> DATA
   FALLBACK[CAMS modeled or synthetic sample fallback] --> DATA
   DATA --> FEAT[Issue-time features]
-  FEAT --> ML[LightGBM direct and quantile models]
+  FEAT --> ML[LightGBM direct log-ratio models and persistence blend]
   ML --> TEST[Winter holdout and purged CV]
   TEST --> CARD[Generated metrics and model card]
   ML --> API[FastAPI]
@@ -193,17 +195,18 @@ flowchart LR
 ## ML design
 
 - **Level-normalized target:** each direct horizon predicts log(target / trailing 24 h mean)
-  with an L1 objective. Pollution features are divided by the same level, so a winter
-  never seen in training is not extrapolation. Coordinates and month/winter flags are
+  with an L1 objective. Pollution features are divided by the same level, to reduce sensitivity to seasonal concentration shifts.
+  This does not guarantee generalization to unseen winters. Coordinates and month/winter flags are
   excluded because they memorise training-period levels.
-- **Persistence blend + conformal bands:** per horizon, the LightGBM/persistence weight
+- **Persistence blend + empirical residual bands:** per horizon, the LightGBM/persistence weight
   and multiplicative p10–p90 bands come from out-of-sample predictions on three purged
   rolling-origin folds before the holdout.
 - **Covariates:** CAMS PM2.5 at issue and target hour, ERA5 boundary-layer height,
   archived horizon weather (`backend/scripts/fetch_exogenous.py`).
 - Gap-aware PM2.5 lags: 1, 2, 3, 6, 12, 24 and 48 hours; issue reading included.
 - Past-only rolling mean/std at 6 and 24 hours.
-- Target-calendar hour/day/month with cyclical encoding and a winter flag.
+- Target-calendar hour/day cyclical encoding; coordinates, month and winter flags
+  are excluded from model inputs.
 - Issue weather, wind u/v, humidity/rain and calm-humid stagnation.
 - Archived horizon-weather covariates for 24/48/72 hours where available; otherwise
   issue-weather persistence. BLH stays missing when unavailable.
@@ -230,7 +233,11 @@ benefit = Σ(cell_reduction × cell_population)
 ```
 
 Central pass-through is 0.7; sensitivity uses 0.6–0.8 with ±20% aggregate source
-scaling. Combined central benefit equals individual sums before rounding.
+scaling. The comparison identifies the leading individual action separately from
+the combined package. It compares grid-wide exposure bounds: overlapping ranges
+alone do not establish a robust leader or prove a ranking reversal. These are assumption ranges,
+not statistical confidence intervals. Rankings compare the chosen cuts, not equal
+cost or equal feasibility. Combined central benefit equals individual sums before rounding.
 Background-inclusive shares are not multiplied by local excess a second time.
 
 Traffic uses assumed corridor/hour profiles, industry uses proximity/upwind cosine,
@@ -252,7 +259,9 @@ Target, weather and population provenance are independent. CAMS remains modeled
 after training. Missing target hours are not filled and relabeled observed.
 One scalar source label does not erase nested input provenance.
 
-Scenario sensitivity bounds and forecast quantile bands are different quantities.
+Scenario sensitivity bounds and forecast residual bands are different quantities.
+The residual bands use out-of-fold log-error quantiles; temporal dependence and
+shared calibration mean a formal 80% coverage guarantee is not claimed.
 Forecast coverage is measured in the holdout; low coverage and model losses appear
 in the UI. SHAP is feature explanation, not causal source attribution.
 

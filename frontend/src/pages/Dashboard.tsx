@@ -64,6 +64,7 @@ export function Dashboard() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [dashboardRetry, setDashboardRetry] = useState(0);
   const location =
     cellLocation ??
     data?.stations.find((s) => s.id === locationId) ??
@@ -89,7 +90,7 @@ export function Dashboard() {
     return () => {
       active = false;
     };
-  }, [replayAt, region]);
+  }, [replayAt, region, dashboardRetry]);
   useEffect(() => {
     if (replayAt) return;
     let active = true;
@@ -319,6 +320,7 @@ export function Dashboard() {
       {data.warning && (
         <div className="api-warning" role="status">
           {data.warning}
+          {data.demo && <button className="status-chip" onClick={() => setDashboardRetry(value => value + 1)}>Retry backend</button>}
         </div>
       )}
       {data.coverage?.modeled_points !== undefined && (
@@ -336,7 +338,9 @@ export function Dashboard() {
           <div><span>PM2.5 · {location.source_type}</span><strong>{number(location.pm25)} <small>µg/m³</small></strong></div>
           <div><span>Scenario benefit · modeled</span><strong>{selected ? `${number(selected.reduction_percent)}%` : "Preparing…"}</strong></div>
         </div>
-        <span>{data.demo ? "Synthetic demonstration" : `Snapshot · ${dateLabel(location.timestamp)} · ${timeLabel(location.timestamp)} IST`}</span>
+        <span>{data.demo ? "Synthetic demonstration" : `Snapshot · ${dateLabel(location.timestamp)} · ${timeLabel(location.timestamp)} IST`}
+          {!data.demo && !replayAt && Date.now() - Date.parse(location.timestamp) > 24 * 3600000 && <strong className="snapshot-stale"> · STALE: over 24 h old; forecasts start at this snapshot</strong>}
+        </span>
       </section>
       <section className="workspace">
         <MapView

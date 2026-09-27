@@ -40,6 +40,15 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
         {k: v for k, v in item.items() if k not in ['cells', 'assumptions']} for item in scenarios['results']],
         'population_source_type': 'synthetic', 'units': 'Exposure: person·µg/m³, not people protected.'})
     add('validation', 'modeled', validation)
+    add('population', 'synthetic', {'description': 'Constructed population weights, not measured population. Exposure benefit is person·µg/m³, not people protected.'})
+    individual = sorted((item for item in scenarios['results'] if item['id'] != 'combined'), key=lambda item: -item['exposure_benefit'])
+    best = individual[0] if individual and individual[0]['exposure_benefit'] > 0 else None
+    bounds_available = all('exposure_benefit_low' in item and 'exposure_benefit_high' in item for item in individual)
+    separated = bool(best and bounds_available and all(best['exposure_benefit_low'] > item['exposure_benefit_high'] for item in individual[1:]))
+    add('intervention_comparison', 'modeled', {'best_individual': best['name'] if best else None,
+        'ranking_basis': 'Region-wide population-weighted exposure reduction at the chosen cuts, not equal cost or feasibility.',
+        'sensitivity_status': 'separated' if separated else 'overlap' if best and bounds_available else 'unavailable' if best else 'no benefit',
+        'limitation': 'Sensitivity is an assumption envelope, not a confidence interval or causal validation.'})
     add('stations', stations['source_type'], stations['stations'])
     history = series[series.timestamp >= timestamp - pd.Timedelta(hours=48)]
     add('history_summary', 'modeled', {'input_source_types': sorted(history.source_type.unique()),
@@ -190,7 +199,11 @@ def gemini_claims(key, model, context, question, history):
         try:
             parts = response.json()['candidates'][0]['content']['parts']
             content = ''.join(part.get('text', '') for part in parts if not part.get('thought'))
-            return checked_claims(json.loads(content), context, question)
+            candidate = json.loads(content)
+            # Some provider models emit the requested claims as a bare JSON array.
+            if isinstance(candidate, list):
+                candidate = {'claims': candidate}
+            return checked_claims(candidate, context, question)
         except (KeyError, IndexError, TypeError, ValueError, AttributeError) as error:
             feedback = str(error)
     raise ValueError(feedback or 'Unverifiable answer')

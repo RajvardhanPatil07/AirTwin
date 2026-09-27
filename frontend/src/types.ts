@@ -58,6 +58,8 @@ export interface ScenarioResult extends Provenance {
   reduction_high: number;
   reduction_percent: number;
   exposure_benefit: number;
+  exposure_benefit_low?: number;
+  exposure_benefit_high?: number;
   population_source_type: SourceType;
   cells: Cell[];
 }
