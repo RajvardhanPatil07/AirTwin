@@ -351,7 +351,7 @@ export function Dashboard() {
               className={"result-status " + (outdated ? "stale" : "")}
               role="status"
             >
-              {loading || !selected ? "Loading" : outdated ? "Unsaved" : "Live"}
+              {loading || !selected ? "Loading" : outdated ? "Unsaved" : "Current"}
             </span>
           </div>
 

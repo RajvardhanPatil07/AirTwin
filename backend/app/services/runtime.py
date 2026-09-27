@@ -36,24 +36,80 @@ class Runtime:
                 raise HTTPException(422, 'Invalid replay timestamp')
         if frame.empty:
             raise HTTPException(404, 'No data at requested replay time')
-        latest = frame.timestamp.max()
-        recent = frame[frame.timestamp >= latest - pd.Timedelta(hours=CONFIG['station_max_age_hours'])]
-        counts = recent.groupby('timestamp').station_id.nunique()
-        candidates = counts[counts >= min(2, recent.station_id.nunique())]
-        timestamp = candidates.index.max() if not candidates.empty else latest
-        rows = recent[recent.timestamp == timestamp]
+
+        timestamp = frame.timestamp.max()
+        recent = frame[frame.timestamp >= timestamp - pd.Timedelta(hours=CONFIG['station_max_age_hours'])].copy()
+        rows = (
+            recent.sort_values(['station_id', 'timestamp'])
+            .groupby('station_id', as_index=False, group_keys=False)
+            .tail(1)
+        )
+        if rows.empty:
+            raise HTTPException(404, 'No recent station anchors available')
+
         stations = []
         for row in rows.itertuples():
-            stations.append({'id': str(row.station_id), 'name': row.station_name,
-                             'short_name': row.station_name.split(',')[0], 'latitude': row.latitude,
-                             'longitude': row.longitude, 'pm25': row.pm25, 'timestamp': timestamp.isoformat(),
-                             'source_type': row.source_type,
-                             'assumptions': [f'Target provider: {row.target_provider}.',
-                                             'Stations are shown at a shared snapshot hour; gaps are not imputed.',
-                                             *self.warnings]})
-        weather_columns = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'wind_direction_10m', 'precipitation']
-        weather = {key: float(rows[key].mean()) for key in weather_columns if key in rows and rows[key].notna().any()}
-        cells, background = make_grid(stations, weather, timestamp)
+            age_hours = max(0.0, (timestamp - row.timestamp).total_seconds() / 3600)
+            stations.append({
+                'id': str(row.station_id),
+                'name': row.station_name,
+                'short_name': row.station_name.split(',')[0],
+                'latitude': row.latitude,
+                'longitude': row.longitude,
+                'pm25': row.pm25,
+                'timestamp': row.timestamp.isoformat(),
+                'age_hours': age_hours,
+                'source_type': row.source_type,
+                'assumptions': [
+                    f'Target provider: {row.target_provider}.',
+                    f'Latest reading is {age_hours:.1f} hours behind the map reference time.',
+                    'Interpolation down-weights older station anchors; missing measurements are not imputed.',
+                    *self.warnings,
+                ],
+            })
+
+        weather_columns = [
+            'temperature_2m',
+            'relative_humidity_2m',
+            'wind_speed_10m',
+            'wind_direction_10m',
+            'precipitation',
+        ]
+        weather_rows = frame[frame.timestamp == timestamp]
+        if weather_rows.empty:
+            weather_rows = rows
+        weather = {
+            key: float(weather_rows[key].mean())
+            for key in weather_columns
+            if key in weather_rows and weather_rows[key].notna().any()
+        }
+
+        background_override = None
+        if len(stations) < 3:
+            history_start = timestamp - pd.Timedelta(days=30)
+            history = frame[
+                (frame.timestamp >= history_start) & (frame.timestamp <= timestamp)
+            ].pm25.dropna()
+            if not history.empty:
+                temporal_background = float(
+                    history.quantile(CONFIG['background_percentile'] / 100)
+                )
+                current_floor = min(float(station['pm25']) for station in stations)
+                background_override = min(temporal_background, current_floor)
+                note = (
+                    'Sparse spatial anchors: regional background uses the recent '
+                    f'30-day {CONFIG["background_percentile"]}th-percentile target '
+                    'as a MODELED fallback.'
+                )
+                for station in stations:
+                    station['assumptions'] = [note, *station['assumptions']]
+
+        cells, background = make_grid(
+            stations,
+            weather,
+            timestamp,
+            background_override=background_override,
+        )
         return stations, cells, background, weather, timestamp
 
     def stations(self, replay_at=None):
@@ -62,11 +118,30 @@ class Runtime:
         warnings = [*self.warnings]
         age = (pd.Timestamp.now(tz=timestamp.tz) - timestamp).total_seconds() / 3600
         if not replay_at and age > 24:
-            warnings.append(f'Latest available shared snapshot is {age:.0f} hours old. This is cached historical data, not current live readings.')
-        return {'stations': stations, 'source_type': source, 'assumptions': ASSUMPTIONS,
-                'warnings': warnings, 'data_mode': 'historical_replay' if replay_at else 'cached_dataset',
-                'weather': {**weather, 'source_type': str(self.frame.weather_source_type.iloc[-1]),
-                            'timestamp': timestamp.isoformat()}, 'zones': ZONES}
+            warnings.append(
+                f'Latest available map reference is {age:.0f} hours old. '
+                'This is cached historical data, not current live readings.'
+            )
+        return {
+            'stations': stations,
+            'source_type': source,
+            'assumptions': ASSUMPTIONS,
+            'warnings': warnings,
+            'data_mode': 'historical_replay' if replay_at else 'cached_dataset',
+            'weather': {
+                **weather,
+                'source_type': str(self.frame.weather_source_type.iloc[-1]),
+                'timestamp': timestamp.isoformat(),
+            },
+            'zones': ZONES,
+            'coverage': {
+                'station_anchors': len(stations),
+                'freshest_anchor_hours': min(s.get('age_hours', 0) for s in stations),
+                'oldest_anchor_hours': max(s.get('age_hours', 0) for s in stations),
+                'grid_cells': len(cells),
+                'grid_size': int(round(len(cells) ** 0.5)),
+            },
+        }
 
     def location(self, location_id, replay_at=None):
         stations, cells, background, weather, timestamp = self.snapshot(replay_at)

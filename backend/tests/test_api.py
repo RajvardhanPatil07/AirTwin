@@ -56,6 +56,9 @@ def test_scenario_after_map_and_invalid_inputs(client):
     assert response.status_code == 200
     scenario = response.json()
     combined = next(r for r in scenario['results'] if r['id'] == 'combined')
+    assert combined['reduction'] > 0
+    assert combined['after'] < combined['before']
+    assert combined['exposure_benefit'] > 0
     grid = client.get('/api/hotspots', params={'mode': 'after', 'scenario_id': scenario['scenario_id']}).json()
     assert grid['cells'] == combined['cells']
     assert client.post('/api/scenarios', json={'location_id': location, 'cuts': {'traffic': -1, 'industry': 0, 'dust': 0}}).status_code == 422

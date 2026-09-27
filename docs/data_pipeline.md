@@ -118,3 +118,14 @@ resolution**.
   station-specific meteorology is future work.
 
 This improves useful spatial density without inventing observations.
+
+
+## Sparse-anchor scenario background
+
+With only one spatial PM2.5 anchor, a spatial 15th-percentile background equals
+the station itself. That leaves zero local excess and makes every intervention
+mathematically produce a 0% reduction. When fewer than three spatial anchors are
+available, AirTwin now uses the 15th percentile of the previous 30 days of target
+history as an explicitly MODELED background fallback, capped at the lowest current
+anchor. This enables a meaningful offline/sparse-data scenario while remaining a
+stated assumption rather than a measured chemical background concentration.
