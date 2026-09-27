@@ -87,9 +87,9 @@ describe("transparent demo scenario engine", () => {
   it("computes demo metrics and preserves synthetic provenance", () => {
     const result = backtest(stations[0]);
     expect(result.target_source_type).toBe("synthetic");
-    expect(result.metrics.mae).toBeGreaterThan(0);
-    expect(result.metrics.mae).toBe(result.metrics.persistence_mae);
-    expect(result.metrics.improvement_percent).toBe(0);
+    expect(result.metrics!.mae).toBeGreaterThan(0);
+    expect(result.metrics!.mae).toBe(result.metrics!.persistence_mae);
+    expect(result.metrics!.improvement_percent).toBe(0);
     expect(cells).toHaveLength(144);
     expect(
       stations.every((station) => station.source_type === "synthetic"),

@@ -62,8 +62,8 @@ def test_scenario_after_map_and_invalid_inputs(client):
     assert client.get(f'/api/forecast?location_id={location}&hours=100').status_code == 422
 
 
-def test_replay_and_explainer_template(client, monkeypatch):
-    monkeypatch.delenv('LLM_API_KEY', raising=False)
+def test_replay_and_gemini_requires_key(client, monkeypatch):
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
     replay = client.get('/api/replay').json()
     stations = client.get('/api/stations', params={'replay_at': replay['timestamp']}).json()
     assert stations['data_mode'] == 'historical_replay'
@@ -71,10 +71,9 @@ def test_replay_and_explainer_template(client, monkeypatch):
     assert replay_forecast.status_code == 200
     assert 'pre-holdout' in ' '.join(replay_forecast.json()['assumptions'])
     location = stations['stations'][0]['id']
-    answer = client.post('/api/explain', json={'location_id': location, 'question': 'Why is pollution high?'}).json()
-    assert answer['method'] == 'grounded_template'
-    assert '[SYNTHETIC]' in answer['answer']
-    assert '[MODELED]' in answer['answer']
+    answer = client.post('/api/explain', json={'location_id': location, 'question': 'Why is pollution high?'})
+    assert answer.status_code == 503
+    assert 'No template' in answer.json()['detail']
 
 
 def test_cors(client):
@@ -84,14 +83,42 @@ def test_cors(client):
 
 def test_explainer_rejects_invented_provider_number(client, monkeypatch):
     from app.services import explainer
-    monkeypatch.setenv('LLM_API_KEY', 'test-only-not-a-real-key')
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-only-not-a-real-key')
     class ProviderReply:
+        status_code = 200
         def raise_for_status(self):
             pass
         def json(self):
-            return {'choices': [{'message': {'content': '[MODELED] PM2.5 will be 99999999.'}}]}
+            return {'candidates': [{'content': {'parts': [{'text': '{"claims":[{"text":"PM2.5 will be 99999999","source_type":"modeled","evidence_ids":["forecast"]}]}'}]}}]}
     monkeypatch.setattr(explainer.requests, 'post', lambda *args, **kwargs: ProviderReply())
     location = client.get('/api/stations').json()['stations'][0]['id']
-    result = client.post('/api/explain', json={'location_id': location, 'question': 'What happens next?'}).json()
-    assert result['method'] == 'grounded_template'
-    assert '99999999' not in result['answer']
+    result = client.post('/api/explain', json={'location_id': location, 'question': 'What happens next?'})
+    assert result.status_code == 502
+
+
+def test_gemini_uses_actual_context_and_applied_cuts(client, monkeypatch):
+    import json
+    from app.services import explainer
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-only-not-a-real-key')
+    captured = {}
+    class Reply:
+        status_code = 200
+        def raise_for_status(self):
+            pass
+        def json(self):
+            claim = {'text': 'This forecast is modeled, and source shares are proxy estimates.',
+                     'source_type': 'modeled', 'evidence_ids': ['forecast', 'attribution']}
+            return {'candidates': [{'content': {'parts': [{'text': json.dumps({'claims': [claim]})}]}}]}
+    def provider(url, **kwargs):
+        captured.update(json.loads(kwargs['json']['contents'][0]['parts'][0]['text']))
+        assert 'generativelanguage.googleapis.com' in url
+        return Reply()
+    monkeypatch.setattr(explainer.requests, 'post', provider)
+    location = client.get('/api/stations').json()['stations'][0]['id']
+    response = client.post('/api/explain', json={'location_id': location, 'question': 'Why?',
+        'cuts': {'traffic': 0, 'industry': 10, 'dust': 15}, 'hours': 48,
+        'history': [{'role': 'user', 'content': 'Explain the weather.'}]})
+    assert response.status_code == 200, response.text
+    assert response.json()['method'] == 'gemini_evidence_checked'
+    assert captured['context']['evidence']['scenarios']['data']['cuts']['traffic'] == 0
+    assert captured['conversation'][0]['content'] == 'Explain the weather.'
