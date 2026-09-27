@@ -131,16 +131,21 @@ still work with a notice; this is not an offline map-tile cache.
 
 ## Explore the demo
 
-1. Select Bhosari or another monitoring location; inspect its source and timestamp.
-2. Change three cuts, notice OUTDATED status, then Run scenario.
-3. Select individual/combined ranking rows and switch before/after views.
-4. Set every cut to zero; concentrations must remain unchanged.
-5. Open Sources and its assumptions; then Forecast and its separate TreeSHAP groups.
-6. Open Backtest: compare actual/model/persistence, errors and band coverage.
-7. Use Historical replay to load a high held-out hour with a visible date banner.
-8. Open Ask AirTwin for a grounded actual-output summary; GEMINI_API_KEY is required for generated answers.
+The competition branch is organized around a five-step judge journey:
+**Observe → Predict → Validate → Explain → Act**. The cards above the map surface
+one live piece of evidence for each step and open the matching tab when clicked.
 
-[Three-minute recording script](docs/demo.md).
+1. **Observe:** select Bhosari or another monitoring location; inspect source and timestamp.
+2. **Predict:** open the forecast and read the modeled peak/horizon.
+3. **Validate:** compare held-out model performance with persistence; negative improvement is shown honestly.
+4. **Explain:** inspect traffic, industry, dust and regional-background proxy shares.
+5. **Act:** change three cuts, notice OUTDATED status, run the scenario and compare before/after maps.
+6. Set every cut to zero once during QA; concentrations must remain unchanged.
+7. Historical replay and Ask AirTwin are bonus evidence, not required for the core video.
+
+[Submission video storyboard](docs/video_storyboard.md) ·
+[Hackathon execution plan](docs/hackathon_execution_plan.md) ·
+[Detailed three-minute demo notes](docs/demo.md).
 
 ## Computed model evidence
 

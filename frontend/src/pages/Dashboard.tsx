@@ -24,6 +24,7 @@ import {
 } from "../components/Charts";
 import { AssumptionsPanel } from "../components/AssumptionsPanel";
 import { AskAirTwin } from "../components/AskAirTwin";
+import { DecisionJourney } from "../components/DecisionJourney";
 import { Clock } from "../components/Clock";
 
 const TABS = [
@@ -36,13 +37,13 @@ const TABS = [
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
-  const [region, setRegion] = useState<RegionId>("maharashtra");
+  const [region, setRegion] = useState<RegionId>("pcmc");
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [locationId, setLocationId] = useState("bhosari");
   const [cellLocation, setCellLocation] = useState<Station | null>(null);
-  const [tab, setTab] = useState<Tab>("Scenarios");
+  const [tab, setTab] = useState<Tab>("Overview");
   const [dark, setDark] = useState(false);
   const [after, setAfter] = useState(true);
   const [cuts, setCuts] = useState<Cuts>({ ...DEFAULT_CUTS });
@@ -342,6 +343,15 @@ export function Dashboard() {
           <DataBadge source="modeled" detail="INTERVENTION" />
         </div>
       </section>
+      <DecisionJourney
+        location={location}
+        forecast={forecast}
+        backtest={backtest}
+        attribution={attribution}
+        scenario={currentScenario}
+        active={tab}
+        onSelect={setTab}
+      />
       <section className="workspace">
         <MapView
           stations={data.stations}

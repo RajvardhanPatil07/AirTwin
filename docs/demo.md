@@ -1,5 +1,7 @@
 # Three-minute demonstration script
 
+For the competition recording, use the tighter [submission video storyboard](video_storyboard.md). This longer script remains the technical rehearsal version.
+
 Run FastAPI and use the default frontend backend connection. Prepare it before recording;
 keep visible provenance badges and assumptions. Use 1920×1080 if possible.
 
