@@ -23,6 +23,7 @@ jobs:
       - run: python -m pip install -r backend/requirements.txt
       - run: python -m pytest backend/tests -q
       - run: bash scripts/pipeline.sh --offline
+      - run: python backend/scripts/train_model.py --offline
       - run: python scripts/check_repository.py
   frontend:
     name: Frontend types, lint, tests and build
