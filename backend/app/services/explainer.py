@@ -195,6 +195,7 @@ def gemini_claims(key, model, context, question, history):
             parts = response.json()['candidates'][0]['content']['parts']
             content = ''.join(part.get('text', '') for part in parts if not part.get('thought'))
             candidate = json.loads(content)
+            # Some provider models emit the requested claims as a bare JSON array.
             if isinstance(candidate, list):
                 candidate = {'claims': candidate}
             return checked_claims(candidate, context, question)

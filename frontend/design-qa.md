@@ -1,5 +1,11 @@
 # Connected dashboard verification
 
+Historical report: the sections below record earlier prototype revisions.
+For the current connected workflow use [verification](../docs/verification.md);
+for current forecast evidence use [model card](../docs/model_card.md) and
+[seasonal validation](../docs/evidence/seasonal_validation.md). Earlier statements
+about pooled skill or provider testing do not describe every later revision.
+
 Final result: passed for the local hackathon prototype on 27 September 2026.
 Reference: user screenshot and existing Kombai layout. URL: http://127.0.0.1:5173/.
 
