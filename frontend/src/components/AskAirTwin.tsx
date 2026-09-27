@@ -53,7 +53,7 @@ export function AskAirTwin({
         onClick={() => setOpen(true)}
         aria-expanded={open}
       >
-        <MessageCircle size={15} /> Ask AirTwin
+        <MessageCircle size={15} /> Ask
       </button>
       {open && (
         <section
@@ -67,18 +67,14 @@ export function AskAirTwin({
           <header>
             <div>
               <h2>Ask AirTwin</h2>
-              <p>{location.name} · grounded in actual outputs</p>
+              <p>{location.short_name}</p>
             </div>
             <button aria-label="Close Ask AirTwin" onClick={close}>
               <X size={18} />
             </button>
           </header>
           <DataBadge source="modeled" detail="EXPLANATION" />
-          <p className="helper">
-            Gemini reads this location’s forecast, weather, source proxies,
-            applied interventions and validation. Each answer cites computed
-            evidence.
-          </p>
+          <p className="helper">Grounded in this location’s computed outputs.</p>
           <form
             onSubmit={async (event) => {
               event.preventDefault();
@@ -127,7 +123,7 @@ export function AskAirTwin({
               required
             />
             <button className="run-button" disabled={busy}>
-              {busy ? "Reading model outputs…" : "Explain this location"}
+              {busy ? "Reading…" : "Explain"}
             </button>
           </form>
           {error && <p role="alert">{error}</p>}

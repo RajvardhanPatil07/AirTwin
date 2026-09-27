@@ -10,14 +10,14 @@ import {
   Tooltip,
   useMap,
 } from "react-leaflet";
-import { Check, Layers, Wind } from "lucide-react";
+import { Check, Wind } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
 import type {
   Cell,
+  RegionInfo,
   Station,
   Weather,
   ZoneCollection,
-  RegionInfo,
 } from "../types";
 import { colorFor } from "../mocks/engine";
 import { number } from "../lib/format";
@@ -43,16 +43,23 @@ function accessibleMapTarget(event: LeafletEvent, label: string, retry = true) {
 }
 
 const BANDS = [
-  ["Good 0–30", "#22c55e"],
-  ["Satisfactory 30–60", "#a3e635"],
-  ["Moderate 60–90", "#facc15"],
-  ["Poor 90–120", "#f97316"],
-  ["Very poor 120–250", "#ef4444"],
-  ["Severe >250", "#7f1d1d"],
+  ["0–30", "#22c55e"],
+  ["30–60", "#a3e635"],
+  ["60–90", "#facc15"],
+  ["90–120", "#f97316"],
+  ["120–250", "#ef4444"],
+  [">250", "#7f1d1d"],
 ];
+
+const LAYER_LABELS = {
+  Hotspots: "Grid",
+  Stations: "Sensors",
+  Zones: "Zones",
+} as const;
 
 function MapRuntime({ region }: { region?: RegionInfo }) {
   const map = useMap();
+
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       map.invalidateSize();
@@ -60,8 +67,9 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
         map.fitBounds(region.bounds, { padding: [30, 30] });
       else map.setZoom(map.getContainer().clientHeight < 700 ? 10 : 11);
     });
+
     observer.observe(map.getContainer());
-    // This SVG pattern encodes modeled grid provenance; geography is rendered by Leaflet.
+
     const injectHatch = () => {
       const svg = map.getContainer().querySelector(".leaflet-overlay-pane svg");
       if (!svg || svg.querySelector("#model-hatch")) return;
@@ -74,24 +82,28 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
         height: "10",
         patternUnits: "userSpaceOnUse",
         patternTransform: "rotate(45)",
-      }))
+      })) {
         pattern.setAttribute(key, value);
+      }
       const line = document.createElementNS(ns, "line");
       line.setAttribute("y2", "10");
-      line.setAttribute("stroke", "rgba(255,255,255,.7)");
-      line.setAttribute("stroke-width", "1.3");
+      line.setAttribute("stroke", "rgba(255,255,255,.6)");
+      line.setAttribute("stroke-width", "1.1");
       pattern.append(line);
       defs.append(pattern);
       svg.prepend(defs);
     };
+
     injectHatch();
     map.on("layeradd", injectHatch);
     if (region) map.fitBounds(region.bounds, { padding: [30, 30] });
+
     return () => {
       observer.disconnect();
       map.off("layeradd", injectHatch);
     };
   }, [map, region]);
+
   return null;
 }
 
@@ -108,6 +120,7 @@ interface Props {
   weather?: Weather;
   zones?: ZoneCollection;
 }
+
 export function MapView({
   stations,
   cells,
@@ -128,6 +141,7 @@ export function MapView({
   });
   const [hover, setHover] = useState<string | null>(null);
   const [tileError, setTileError] = useState(false);
+
   const baseline = cells.find((cell) => cell.id === selected.id);
   const tooltipTarget =
     stations.find((station) => station.id === hover) ??
@@ -137,10 +151,11 @@ export function MapView({
   const tooltipStation = stations.find(
     (station) => station.id === tooltipTarget.id,
   );
+
   return (
     <section
-      className={`map-shell ${dark ? "dark-map" : ""}`}
-      aria-label={`${region?.name ?? "Pune and PCMC"} pollution map`}
+      className={"map-shell " + (dark ? "dark-map" : "")}
+      aria-label={(region?.name ?? "Pune and PCMC") + " pollution map"}
     >
       <MapContainer
         center={[18.6, 73.82]}
@@ -160,6 +175,7 @@ export function MapView({
             tileload: () => setTileError(false),
           }}
         />
+
         {layers.Hotspots &&
           cells.map((cell) => (
             <Rectangle
@@ -167,19 +183,19 @@ export function MapView({
               bounds={cell.bounds}
               pathOptions={{
                 color: "#ffffff",
-                weight: 0.6,
+                weight: 0.45,
                 fillColor: colorFor(cell.pm25),
-                fillOpacity: 0.44,
+                fillOpacity: 0.4,
               }}
               eventHandlers={{
                 add: (event) =>
-                  accessibleMapTarget(event, `Select grid ${cell.id}`),
+                  accessibleMapTarget(event, "Select grid " + cell.id),
                 mouseover: () => setHover(cell.id),
                 mouseout: () => setHover(null),
                 click: () =>
                   onSelect({
                     id: cell.id,
-                    name: `Grid cell ${cell.id.replace("cell-", "")}`,
+                    name: "Grid cell " + cell.id.replace("cell-", ""),
                     short_name: "Selected grid cell",
                     latitude: cell.latitude,
                     longitude: cell.longitude,
@@ -189,32 +205,35 @@ export function MapView({
                     assumptions: cell.assumptions,
                   }),
               }}
-            ></Rectangle>
+            />
           ))}
+
         {layers.Hotspots &&
           cells.map((cell) => (
             <Rectangle
-              key={`hatch-${cell.id}`}
+              key={"hatch-" + cell.id}
               bounds={cell.bounds}
               interactive={false}
               pathOptions={{
                 stroke: false,
-                fillOpacity: 0.7,
+                fillOpacity: 0.6,
                 className: "grid-hatch",
               }}
             />
           ))}
+
         {layers.Zones && zones && (
           <GeoJSON
             data={zones as unknown as GeoJsonObject}
             style={{
               color: "#8b5cf6",
-              weight: 2,
-              dashArray: "9 7",
-              fillOpacity: 0.04,
+              weight: 1.5,
+              dashArray: "7 6",
+              fillOpacity: 0.03,
             }}
           />
         )}
+
         {layers.Zones && !zones && (
           <>
             <Polygon
@@ -227,8 +246,8 @@ export function MapView({
               pathOptions={{
                 fill: false,
                 color: "#8b5cf6",
-                weight: 2,
-                dashArray: "9 7",
+                weight: 1.5,
+                dashArray: "7 6",
               }}
             />
             <Polygon
@@ -241,8 +260,8 @@ export function MapView({
               pathOptions={{
                 fill: false,
                 color: "#8b5cf6",
-                weight: 2,
-                dashArray: "9 7",
+                weight: 1.5,
+                dashArray: "7 6",
               }}
             />
             <Polyline
@@ -253,41 +272,44 @@ export function MapView({
                 [18.53, 73.79],
                 [18.46, 73.82],
               ]}
-              pathOptions={{ color: "#3b82f6", weight: 4, opacity: 0.65 }}
+              pathOptions={{ color: "#38bdf8", weight: 3, opacity: 0.55 }}
             />
           </>
         )}
+
         {layers.Stations &&
           stations.map((station) => (
             <CircleMarker
               key={station.id}
               center={[station.latitude, station.longitude]}
-              radius={station.id === selected.id ? 8 : 6}
+              radius={station.id === selected.id ? 8 : 5.5}
               pathOptions={{
                 color:
-                  station.source_type === "observed" ? "#15803d" : "#4b5563",
-                weight: 3,
+                  station.source_type === "observed" ? "#84d8b8" : "#8a8478",
+                weight: station.id === selected.id ? 3 : 2,
                 fillColor: colorFor(station.pm25),
-                fillOpacity: station.source_type === "observed" ? 1 : 0.5,
+                fillOpacity: station.source_type === "observed" ? 1 : 0.55,
                 dashArray:
                   station.source_type === "modeled" ? "3 2" : undefined,
               }}
               eventHandlers={{
                 add: (event) =>
-                  accessibleMapTarget(event, `Select location ${station.name}`),
+                  accessibleMapTarget(event, "Select location " + station.name),
                 click: () => onSelect(station),
                 mouseover: () => setHover(station.id),
                 mouseout: () => setHover(null),
               }}
-            ></CircleMarker>
+            />
           ))}
+
         {baseline && (
           <CircleMarker
             center={[selected.latitude, selected.longitude]}
             radius={6}
-            pathOptions={{ color: "#0b4f6c", fillOpacity: 0, weight: 3 }}
+            pathOptions={{ color: "#5eead4", fillOpacity: 0, weight: 2 }}
           />
         )}
+
         <CircleMarker
           center={[tooltipTarget.latitude, tooltipTarget.longitude]}
           radius={0}
@@ -301,7 +323,7 @@ export function MapView({
             className="station-tooltip"
           >
             <strong>
-              {tooltipStation ? `${tooltipStation.short_name} · ` : ""}
+              {tooltipStation ? tooltipStation.short_name + " · " : ""}
               {number(tooltipTarget.pm25, tooltipStation ? 0 : 1)} µg/m³
             </strong>
             <br />
@@ -310,92 +332,77 @@ export function MapView({
               detail={
                 tooltipStation
                   ? demo
-                    ? "DEMO LOCATION"
+                    ? "DEMO"
                     : tooltipStation.source_type === "modeled"
-                      ? "CAMS REFERENCE"
-                      : "STATION"
+                      ? "CAMS"
+                      : "SENSOR"
                   : after
                     ? "SCENARIO"
-                    : "INTERPOLATED"
+                    : "GRID"
               }
             />
-            {demo && <div className="tooltip-note">Synthetic demo inputs</div>}
           </Tooltip>
         </CircleMarker>
+
         {region?.boundary && (
           <GeoJSON
             key={region.id}
             data={region.boundary as unknown as GeoJsonObject}
-            style={{ color: "#0b4f6c", weight: 2, fill: false }}
+            style={{ color: "#5eead4", weight: 1.5, fill: false }}
           />
         )}
+
         <MapRuntime region={region} />
       </MapContainer>
+
       <div className="map-banner">
-        <DataBadge
-          source="modeled"
-          detail={after ? "SCENARIO" : "INTERPOLATED"}
-        />
-        <span>
-          {after
-            ? "Projected after intervention"
-            : "Baseline concentration grid"}
-          {demo && " · synthetic inputs"}
-        </span>
+        <span className="map-dot" />
+        {after ? "Scenario" : "Baseline"}
+        {demo ? " · demo" : ""}
       </div>
+
       <div className="map-controls" aria-label="Map layers">
-        {(Object.keys(layers) as (keyof typeof layers)[]).map(
-          (layer, index) => (
-            <button
-              key={layer}
-              aria-pressed={layers[layer]}
-              className={layers[layer] && index === 0 ? "selected-layer" : ""}
-              onClick={() => {
-                setLayers({ ...layers, [layer]: !layers[layer] });
-                setHover(null);
-              }}
-            >
-              {layer}
-              {layers[layer] && <Check size={11} />}
-            </button>
-          ),
-        )}
+        {(Object.keys(layers) as (keyof typeof layers)[]).map((layer) => (
+          <button
+            key={layer}
+            aria-pressed={layers[layer]}
+            className={layers[layer] ? "selected-layer" : ""}
+            onClick={() => {
+              setLayers({ ...layers, [layer]: !layers[layer] });
+              setHover(null);
+            }}
+          >
+            {LAYER_LABELS[layer]}
+            {layers[layer] && <Check size={10} />}
+          </button>
+        ))}
         <button className="after-toggle" aria-pressed={after} onClick={onAfter}>
-          {after ? "AFTER VIEW · ON" : "BEFORE VIEW"}
+          {after ? "After" : "Before"}
         </button>
       </div>
-      <div className="map-context">
-        <Layers size={14} />
-        <span>
-          {region?.grid_size ?? 12} × {region?.grid_size ?? 12} grid
-          <br />
-          <small>
-            {layers.Zones ? "Illustrative zones shown" : "Zones hidden"}
-          </small>
-        </span>
-      </div>
+
       {tileError && (
         <div className="tile-warning" role="status">
-          Basemap unavailable. Concentration grid remains interactive.
+          Basemap unavailable
         </div>
       )}
+
       {(demo || weather?.wind_speed_10m !== undefined) && (
         <div className="wind-card">
-          <Wind size={14} />
-          <div>
-            <span>
-              WIND · {demo ? "SYNTHETIC" : weather?.source_type.toUpperCase()}
-            </span>
-            <strong>
-              {demo
-                ? "NW · 11 km/h"
-                : `${number(weather?.wind_direction_10m ?? 0, 0)}° · ${number((weather?.wind_speed_10m ?? 0) * 3.6)} km/h`}
-            </strong>
-          </div>
+          <Wind size={13} />
+          <strong>
+            {demo
+              ? "NW · 11 km/h"
+              : number(weather?.wind_direction_10m ?? 0, 0) +
+                "° · " +
+                number((weather?.wind_speed_10m ?? 0) * 3.6) +
+                " km/h"}
+          </strong>
         </div>
       )}
-      <div className="map-legend">
-        <div className="eyebrow">PM2.5 CONCENTRATION BANDS · µg/m³</div>
+
+      <div className="map-legend" aria-label="PM2.5 concentration bands">
+        <span className="legend-title">PM2.5</span>
         <div className="band-grid">
           {BANDS.map(([label, color]) => (
             <span key={label}>
@@ -404,30 +411,6 @@ export function MapView({
             </span>
           ))}
         </div>
-        <div className="legend-provenance">
-          <DataBadge source="observed" detail="SOLID" />
-          <DataBadge source="modeled" detail="HATCH" />
-          <DataBadge source="synthetic" />
-        </div>
-        <p>Reference markers stay at baseline in after view.</p>
-        {region?.id === "maharashtra" && (
-          <p>
-            CAMS via Open-Meteo · ~45 km model resolution. Boundary:
-            geoBoundaries / DataMeet, CC BY 2.5 IN.
-          </p>
-        )}
-        {!demo &&
-          stations.some((station) => station.source_type === "observed") && (
-            <p>
-              Air readings via <a href="https://openaq.org/">OpenAQ</a> ·
-              station provider names retained.
-            </p>
-          )}
-        {!demo && weather?.source_type === "modeled" && (
-          <p>
-            Weather by <a href="https://open-meteo.com/">Open-Meteo</a>.
-          </p>
-        )}
       </div>
     </section>
   );

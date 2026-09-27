@@ -21,6 +21,7 @@ interface Props {
   busy: boolean;
   inputSource: SourceType;
 }
+
 export function ScenarioPanel({
   cuts,
   onCuts,
@@ -36,52 +37,56 @@ export function ScenarioPanel({
     <div className="scenario-panel">
       {selected && (
         <section
-          className={`comparison ${outdated ? "outdated" : ""}`}
+          className={"comparison " + (outdated ? "outdated" : "")}
           aria-label="Scenario concentration comparison"
         >
           <div className="comparison-heading">
             <div>
-              <div className="eyebrow orange">MODELED SCENARIO</div>
+              <div className="eyebrow">SELECTED SCENARIO</div>
               <h2>{selected.name}</h2>
             </div>
             <span className="rank-badge">
-              <Trophy size={12} /> RANK #{selected.rank}
+              {selected.rank === 1 ? <Trophy size={11} /> : null}
+              #{selected.rank}
             </span>
           </div>
+
           <div className="before-after">
             <div className="value-box">
-              <div className="mini-badge">
-                {inputSource === "synthetic"
-                  ? "SYNTHETIC DEMO INPUT"
-                  : inputSource === "observed"
-                    ? "OBSERVED · STATION"
-                    : "MODELED · BASELINE"}
-              </div>
-              <span>Selected location baseline</span>
+              <span>
+                {inputSource === "observed"
+                  ? "Observed"
+                  : inputSource === "synthetic"
+                    ? "Synthetic"
+                    : "Modeled"}
+              </span>
               <strong>
-                {number(selected.before)} <small>µg/m³</small>
+                {number(selected.before)}
+                <small> µg/m³</small>
               </strong>
             </div>
-            <ArrowRight size={18} className="comparison-arrow" />
+
+            <ArrowRight size={16} className="comparison-arrow" />
+
             <div className="value-box hatch">
-              <div className="mini-badge">MODELED SCENARIO</div>
-              <span>After intervention</span>
+              <span>After</span>
               <strong>
-                {number(selected.after)} <small>µg/m³</small>
+                {number(selected.after)}
+                <small> µg/m³</small>
               </strong>
+              <em>−{number(selected.reduction_percent)}%</em>
             </div>
           </div>
         </section>
       )}
+
       <section className="sliders" aria-label="Emission cut intensities">
         {ACTIONS.map((action) => (
           <label className="slider-row" key={action.id}>
-            <span>
-              {action.label}
-              <small>0–{action.max}% emission cut</small>
-            </span>
+            <span>{action.label}</span>
+            <output>{cuts[action.id]}%</output>
             <input
-              aria-label={`${action.label} emission cut`}
+              aria-label={action.label + " emission cut"}
               type="range"
               min={0}
               max={action.max}
@@ -90,66 +95,50 @@ export function ScenarioPanel({
                 onCuts({ ...cuts, [action.id]: Number(event.target.value) })
               }
             />
-            <output>{cuts[action.id]}%</output>
           </label>
         ))}
       </section>
+
       <button className="run-button" onClick={onRun} disabled={busy}>
         <RotateCw size={13} className={busy ? "spin" : ""} />
-        {busy ? "Calculating scenario…" : "Run scenario"}
+        {busy ? "Calculating…" : outdated ? "Run scenario" : "Re-run scenario"}
       </button>
+
       {response && (
         <div
           className="results-table"
           role="region"
           aria-label="Interventions ranked by exposure benefit"
         >
-          <div className="result-head result-grid">
-            <span>RANK</span>
-            <span>ACTION</span>
-            <span>
-              Δ PM2.5
-              <br />
-              <small>µg/m³ reduction</small>
-            </span>
-            <span>REDUCTION</span>
-            <span>
-              PEOPLE-WEIGHTED BENEFIT
-              <br />
-              <small>
-                {selected?.population_source_type.toUpperCase()} POPULATION
-              </small>
-            </span>
-          </div>
           {response.results.map((result) => (
             <button
               key={result.id}
-              className={`result-row result-grid ${selected?.id === result.id ? "active" : ""}`}
+              className={
+                "result-row result-simple-grid " +
+                (selected?.id === result.id ? "active" : "")
+              }
               aria-pressed={selected?.id === result.id}
               onClick={() => onSelect(result.id)}
             >
-              <span>
-                {result.rank === 1 ? (
-                  <Trophy size={16} className="trophy" />
-                ) : (
-                  result.rank
-                )}
+              <span className="rank-cell">
+                {result.rank === 1 ? <Trophy size={13} /> : result.rank}
               </span>
-              <b>
-                {result.id === "combined" ? "Combined package" : result.name}
-              </b>
-              <span>
-                {number(result.reduction_low)}–{number(result.reduction_high)}
+              <span className="result-name">
+                <b>{result.id === "combined" ? "Combined" : result.name}</b>
+                <small>{compact(result.exposure_benefit)} weighted benefit</small>
               </span>
-              <b>{number(result.reduction_percent)}%</b>
-              <span>
-                {compact(result.exposure_benefit)} <small>person·µg/m³</small>
-              </span>
+              <strong>−{number(result.reduction_percent)}%</strong>
             </button>
           ))}
         </div>
       )}
-      {response && <AssumptionsPanel assumptions={response.assumptions} />}
+
+      {response && (
+        <AssumptionsPanel
+          assumptions={response.assumptions}
+          title="Assumptions"
+        />
+      )}
     </div>
   );
 }
