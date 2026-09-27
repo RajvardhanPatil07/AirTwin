@@ -1,0 +1,22 @@
+name: Feature proposal
+description: Propose a focused improvement tied to ENR-01.
+title: "feat: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and intended user
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and validation
+      description: State the data provenance, assumptions and tests needed.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Data pipeline, Forecast and backtest, API, Spatial and scenarios, Frontend, Documentation]
