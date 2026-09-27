@@ -1,7 +1,14 @@
-# Executable data pipeline and tests (Python 3.11).
+# Python 3.11; current pipeline, API, forecasting and tests.
 numpy==2.4.6
 pandas==2.3.3
 pyarrow==23.0.1
 requests==2.34.2
 python-dotenv==1.2.3
 pytest==9.1.1
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+lightgbm==4.6.0
+shap==0.48.0
+scikit-learn==1.7.2
+PyYAML==6.0.2
+httpx==0.28.1
