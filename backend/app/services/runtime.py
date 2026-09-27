@@ -53,7 +53,24 @@ class Runtime:
                                              *self.warnings]})
         weather_columns = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'wind_direction_10m', 'precipitation']
         weather = {key: float(rows[key].mean()) for key in weather_columns if key in rows and rows[key].notna().any()}
-        cells, background = make_grid(stations, weather, timestamp)
+        background_override = None
+        if len(stations) < 3:
+            history = frame[
+                (frame.timestamp <= timestamp)
+                & (frame.timestamp >= timestamp - pd.Timedelta(days=30))
+                & frame.pm25.notna()
+            ]
+            if not history.empty:
+                historical_background = float(
+                    history.pm25.quantile(CONFIG['background_percentile'] / 100)
+                )
+                background_override = min(
+                    historical_background,
+                    min(float(station['pm25']) for station in stations),
+                )
+        cells, background = make_grid(
+            stations, weather, timestamp, background_override=background_override
+        )
         return stations, cells, background, weather, timestamp
 
     def stations(self, replay_at=None):
