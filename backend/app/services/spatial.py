@@ -10,6 +10,7 @@ ZONES = json.loads((ROOT / 'data/zones.geojson').read_text())
 ASSUMPTIONS = [
     'Grid PM2.5 is IDW interpolation (power 2), not additional station observations.',
     'Regional background is the 15th percentile of a simultaneous station snapshot, capped at cell concentration.',
+    'When fewer than 3 spatial anchors are available, regional background falls back to the recent 30-day PM2.5 15th percentile; this remains a MODELED assumption.',
     'Source shares use hand-drawn zone proximity, assumed traffic profiles and weather proxies; they are not chemical source apportionment.',
     'Industrial upwind weighting uses meteorological wind-from direction; zone coordinates and activity are approximate.',
     'Emission-to-concentration pass-through is 0.7 (sensitivity 0.6–0.8 with ±20% source scaling). Weather is held fixed.',
@@ -68,9 +69,13 @@ def local_weights(lat, lon, hour, weather):
     return {'traffic': traffic / total, 'industry': industry / total, 'dust': dust / total}
 
 
-def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None):
+def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None, background_override=None):
     west, south, east, north = bbox
-    background = float(np.percentile([s['pm25'] for s in stations], CONFIG['background_percentile']))
+    background = (
+        float(background_override)
+        if background_override is not None
+        else float(np.percentile([s['pm25'] for s in stations], CONFIG['background_percentile']))
+    )
     population = CONFIG['population']
     cells = []
     for row in range(grid_size):
