@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   CircleMarker,
+  GeoJSON,
   MapContainer,
   Polygon,
   Polyline,
@@ -10,15 +11,20 @@ import {
   useMap,
 } from "react-leaflet";
 import { Check, Layers, Wind } from "lucide-react";
-import type { Cell, Station } from "../types";
+import type { GeoJsonObject } from "geojson";
+import type { Cell, Station, Weather, ZoneCollection } from "../types";
 import { colorFor } from "../mocks/engine";
 import { number } from "../lib/format";
 import { DataBadge } from "./DataBadge";
 import type { LeafletEvent } from "leaflet";
 
-function accessibleMapTarget(event: LeafletEvent, label: string) {
+function accessibleMapTarget(event: LeafletEvent, label: string, retry = true) {
   const element = event.target.getElement();
-  if (!element) return;
+  if (!element) {
+    if (retry)
+      requestAnimationFrame(() => accessibleMapTarget(event, label, false));
+    return;
+  }
   element.setAttribute("role", "button");
   element.setAttribute("aria-label", label);
   element.setAttribute("tabindex", "0");
@@ -89,6 +95,8 @@ interface Props {
   onAfter: () => void;
   dark: boolean;
   demo: boolean;
+  weather?: Weather;
+  zones?: ZoneCollection;
 }
 export function MapView({
   stations,
@@ -99,6 +107,8 @@ export function MapView({
   onAfter,
   dark,
   demo,
+  weather,
+  zones,
 }: Props) {
   const [layers, setLayers] = useState({
     Hotspots: true,
@@ -108,6 +118,14 @@ export function MapView({
   const [hover, setHover] = useState<string | null>(null);
   const [tileError, setTileError] = useState(false);
   const baseline = cells.find((cell) => cell.id === selected.id);
+  const tooltipTarget =
+    stations.find((station) => station.id === hover) ??
+    cells.find((cell) => cell.id === hover) ??
+    cells.find((cell) => cell.id === selected.id) ??
+    selected;
+  const tooltipStation = stations.find(
+    (station) => station.id === tooltipTarget.id,
+  );
   return (
     <section
       className={`map-shell ${dark ? "dark-map" : ""}`}
@@ -160,21 +178,7 @@ export function MapView({
                     assumptions: cell.assumptions,
                   }),
               }}
-            >
-              {hover === cell.id && (
-                <Tooltip sticky>
-                  <strong>{number(cell.pm25)} µg/m³</strong>
-                  <br />
-                  <DataBadge
-                    source="modeled"
-                    detail={after ? "SCENARIO" : "INTERPOLATED"}
-                  />
-                  {demo && (
-                    <div className="tooltip-note">Synthetic demo inputs</div>
-                  )}
-                </Tooltip>
-              )}
-            </Rectangle>
+            ></Rectangle>
           ))}
         {layers.Hotspots &&
           cells.map((cell) => (
@@ -189,7 +193,18 @@ export function MapView({
               }}
             />
           ))}
-        {layers.Zones && (
+        {layers.Zones && zones && (
+          <GeoJSON
+            data={zones as unknown as GeoJsonObject}
+            style={{
+              color: "#8b5cf6",
+              weight: 2,
+              dashArray: "9 7",
+              fillOpacity: 0.04,
+            }}
+          />
+        )}
+        {layers.Zones && !zones && (
           <>
             <Polygon
               positions={[
@@ -251,26 +266,7 @@ export function MapView({
                 mouseover: () => setHover(station.id),
                 mouseout: () => setHover(null),
               }}
-            >
-              {(hover === station.id ||
-                (!hover && station.id === selected.id)) && (
-                <Tooltip
-                  permanent
-                  direction="right"
-                  offset={[10, 0]}
-                  className="station-tooltip"
-                >
-                  <strong>
-                    {station.short_name} · {number(station.pm25, 0)} µg/m³
-                  </strong>
-                  <br />
-                  <DataBadge
-                    source={station.source_type}
-                    detail={demo ? "DEMO LOCATION" : "STATION"}
-                  />
-                </Tooltip>
-              )}
-            </CircleMarker>
+            ></CircleMarker>
           ))}
         {baseline && (
           <CircleMarker
@@ -279,6 +275,38 @@ export function MapView({
             pathOptions={{ color: "#0b4f6c", fillOpacity: 0, weight: 3 }}
           />
         )}
+        <CircleMarker
+          center={[tooltipTarget.latitude, tooltipTarget.longitude]}
+          radius={0}
+          interactive={false}
+          pathOptions={{ stroke: false, fill: false }}
+        >
+          <Tooltip
+            permanent
+            direction="right"
+            offset={[10, 0]}
+            className="station-tooltip"
+          >
+            <strong>
+              {tooltipStation ? `${tooltipStation.short_name} · ` : ""}
+              {number(tooltipTarget.pm25, tooltipStation ? 0 : 1)} µg/m³
+            </strong>
+            <br />
+            <DataBadge
+              source={tooltipStation?.source_type ?? "modeled"}
+              detail={
+                tooltipStation
+                  ? demo
+                    ? "DEMO LOCATION"
+                    : "STATION"
+                  : after
+                    ? "SCENARIO"
+                    : "INTERPOLATED"
+              }
+            />
+            {demo && <div className="tooltip-note">Synthetic demo inputs</div>}
+          </Tooltip>
+        </CircleMarker>
         <MapRuntime />
       </MapContainer>
       <div className="map-banner">
@@ -326,15 +354,21 @@ export function MapView({
       </div>
       {tileError && (
         <div className="tile-warning" role="status">
-          Basemap unavailable. Demo grid remains interactive.
+          Basemap unavailable. Concentration grid remains interactive.
         </div>
       )}
-      {demo && (
+      {(demo || weather?.wind_speed_10m !== undefined) && (
         <div className="wind-card">
           <Wind size={14} />
           <div>
-            <span>WIND · SYNTHETIC</span>
-            <strong>NW · 11 km/h</strong>
+            <span>
+              WIND · {demo ? "SYNTHETIC" : weather?.source_type.toUpperCase()}
+            </span>
+            <strong>
+              {demo
+                ? "NW · 11 km/h"
+                : `${number(weather?.wind_direction_10m ?? 0, 0)}° · ${number((weather?.wind_speed_10m ?? 0) * 3.6)} km/h`}
+            </strong>
           </div>
         </div>
       )}
@@ -354,6 +388,18 @@ export function MapView({
           <DataBadge source="synthetic" />
         </div>
         <p>Station markers stay at baseline in after view.</p>
+        {!demo &&
+          stations.some((station) => station.source_type === "observed") && (
+            <p>
+              Air readings via <a href="https://openaq.org/">OpenAQ</a> ·
+              station provider names retained.
+            </p>
+          )}
+        {!demo && weather?.source_type === "modeled" && (
+          <p>
+            Weather by <a href="https://open-meteo.com/">Open-Meteo</a>.
+          </p>
+        )}
       </div>
     </section>
   );

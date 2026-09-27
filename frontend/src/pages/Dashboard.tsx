@@ -22,6 +22,7 @@ import {
   ForecastChart,
 } from "../components/Charts";
 import { AssumptionsPanel } from "../components/AssumptionsPanel";
+import { AskAirTwin } from "../components/AskAirTwin";
 import { Clock } from "../components/Clock";
 
 const TABS = [
@@ -34,6 +35,8 @@ const TABS = [
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
+  const [replayAt, setReplayAt] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [locationId, setLocationId] = useState("bhosari");
   const [cellLocation, setCellLocation] = useState<Station | null>(null);
@@ -61,13 +64,22 @@ export function Dashboard() {
 
   useEffect(() => {
     let active = true;
-    loadDashboard().then((result) => {
-      if (active) setData(result);
+    loadDashboard(replayAt).then((result) => {
+      if (active) {
+        setData(result);
+        if (!replayAt)
+          setLocationId(
+            result.stations.find((station) => station.name.includes("Bhosari"))
+              ?.id ?? result.stations[0].id,
+          );
+        setCellLocation(null);
+        setSwitching(false);
+      }
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [replayAt]);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
@@ -78,10 +90,10 @@ export function Dashboard() {
     setError(null);
     setScenario(null);
     Promise.all([
-      api.scenarios(location, appliedCuts, data.demo),
-      api.forecast(location, data.demo, hours),
-      api.backtest(location, data.demo),
-      api.attribution(location, data.demo),
+      api.scenarios(location, appliedCuts, data.demo, replayAt),
+      api.forecast(location, data.demo, hours, replayAt),
+      api.backtest(location, data.demo, replayAt),
+      api.attribution(location, data.demo, replayAt),
     ])
       .then(([nextScenario, nextForecast, nextBacktest, nextAttribution]) => {
         if (!active) return;
@@ -102,7 +114,7 @@ export function Dashboard() {
     return () => {
       active = false;
     };
-  }, [data, location, appliedCuts, hours, retry]);
+  }, [data, location, appliedCuts, hours, retry, replayAt]);
 
   const selected =
     scenario?.results.find((result) => result.id === action) ??
@@ -119,12 +131,28 @@ export function Dashboard() {
     setCellLocation(baselineCell ? { ...next, pm25: baselineCell.pm25 } : null);
     setAction("combined");
   };
+  const toggleReplay = async () => {
+    if (switching) return;
+    setSwitching(true);
+    setHours(24);
+    try {
+      if (replayAt) setReplayAt(null);
+      else {
+        const replay = await api.replay();
+        setLocationId(replay.location_id);
+        setReplayAt(replay.timestamp);
+      }
+    } catch {
+      setSwitching(false);
+      setError("Historical replay could not load. Please retry.");
+    }
+  };
   const run = async () => {
     if (!data || !location || running) return;
     setRunning(true);
     setError(null);
     try {
-      const next = await api.scenarios(location, cuts, data.demo);
+      const next = await api.scenarios(location, cuts, data.demo, replayAt);
       setScenario(next);
       setAppliedCuts({ ...cuts });
       setAction("combined");
@@ -170,8 +198,26 @@ export function Dashboard() {
             {timeLabel(location.timestamp)}
           </span>
           <span className={`status-chip ${data.demo ? "demo-chip" : ""}`}>
-            {data.demo ? "DEMO DATA" : "API DATA"}
+            {data.demo
+              ? "DEMO DATA"
+              : location.source_type === "synthetic"
+                ? "SYNTHETIC TARGET · ML"
+                : "API DATA"}
           </span>
+          {!data.demo && (
+            <button
+              className="status-chip replay-toggle"
+              disabled={switching}
+              onClick={toggleReplay}
+              aria-pressed={Boolean(replayAt)}
+            >
+              {switching
+                ? "Loading replay…"
+                : replayAt
+                  ? "Exit replay"
+                  : "Historical replay"}
+            </button>
+          )}
           <button
             className="theme-button"
             aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
@@ -180,8 +226,20 @@ export function Dashboard() {
             {dark ? <Sun size={12} /> : <Moon size={12} />}
             {dark ? "Light" : "Dark"}
           </button>
+          <AskAirTwin
+            location={location}
+            demo={data.demo}
+            replayAt={replayAt}
+          />
         </div>
       </header>
+      {replayAt && (
+        <div className="replay-banner" role="status">
+          REPLAYED HISTORICAL DATA · {dateLabel(replayAt)} ·{" "}
+          {timeLabel(replayAt)} IST · target{" "}
+          {location.source_type.toUpperCase()}
+        </div>
+      )}
       {data.warning && (
         <div className="api-warning" role="status">
           {data.warning}
@@ -232,6 +290,8 @@ export function Dashboard() {
           onAfter={() => setAfter(!after)}
           dark={dark}
           demo={data.demo}
+          weather={data.weather}
+          zones={data.zones}
         />
         <aside className="insight-panel">
           <div className="location-heading">
@@ -280,6 +340,25 @@ export function Dashboard() {
                 role="tab"
                 id={`tab-${item}`}
                 aria-selected={tab === item}
+                tabIndex={tab === item ? 0 : -1}
+                onKeyDown={(event) => {
+                  const index = TABS.indexOf(item);
+                  const next =
+                    event.key === "ArrowRight"
+                      ? TABS[(index + 1) % TABS.length]
+                      : event.key === "ArrowLeft"
+                        ? TABS[(index + TABS.length - 1) % TABS.length]
+                        : event.key === "Home"
+                          ? TABS[0]
+                          : event.key === "End"
+                            ? TABS[TABS.length - 1]
+                            : null;
+                  if (next) {
+                    event.preventDefault();
+                    setTab(next);
+                    document.getElementById(`tab-${next}`)?.focus();
+                  }
+                }}
                 aria-controls="insight-content"
                 className={tab === item ? "active" : ""}
                 onClick={() => setTab(item)}
@@ -327,6 +406,7 @@ export function Dashboard() {
                     hours={hours}
                     onHours={setHours}
                     demo={data.demo}
+                    replay={Boolean(replayAt)}
                   />
                 )}
                 {tab === "Backtest" && backtest && (
@@ -363,9 +443,9 @@ export function Dashboard() {
                         <b>Offline frontend demonstration</b>
                         <p>
                           All location inputs and population counts are
-                          synthetic. Forecasts are illustrative; the backtest
-                          predictor is persistence. A trained backend is still
-                          to be implemented.
+                          synthetic. This local fallback uses illustrative
+                          forecasts and a persistence demonstration. Connect the
+                          backend to use trained LightGBM forecasts.
                         </p>
                       </div>
                     )}

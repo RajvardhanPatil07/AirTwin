@@ -41,7 +41,7 @@ function SeriesChart({
       aria-label={
         backtest
           ? "Historical target, prediction and persistence comparison in micrograms per cubic metre"
-          : "Synthetic history and illustrative projection in micrograms per cubic metre"
+          : "Historical target and modeled PM2.5 forecast in micrograms per cubic metre"
       }
     >
       <ResponsiveContainer
@@ -157,11 +157,13 @@ export function ForecastChart({
   hours,
   onHours,
   demo,
+  replay = false,
 }: {
   data: ForecastResponse;
   hours: number;
   onHours: (hours: number) => void;
   demo: boolean;
+  replay?: boolean;
 }) {
   return (
     <section className="tab-content">
@@ -175,7 +177,7 @@ export function ForecastChart({
           value={hours}
           onChange={(event) => onHours(Number(event.target.value))}
         >
-          {[24, 48, 72].map((h) => (
+          {(replay ? [24] : [24, 48, 72]).map((h) => (
             <option key={h} value={h}>
               {h} hours
             </option>
@@ -194,6 +196,45 @@ export function ForecastChart({
         targetSource={data.history_source_type}
         demo={demo}
       />
+      {data.history_reference && (
+        <p className="helper">
+          Temporal history reference: sensor {data.history_reference}. Forecast
+          origin is the latest displayed history timestamp.
+        </p>
+      )}
+      {data.shap && (
+        <section
+          className="shap-panel"
+          aria-label="TreeSHAP forecast explanation"
+        >
+          <div className="eyebrow">MODELED · WHY THIS FORECAST?</div>
+          <p className="helper">
+            Feature contributions in µg/m³, separate from source shares.
+            Positive values raise the forecast.
+          </p>
+          {Object.entries(data.shap.groups).map(([name, value]) => (
+            <div className="shap-row" key={name}>
+              <span>{name}</span>
+              <div>
+                <i
+                  style={{
+                    width: `${(Math.abs(value) / Math.max(1, ...Object.values(data.shap!.groups).map(Math.abs))) * 100}%`,
+                    background: value >= 0 ? "var(--orange)" : "var(--blue)",
+                  }}
+                />
+              </div>
+              <b>
+                {value > 0 ? "+" : ""}
+                {number(value, 2)}
+              </b>
+            </div>
+          ))}
+          <p className="helper">
+            Base {number(data.shap.base_value, 2)} + contributions ={" "}
+            {number(data.shap.prediction, 2)} µg/m³ · {data.shap.method}
+          </p>
+        </section>
+      )}
       <AssumptionsPanel
         title="Forecast assumptions"
         assumptions={data.assumptions}
@@ -239,6 +280,18 @@ export function BacktestChart({
           </div>
         ))}
       </div>
+      {m.improvement_percent < 0 && (
+        <p className="validation-warning" role="status">
+          Model loses to persistence on this holdout. Reported improvement is
+          negative.
+        </p>
+      )}
+      {!demo && m.interval_coverage < 70 && (
+        <p className="validation-warning">
+          p10–p90 coverage is low on this holdout; uncertainty is not well
+          calibrated.
+        </p>
+      )}
       <SeriesChart
         series={data.series}
         backtest
@@ -250,6 +303,13 @@ export function BacktestChart({
         µg/m³.{" "}
         {demo && "The demo predictor equals persistence, so improvement is 0%."}
       </p>
+      {data.seasonal_baseline && (
+        <p className="helper">
+          Pooled training-only seasonal baseline MAE:{" "}
+          {number(data.seasonal_baseline.mae, 2)} µg/m³. CV folds:{" "}
+          {data.cv?.length ?? 0}.
+        </p>
+      )}
       <AssumptionsPanel
         title="Validation limits"
         assumptions={data.assumptions}
