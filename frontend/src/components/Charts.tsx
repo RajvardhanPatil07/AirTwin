@@ -205,12 +205,12 @@ export function ForecastChart({
       {data.shap && (
         <section
           className="shap-panel"
-          aria-label="TreeSHAP forecast explanation"
+          aria-label="24-hour TreeSHAP forecast explanation"
         >
-          <div className="eyebrow">MODELED · WHY THIS FORECAST?</div>
+          <div className="eyebrow">MODELED · WHY THE 24-HOUR FORECAST?</div>
           <p className="helper">
-            Feature contributions in µg/m³, separate from source shares.
-            Positive values raise the forecast.
+            Contributions explain the 24-hour forecast in µg/m³, separately
+            from source shares. Positive values raise this forecast.
           </p>
           {Object.entries(data.shap.groups).map(([name, value]) => (
             <div className="shap-row" key={name}>
