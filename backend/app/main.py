@@ -17,7 +17,8 @@ async def lifespan(app):
     stop.set()
 
 app = FastAPI(title='AirTwin Maharashtra + PCMC', version='0.1.0', lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
+app.add_middleware(CORSMiddleware, allow_origins=[origin.strip() for origin in os.getenv('CORS_ORIGINS', '').split(',') if origin.strip()],
+                   allow_origin_regex=r'https?://(localhost|127\\.0\\.0\\.1)(:[0-9]+)?',
                    allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
 for routes in [forecast, backtest, map, attribution, scenarios, explain]:
     app.include_router(routes.router, prefix='/api')
