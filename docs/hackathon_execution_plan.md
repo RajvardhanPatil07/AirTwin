@@ -1,81 +1,82 @@
 # AirTwin hackathon execution plan
 
-This branch is the **competition-ready core milestone**: the goal is not to finish
-every research idea, but to make the ENR-01 loop undeniable in a short judge demo.
+This plan is aligned to HackMatrix 5.0 Round 1. The objective is a compelling
+**Phase-1 prototype** with enough of the final vision implemented to demonstrate
+the complete ENR-01 loop, without pretending the end product is finished.
 
-## Winning product story
+## Round 1 objective
 
-AirTwin should answer five questions in order:
+The official evaluation heavily rewards repository quality, UI/UX and technical
+implementation. AirTwin should therefore optimize for **trustworthy evidence +
+clear product flow**, not another last-minute feature.
 
-1. **Observe** — where is PM2.5 high right now / at the selected data timestamp?
+The product story is:
+
+1. **Observe** — where is PM2.5 high?
 2. **Predict** — what may happen next?
-3. **Validate** — did the forecast beat a simple persistence baseline historically?
-4. **Explain** — which local source proxies are most relevant, with assumptions?
-5. **Act** — which of three interventions produces the largest modeled reduction?
+3. **Validate** — how did the model behave on historical held-out data?
+4. **Explain** — which local source proxies may contribute?
+5. **Act** — how do three intervention options change modeled pollution?
 
-The frontend now exposes these as a five-card evidence journey. Clicking a card
-opens the corresponding evidence tab, so the same sequence can be used in the
-submission video and live judging.
+The frontend exposes this as a five-card judge journey.
 
-## Milestone 1 — core demo (~35% competition readiness)
+## Current Phase-1 prototype
 
-Completed / present in the repository:
+Already demonstrable:
 
-- City-first Pune + PCMC startup state.
-- Pollution hotspot map with source/provenance labels.
-- PM2.5 forecasting and 24/48/72-hour views.
-- Historical backtest against persistence and seasonal baselines.
+- Pune + PCMC city-first dashboard.
+- PM2.5 hotspot grid and selectable locations.
+- ML forecasting with weather/time/history features.
+- Historical backtest and baseline comparison.
 - Traffic, industry, dust and regional-background source hypotheses.
-- Three individual intervention controls plus a combined package.
-- Before/after map state and population-weighted action ranking.
-- Strict OBSERVED / MODELED / SYNTHETIC distinction.
-- Clickable Observe → Predict → Validate → Explain → Act judge journey.
-- Offline fallback, tests and reproducible startup path.
-- Optional Maharashtra context and Ask AirTwin remain bonus features, not the
-  core pitch.
+- Traffic restriction, industrial control and dust-suppression scenarios.
+- Before/after grid and exposure-weighted comparison.
+- OBSERVED / MODELED / SYNTHETIC provenance.
+- Responsive UI, tests, CI and reproducible startup.
+- Optional historical replay, Maharashtra context and grounded explainer.
 
-This is enough for a strong first-round video because every required ENR-01 outcome
-has visible evidence. Do not add more screens until this path is stable on the
-recording machine.
+For Round 1, this should be presented as the implemented vertical slice of a larger
+operational twin, not as the final municipal platform.
 
-## Milestone 2 — evidence strength (35 → 60%)
+## Priority until submission
 
-Priority order:
+### P0 — score protection
 
-1. Refresh the latest usable observed Pune/PCMC data and record exact timestamps.
-2. Re-run training and preserve the generated holdout metrics.
-3. Verify Bhosari and at least one other location for a clean demo path.
-4. Replace approximate proxy geometry with sourced road / industrial / construction
-   data where licensing and time allow.
-5. Calibrate or clearly weaken uncertainty claims if interval coverage is poor.
+1. Verify all registered members are collaborators and have **genuine commits**.
+2. Keep repository free of ZIPs, videos, binaries and generated build output.
+3. Run the complete CI/local checks on the exact submitted commit.
+4. Verify README commands and public repository access.
+5. Finish the official PPT **without adding slides**.
+6. Record the combined PPT + prototype video under 3 minutes.
+7. Verify the Drive folder and public sharing before the deadline.
 
-Winning criterion: judges should trust the evidence even when the model is imperfect.
+### P1 — evidence quality
 
-## Milestone 3 — product polish (60 → 80%)
+Only if P0 is safe:
 
-- Deploy a stable public demo if hackathon rules allow it.
-- Add a single saved demo scenario rather than more controls.
-- Improve loading/failure copy and recording-safe responsive layout.
-- Add a compact methodology drawer linking each number to its assumption.
-- Use Ask AirTwin only after a real provider-backed run is verified; never make the
-  LLM the core demo dependency.
+- Refresh usable observed Pune/PCMC data.
+- Regenerate model/data reports.
+- Verify Bhosari plus one second location for the recording path.
+- Fix any visible stale-data/provenance mismatch.
+- Make one real UI polish improvement if something is hard to read at 1080p.
 
-Winning criterion: a judge can understand the product without the presenter explaining
-the interface.
+### P2 — do not chase before Round 1
 
-## Milestone 4 — submission (80 → 100%)
+Do not spend submission time on authentication, mobile apps, 3D city rendering,
+blockchain, additional pollutants, notification systems, or another AI feature.
+They add scope without improving the current judging evidence.
 
-- Record the 2.5–3 minute video from the storyboard.
-- Capture final desktop screenshots with provenance and timestamps visible.
-- Re-run CI on the exact submitted commit.
-- Add team names/roles and final video link.
-- Practice a 30-second problem statement and 30-second technical defense.
-- Prepare answers for: data freshness, source attribution assumptions, forecast
-  baseline, intervention causality and synthetic population.
+## After Round 1 selection
 
-## What not to build before the video
+Focus on the official final-round requirement: a working end product with deeper
+AI/ML integration. Priorities:
 
-Avoid spending time on authentication, user accounts, a mobile app, 3D city models,
-additional pollutants, blockchain, notifications or another AI assistant. None of
-those improve the ENR-01 scoring loop as much as trustworthy evidence and a clear
-before/after intervention story.
+- sourced traffic/road network inputs;
+- verified industrial/construction layers;
+- licensed population data;
+- calibrated uncertainty and stronger held-out evaluation;
+- production-style data refresh/deployment;
+- multi-pollutant expansion only after PM2.5 remains reliable.
+
+See [Round 1 readiness](round1_readiness.md) and
+[submission checklist](submission_checklist.md).

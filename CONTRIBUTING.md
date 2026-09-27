@@ -24,6 +24,26 @@ Do not manufacture commit counts: splitting code into coherent modules and tests
 is useful; repeated whitespace-only or empty commits are not. Never backdate
 commits, invent team authors, or credit someone without their contribution.
 
+### HackMatrix Round 1 team-contribution rule
+
+For the submission branch, every **registered** team member should take ownership
+of a real issue and contribute meaningful repository work. Good contributions
+include a tested frontend improvement, a data/model validation change, a backend
+test/fix, or substantive documentation tied to the submission.
+
+Recommended workflow per teammate:
+
+1. Comment on / take one Round-1 issue.
+2. Create a personal feature/fix branch.
+3. Implement and test the change.
+4. Commit under that teammate's own GitHub identity.
+5. Open a PR or merge through the team's normal review process.
+6. Have another teammate review when time permits.
+
+Do not create empty, whitespace-only or fake-author commits for compliance. The
+organizers explicitly evaluate repository maintenance and multi-member contribution,
+so genuine reviewable work is the safest strategy.
+
 Example commit subjects:
 
 - `feat: preserve station provenance in forecast responses`

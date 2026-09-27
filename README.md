@@ -53,6 +53,20 @@ modeled intervention effects are not measured policy outcomes.*
 [Acceptance evidence](docs/acceptance.md) · [Generated model card](docs/model_card.md)
 · [Fetched data coverage](docs/data_report.md).
 
+### HackMatrix Round 1 submission
+
+The competition build is presented as a **Phase-1 vertical slice** of the proposed
+end product. It is intentionally organized around the five-step judge journey:
+**Observe → Predict → Validate → Explain → Act**.
+
+- [Round 1 scoring/readiness matrix](docs/round1_readiness.md)
+- [Submission checklist](docs/submission_checklist.md)
+- [PPT + prototype video storyboard](docs/video_storyboard.md)
+- [Execution plan](docs/hackathon_execution_plan.md)
+
+Before submission, verify all registered team members have genuine repository
+contributions and that the exact submitted commit passes the quality checks.
+
 ## Start the project
 
 Requirements: **Python 3.11**, **Node.js 22**, npm. On macOS, LightGBM's native
