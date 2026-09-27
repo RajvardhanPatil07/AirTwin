@@ -1,5 +1,27 @@
 # Verification of the connected intervention workflow
 
+## 28 September 2026 follow-up
+
+The current local frontend passed 14 tests, ESLint, TypeScript/Vite build and
+four hosting tests. Backend full suite passed 34 tests before the final delayed
+sampling regression was added; all three validation-specific tests then passed.
+The connected `/backend` runtime checker passed on observed targets with
+`gemini_evidence_checked`; the cached dataset origin remains 24 September 2026
+22:00 IST. This does not establish current live data or provider uptime.
+
+At 390×844, document width equaled viewport width. Keyboard Enter selected
+Industrial controls and updated the displayed after concentration and selected
+benefit. Home set all cuts to zero, old results were marked outdated, and Run
+scenario produced equal before/after values, zero benefits and no claimed winner.
+Forecast showed separate observed history, modeled predictions and TreeSHAP
+explanation. This is a bounded recheck, not a new full accessibility audit.
+
+Twenty-four seasonal forecast evaluations and three synthetic population
+profiles were computed from the local dataset. Results and limitations are in
+[validation protocol](validation_protocol.md). Documentation link and tracked-file
+checks passed. New CI steps exercise the connected offline API and validation CLI.
+The original 27 September evidence below is retained as a dated historical record.
+
 Recorded during the 27 September 2026 work session. These checks cover local
 changes applied to a fresh GitHub clone; they are not a new remote CI run.
 

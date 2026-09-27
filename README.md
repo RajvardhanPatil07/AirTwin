@@ -53,6 +53,17 @@ modeled intervention effects are not measured policy outcomes.*
 [Acceptance evidence](docs/acceptance.md) · [Generated model card](docs/model_card.md)
 · [Fetched data coverage](docs/data_report.md).
 
+Additional evidence: [seasonal forecast validation](docs/evidence/seasonal_validation.md),
+[prediction-time input protocol](docs/validation_protocol.md), and
+[synthetic population sensitivity](docs/evidence/population_sensitivity.md).
+The delayed pollution-only model loses to persistence in the October 2025
+24-hour test; some seasonal uncertainty bands under-cover. These reports are
+separate evaluation models, not new operational accuracy guarantees.
+
+[User-feedback protocol](docs/user_feedback.md), [team review workflow](docs/team_workflow.md),
+and [submission checklist](docs/submission_checklist.md) track the remaining human work.
+No external user study or endorsement is recorded yet.
+
 ## Start the project
 
 Requirements: **Python 3.11**, **Node.js 22**, npm. On macOS, LightGBM's native
