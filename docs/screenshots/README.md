@@ -1,14 +1,17 @@
-# Dashboard evidence
+# Connected dashboard evidence
 
-These are captures of the implemented frontend, not rendered design mockups.
+Actual local application captures from 27 September 2026:
 
-- dashboard-desktop.jpg: 1920×1080, default synthetic Bhosari scenario.
-- dashboard-laptop.jpg: 1366×768 compact view with all ranking rows visible.
+- dashboard-desktop.jpg: 1920×1080, Bhosari observed baseline and modeled scenario.
+- dashboard-laptop.jpg: 1366×768, same response in the compact layout.
 
-Source: local running AirTwin frontend. The browser capture included a blank
-half-scale canvas; cropping and resizing normalize the display scale. No data,
-labels or UI content were edited. JPEG compression keeps repository assets small.
+The data timestamp is 24 September 2026, 22:00 IST; the stale-data warning is visible.
+Station readings are OBSERVED, interpolation/interventions MODELED, and population
+weights SYNTHETIC. These are not measured policy outcomes or current live readings.
 
-Readings/population are synthetic and interventions modeled. Preserve these labels
-when reusing screenshots. Basemap: © OpenStreetMap contributors, ODbL; see
-https://www.openstreetmap.org/copyright. Tiles are visual context, not air observations.
+The browser capture draws at half scale within a larger canvas. Cropping blank
+canvas and resizing normalize the display scale. No values, labels or UI content
+were edited. JPEG compression keeps assets small.
+
+Basemap © OpenStreetMap contributors, ODbL: https://www.openstreetmap.org/copyright.
+Air readings via OpenAQ with provider names retained; weather via Open-Meteo.

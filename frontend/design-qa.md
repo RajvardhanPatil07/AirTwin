@@ -1,59 +1,50 @@
-# Screenshot implementation QA
+# Connected dashboard verification
 
-Final result: passed.
+Final result: passed for the local hackathon prototype on 27 September 2026.
+Reference: user screenshot and existing Kombai layout. URL: http://127.0.0.1:5173/.
 
-Reference: user screenshot and Kombai canvas node `node_3810ffa21f89`.
-Implementation: http://127.0.0.1:5173/
+## Visual comparison
 
-## Visual verification
+Preserved the reference header, peach intervention banner, 60/40 map and insights
+layout, tabs, hatch cards, blue action, three sliders, ranked table and assumptions.
+Reviewed the desktop capture against the reference and inspected the scenario panel.
+Intentional differences: real provider names/readings, one tooltip, data-age warning,
+compact replay/chat controls and numerically consistent backend scenario results.
+The attached reference is not redistributed.
 
-Compared the reference and implementation side by side at 1920×1080 and inspected
-an enlarged scenario-panel crop. Preserved the header, peach result banner,
-60/40 map-and-insights arrangement, tab strip, hatched result cards, blue action,
-three sliders, ranked table, and assumptions disclosure.
+Evidence: ../docs/screenshots/dashboard-desktop.jpg and dashboard-laptop.jpg.
+These show OBSERVED station baselines, MODELED grid/scenarios and SYNTHETIC population.
+The capture service draws at half scale inside its canvas. Evidence crops blank
+canvas and normalizes display scale; no numbers, labels or UI elements are edited.
 
-Intentional differences: one selected map tooltip; synthetic provenance instead of
-fabricated observations; mathematically consistent calculated values; approximate
-illustrative zones; live OpenStreetMap tiles. Exact map tile appearance varies by zoom.
+## Browser evidence
 
-Published evidence: `../docs/screenshots/dashboard-desktop.jpg` and
-`../docs/screenshots/dashboard-laptop.jpg`. The reference/composite and enlarged
-panel were inspected locally; user reference captures are not redistributed.
-Browser full-page captures rendered at half scale inside the capture canvas;
-evidence images crop that blank canvas and normalize scale. DOM measurements
-verified actual viewport dimensions and absence of horizontal overflow.
+- 1920×1080: document 1920×1080; no horizontal overflow; one map tooltip.
+- 1366×768: document 1366×768; all four ranking rows visible; chat control moved
+  into the header so it cannot cover the result table.
+- 390px mobile: document width 390px; stacked panels; provider timestamp retained.
+- All five tabs work. Forecast 24/72h selection returns backend projections.
+- Backtest displays Bhosari's computed holdout metrics and quantile coverage.
+- Sources display four proxy categories, separate from TreeSHAP in Forecast.
+- Three zero-cut sliders plus Run scenario produce identical before/after values,
+  zero ranges and zero exposure benefits for all actions.
+- Keyboard grid selection works; 154 accessible map targets (144 cells + 10 stations).
+- Historical replay loads the held-out 7 January 2026 snapshot with a dated banner;
+  exiting restores the current cached dataset. Replay forecasts use pre-holdout models.
+- Ask AirTwin returns a tagged template grounded in actual API outputs without an
+  LLM key; Escape closes it. Optional external-provider behavior is not live-tested.
+- Light/dark themes work. Final browser console contains no warnings or errors.
 
-## Browser checks
+## Automated evidence and limits
 
-- 1920×1080: full dashboard fits; no horizontal overflow.
-- 1366×768: all scenario ranking rows and disclosure header visible; panel scrolls
-  when expanded. Page dimensions remain 1366×768.
-- 390px mobile: stacked layout and map controls fit without horizontal overflow.
-- Light and dark themes, all five tabs, forecast horizons, assumptions disclosure,
-  location selection, keyboard station/cell activation, layer toggles, and before/
-  after map views tested.
-- Slider changes mark results outdated. Running a scenario updates the banner,
-  cards, ranking and map from one response. Zero cuts produce zero reductions.
-- One map tooltip at a time. Final clean browser console: no errors or warnings.
+20 backend tests, 11 frontend tests and 4 hosting tests pass. Production TypeScript
+build and ESLint pass. Tests cover leakage, purged splits, SHAP reconstruction,
+IDW, normalized shares, additive scenarios, contracts, replay and invalid LLM numbers.
+Third-party Python/Node deprecation warnings do not represent failed checks.
 
-## Implementation and honesty checks
-
-- Build and strict TypeScript: passed. ESLint: passed. Vitest: 11 tests passed.
-- Tests cover zero cuts, additive combined benefit, normalized shares, background
-  clamping, IDW at locations, computed demo metrics, and API fallback provenance.
-- Observations are never synthesized. Demo locations/population are marked
-  SYNTHETIC, derived outputs MODELED, with assumptions and DEMO DATA status.
-- Demo forecast uncertainty is explicitly uncalibrated. No real model accuracy is
-  claimed. Backend and trained forecasting models remain pending.
-
-## Antislop implementation gate
-
-Applied during implementation as requested. Screenshot tokens and layout are
-preserved; semantic colors, badges and hatch patterns encode data meaning.
-Controls have labels, keyboard focus and state feedback. Text colors have separate
-dark-theme tokens; outdated state uses a border instead of lowered text opacity.
-Motion is limited to functional state feedback. Local fonts, split map/chart bundles,
-loading/retry states and responsive stacking support predictable rendering.
-
-No unresolved P0–P2 defects found in the tested frontend flows. API success with a
-real backend remains unverified because no backend server exists yet.
+The latest observed snapshot is 24 September 2026 at 22:00 IST. A visible warning
+states that it is cached historical data. Pooled model skill trails persistence;
+the generated model card reports the measured loss. No causal policy effect,
+real population count, operational forecast skill or strong LLM semantic guarantee
+is claimed. This report is scoped to the tested local prototype, not accessibility
+certification or production readiness.
