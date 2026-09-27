@@ -14,7 +14,7 @@
 - [x] Three additive interventions, combined package and synthetic population ranking.
 - [x] Existing frontend connected without redesign; mock fallback retained.
 - [x] Exact TreeSHAP groups displayed separately from proxy source shares.
-- [x] Grounded explanation endpoint and matching chat drawer; no-key template.
+- [x] Grounded explanation endpoint and matching chat drawer; Gemini-only responses with explicit no-key errors.
 - [x] Historical replay with date banner and pre-holdout forecast model.
 - [x] Backend/math/API tests, frontend checks and CI offline training.
 

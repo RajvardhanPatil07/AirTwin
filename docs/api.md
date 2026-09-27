@@ -56,7 +56,7 @@ Scenario IDs are held in a bounded in-memory cache and disappear on restart.
   and interval coverage percent. Negative improvement is a model loss.
 - Attribution: four total concentration shares summing to one, separate from
   normalized local excess weights used by scenarios.
-- Explanation: source-tagged answer, grounded_template or llm_context_checked,
+- Explanation: evidence-cited Gemini claims and source-tagged answer, gemini_evidence_checked,
   context built from actual location/model/attribution/scenario/backtest outputs.
 
 Grid forecasts/history and validation reference a nearby station. If a current
@@ -84,3 +84,12 @@ curl 'http://127.0.0.1:8000/api/forecast?location_id=12304615&hours=24'
 
 No environmental API key is required by local frontend requests; keys stay on
 the backend machine. CORS permits the local Vite origins on port 5173.
+
+## Regional queries
+
+Stations, hotspots, forecast, backtest and attribution accept `region=pcmc|maharashtra`
+(default pcmc for backward compatibility). Scenario and explain bodies accept `region`.
+Explain also accepts `cuts`, `hours` and bounded `history`. State forecasts have null
+SHAP/p10/p90; state backtests return `available=false`, `metrics=null`, `series=[]`.
+Stations include regional bounds/boundary, coverage, pollutant units and weather.
+Gemini configuration errors return 503, unverifiable/network answers 502. No template fallback.

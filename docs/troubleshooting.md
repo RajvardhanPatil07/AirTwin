@@ -79,6 +79,4 @@ accuracy from that series.
 **Replay horizon is limited:** replay uses the pre-holdout 24-hour model. It is
 limited to 24 hours and interpolates shorter points. Normal serving supports 72.
 
-**Ask AirTwin uses a template:** expected without LLM_API_KEY, on provider failure,
-or when output adds numbers/tags that fail context checks. No LLM subscription is
-required for the core project.
+**Ask AirTwin reports an error:** add GEMINI_API_KEY to the ignored root .env and restart. Provider or verification failures remain explicit; no canned answer is used.

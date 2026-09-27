@@ -18,7 +18,7 @@ flowchart LR
   CONFIG[Assumptions YAML and proxy GeoJSON] --> SPATIAL[IDW attribution and scenarios]
   SPATIAL --> API
   API --> UI[Existing React dashboard]
-  API --> EXPLAIN[Grounded template or optional LLM]
+  API --> EXPLAIN[Gemini with computed evidence]
   EXPLAIN --> UI
   MOCK[Frontend-only synthetic fallback] --> UI
 ```
@@ -47,8 +47,7 @@ is no hidden background polling, automatic alert service or public deployment.
 - `services/attribution.py`: total concentration shares, distinct from local weights.
 - `services/scenarios.py`: one additive equation for selected location and full grid.
 - `services/runtime.py`: coherent cached snapshot, model/reference selection and replay.
-- `services/explainer.py`: actual-output context, grounded template and optional
-  OpenAI-compatible provider with numeric/tag checks.
+- `services/explainer.py`: actual-output context and Gemini with evidence checks; no canned fallback. Provider failures return explicit errors.
 - `routers/`: validated FastAPI contract; unknown IDs/horizons/cuts return errors.
 - `frontend/src/lib/api.ts`: backend requests, explicit initial synthetic fallback,
   subsequent retry states and replay parameters.

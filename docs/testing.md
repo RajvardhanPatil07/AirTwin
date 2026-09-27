@@ -51,7 +51,7 @@ The recorded frontend QA report is frontend/design-qa.md.
 
 Backend tests now verify gap-aware/no-future features, horizon forecast alignment,
 purged temporal boundaries, metrics, IDW, zero cuts/additivity, SHAP reconstruction,
-API contracts/CORS/errors, replay and template explanations. The model card contains
+API contracts/CORS/errors, replay, Gemini evidence verification and no-key errors. The model card contains
 real held-out evidence for the downloaded dataset. Live optional LLM integration,
 strong interval calibration, real population and causal policy effects remain unproven.
 

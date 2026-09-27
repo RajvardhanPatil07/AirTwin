@@ -69,3 +69,9 @@ The Backtest tab contains actual held-out predictions from the pre-holdout model
 Current serving models refit on all available data. Forecast horizons 1–24, 48
 and 72 are direct; gaps from 25–71 hours are interpolated. Quantile bounds must be
 interpreted alongside measured coverage and underperformance in the model card.
+
+## Maharashtra extension
+
+See [regional coverage and provider assumptions](live_data_providers.md). CAMS points
+are modeled, source resolution is about 45 km, statewide validation is unavailable,
+industrial zones remain Pune-only proxies and population remains synthetic.

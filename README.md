@@ -138,7 +138,7 @@ still work with a notice; this is not an offline map-tile cache.
 5. Open Sources and its assumptions; then Forecast and its separate TreeSHAP groups.
 6. Open Backtest: compare actual/model/persistence, errors and band coverage.
 7. Use Historical replay to load a high held-out hour with a visible date banner.
-8. Open Ask AirTwin for a grounded actual-output summary; no LLM key is required.
+8. Open Ask AirTwin for a grounded actual-output summary; GEMINI_API_KEY is required for generated answers.
 
 [Three-minute recording script](docs/demo.md).
 
@@ -179,7 +179,7 @@ flowchart LR
   CONFIG[Assumptions YAML and proxy zones] --> SIM[IDW sources and scenarios]
   SIM --> API
   API --> UI[React dashboard]
-  API --> EXPLAIN[Grounded template or optional LLM]
+  API --> EXPLAIN[Gemini with computed evidence]
   EXPLAIN --> UI
 ```
 
@@ -251,8 +251,8 @@ shorter points interpolate from the issue reading. Full independent archived
 forecasts at every replay horizon are not claimed.
 
 **Ask AirTwin:** builds context from actual forecast, TreeSHAP, shares, scenarios
-and backtest outputs. Without a key it returns a grounded template. Optional root
-environment values: LLM_API_KEY, LLM_BASE_URL and LLM_MODEL for an OpenAI-compatible
+and backtest outputs. Without GEMINI_API_KEY it returns an explicit error. Root environment values
+GEMINI_API_KEY and GEMINI_MODEL configure the Gemini
 provider. The prompt forbids outside numbers; numeric/tag checks reject invalid
 output. This is not proof of perfect semantic grounding, and no provider-backed
 LLM run has been verified without a configured key.
@@ -318,7 +318,7 @@ checks; add pollutants and validated alerts. [Roadmap](docs/roadmap.md).
 OpenAQ observed readings retain station/provider names. Open-Meteo API data are
 CC BY 4.0; retain Open-Meteo/CAMS attribution where used. The current basemap is
 © OpenStreetMap contributors, ODbL data with separate tile-use conditions. WorldPop
-is planned, not used. Inter is SIL OFL. No downloaded provider dumps are committed.
+is planned, not used. Inter is SIL OFL. Only small, curated and explicitly labeled offline samples are committed.
 
 [Source and license notes](docs/data_sources.md). No project-wide software license
 has been chosen by the team; public repository visibility alone is not a license.
@@ -333,3 +333,13 @@ Built for a four-person student team. Repository maintainer:
 [Rajvardhan Patil](https://github.com/RajvardhanPatil07). Other member names have
 not been provided and are not invented. Suggested responsibilities: data/ML,
 API/spatial, frontend and validation/docs/demo. Git history records actual authorship.
+
+## Maharashtra coverage and live providers
+
+The region selector now includes Maharashtra: 36 CAMS reference points, eight air
+variables and seven weather variables, with hourly backend refresh and a labeled
+offline sample. State forecasts are CAMS model outputs; the existing validated
+LightGBM model remains specific to Pune + PCMC. Gemini chat uses actual outputs
+and requires GEMINI_API_KEY in the ignored root .env. No canned chat fallback.
+
+See [live provider choices, limits, pricing and regional assumptions](docs/live_data_providers.md).
