@@ -57,3 +57,25 @@ def test_horizon_weather_uses_issue_aligned_forecast_not_future_realization():
     x = build_features(frame, 24)
     assert x.loc[issue, 'horizon_temperature_2m'] == 17.0
     assert x.loc[issue, 'temperature_2m'] != 999.0
+
+
+def test_blend_and_conformal_bundle_predicts_ordered_bands():
+    from app.services.model import fit_bundle, bundle_predict, feature_columns
+    frame, _, _ = load_dataset(True)
+    rows = supervised(frame, 6)
+    features = feature_columns(rows)
+    assert 'latitude' not in features and 'month' not in features
+    bundle = fit_bundle(rows, features)
+    assert 0 <= bundle['weight'] <= 1
+    blend, low, high, _ = bundle_predict(bundle, rows.tail(50))
+    assert (low <= blend).all() and (blend <= high).all() and (blend >= 0).all()
+
+
+def test_exogenous_target_hour_covariate_is_aligned_to_target_time():
+    frame, _, _ = load_dataset(True)
+    times = pd.to_datetime(frame.timestamp)
+    exog = pd.DataFrame({'cams_pm25': np.arange(len(times), dtype=float)}, index=times)
+    x = build_features(frame, 6, exog)
+    issue = frame.timestamp.iloc[100]
+    assert x.loc[issue, 'cams_target'] == exog.loc[issue + pd.Timedelta(hours=6), 'cams_pm25']
+    assert x.loc[issue, 'cams_issue'] == exog.loc[issue, 'cams_pm25']

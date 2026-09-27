@@ -11,12 +11,14 @@ import {
   PieChart,
   Pie,
   Cell as PieCell,
+  LineChart,
 } from "recharts";
 import type {
   AttributionResponse,
   BacktestResponse,
   ForecastResponse,
   SeriesPoint,
+  SkillRow,
   SourceType,
 } from "../types";
 import { dateLabel, number, timeLabel } from "../lib/format";
@@ -215,8 +217,10 @@ export function ForecastChart({
         >
           <div className="eyebrow">MODELED · WHY THE 24-HOUR FORECAST?</div>
           <p className="helper">
-            Contributions explain the 24-hour forecast in µg/m³, separately from
-            source shares. Positive values raise this forecast.
+            Contributions explain the LightGBM component of the 24-hour forecast
+            in µg/m³, separately from source shares. Positive values raise it.
+            {data.shap.blend_weight !== undefined &&
+              ` Final forecast blends ${number(data.shap.blend_weight * 100, 0)}% LightGBM with persistence.`}
           </p>
           {Object.entries(data.shap.groups).map(([name, value]) => (
             <div className="shap-row" key={name}>
@@ -325,6 +329,7 @@ export function BacktestChart({
         µg/m³.{" "}
         {demo && "The demo predictor equals persistence, so improvement is 0%."}
       </p>
+      {data.skill && <SkillChart skill={data.skill} />}
       {data.seasonal_baseline && (
         <p className="helper">
           Pooled training-only seasonal baseline MAE:{" "}
@@ -336,6 +341,61 @@ export function BacktestChart({
         title="Validation limits"
         assumptions={data.assumptions}
       />
+    </section>
+  );
+}
+
+export function SkillChart({ skill }: { skill: SkillRow[] }) {
+  if (!skill.length) return null;
+  const hasCams = skill.every((row) => row.cams_mae !== undefined);
+  return (
+    <section className="skill-panel" aria-label="Forecast skill by horizon">
+      <div className="eyebrow">MODEL LEADERBOARD · SAME WINTER HOLDOUT</div>
+      <h3>Error by forecast horizon (lower is better)</h3>
+      <div className="chart skill-chart" role="img" aria-label="Mean absolute error by forecast horizon for AirTwin and baselines">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 500, height: 220 }}>
+          <LineChart data={skill} margin={{ top: 10, right: 14, left: -12, bottom: 4 }}>
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="horizon" tickFormatter={(h) => `${h}h`} tick={{ fontSize: 10, fill: "var(--muted)" }} />
+            <YAxis tick={{ fontSize: 10, fill: "var(--muted)" }} unit="" />
+            <Tooltip
+              labelFormatter={(h) => `${h}-hour horizon`}
+              formatter={(value) => `${number(Number(value), 2)} µg/m³`}
+              contentStyle={{ background: "var(--surface)", color: "var(--text)", borderColor: "var(--border)", borderRadius: 8 }}
+            />
+            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
+            <Line dataKey="mae" name="AirTwin (blend)" stroke="var(--chart-predicted)" strokeWidth={3} dot={{ r: 3 }} />
+            <Line dataKey="lightgbm_only_mae" name="LightGBM only" stroke="#7c3aed" strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
+            <Line dataKey="persistence_mae" name="Persistence" stroke="var(--chart-baseline)" strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
+            <Line dataKey="seasonal_mae" name="Seasonal mean" stroke="#9aa9a2" strokeWidth={1} dot={false} />
+            {hasCams && <Line dataKey="cams_mae" name="CAMS raw" stroke="#64748b" strokeWidth={1} strokeDasharray="1 3" dot={false} />}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="skill-table" role="table" aria-label="Skill table">
+        <div role="row" className="skill-head">
+          <span role="columnheader">Horizon</span>
+          <span role="columnheader">MAE</span>
+          <span role="columnheader">vs persistence</span>
+          <span role="columnheader">Band cover</span>
+        </div>
+        {skill.map((row) => (
+          <div role="row" key={row.horizon}>
+            <span role="cell">{row.horizon} h</span>
+            <span role="cell">{number(row.mae, 1)}</span>
+            <span role="cell" className={row.improvement_percent >= 0 ? "gain" : "loss"}>
+              {row.improvement_percent >= 0 ? "+" : ""}
+              {number(row.improvement_percent)}%
+            </span>
+            <span role="cell">{number(row.interval_coverage, 0)}%</span>
+          </div>
+        ))}
+      </div>
+      <p className="helper">
+        Pooled across stations. Each horizon is a separate direct model; the
+        blend weight with persistence and the conformal p10–p90 band are chosen on
+        rolling folds before the holdout. Target band coverage: 80%.
+      </p>
     </section>
   );
 }

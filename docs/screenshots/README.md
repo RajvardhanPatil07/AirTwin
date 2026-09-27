@@ -1,17 +1,15 @@
 # Connected dashboard evidence
 
-Actual local application captures from 27 September 2026:
+Actual local application captures from 27 September 2026 (headless Chrome, 1× scale):
 
-- dashboard-desktop.jpg: 1920×1080, Bhosari observed baseline and modeled scenario.
-- dashboard-laptop.jpg: 1366×768, same response in the compact layout.
+- dashboard-desktop.jpg: 1440×900, Historical replay of the highest held-out winter hour
+  (7 Jan 2026, 23:00 IST): observed station readings, modeled scenario grid, NAQI health card
+  and the forecast timeline.
+- dashboard-laptop.jpg: 1280×800, Backtest tab with the skill-by-horizon model leaderboard.
 
-The data timestamp is 24 September 2026, 22:00 IST; the stale-data warning is visible.
-Station readings are OBSERVED, interpolation/interventions MODELED, and population
-weights SYNTHETIC. These are not measured policy outcomes or current live readings.
-
-The browser capture draws at half scale within a larger canvas. Cropping blank
-canvas and resizing normalize the display scale. No values, labels or UI content
-were edited. JPEG compression keeps assets small.
+Station readings are OBSERVED; interpolation, forecasts and interventions are MODELED; population
+weights are SYNTHETIC. These are not measured policy outcomes or current live readings.
+No values, labels or UI content were edited. JPEG compression keeps assets small.
 
 Basemap © OpenStreetMap contributors, ODbL: https://www.openstreetmap.org/copyright.
-Air readings via OpenAQ with provider names retained; weather via Open-Meteo.
+Air readings via OpenAQ with provider names retained; weather and CAMS via Open-Meteo.

@@ -79,4 +79,4 @@ accuracy from that series.
 **Replay horizon is limited:** replay uses the pre-holdout 24-hour model. It is
 limited to 24 hours and interpolates shorter points. Normal serving supports 72.
 
-**Ask AirTwin reports an error:** add GEMINI_API_KEY to the ignored root .env and restart. Provider or verification failures remain explicit; no canned answer is used.
+**Ask AirTwin shows "AirTwin evidence summary":** Gemini was unavailable or its answer failed verification twice. The reason is shown under the answer. Add or fix GEMINI_API_KEY / GEMINI_MODEL in the root .env and restart.

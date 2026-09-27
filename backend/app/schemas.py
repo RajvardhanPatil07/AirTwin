@@ -113,6 +113,8 @@ class BacktestResponse(Provenance):
     available: bool = True
     seasonal_baseline: dict = {}
     cv: list[dict] = []
+    skill: list[dict] = []
+    model: str = ''
 
 
 class Share(BaseModel):

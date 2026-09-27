@@ -92,7 +92,7 @@ for live ingestion and retain provenance rather than relying on an unverified
 ## Gemini chat
 
 Put `GEMINI_API_KEY` in the ignored root `.env`, then restart the backend.
-`GEMINI_MODEL=gemini-2.5-flash-lite` is the configurable default. Gemini receives
+`GEMINI_MODEL=gemini-3.5-flash-lite` is the configurable default. Gemini receives
 selected-location history, weather, forecast, SHAP when available, source shares,
 applied scenario cuts, backtest availability/metrics, regional references and
 limitations. Follow-up conversation is bounded to eight messages.

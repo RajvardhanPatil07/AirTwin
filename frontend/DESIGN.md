@@ -1,27 +1,12 @@
-# Screenshot implementation direction
+# Light glass dashboard
 
-Source: user-provided AirTwin civic dashboard screenshot, corresponding to Kombai
-canvas node `node_3810ffa21f89`.
+The user-selected light glass AirTwin image (27 September 2026) supersedes the earlier civic dashboard reference.
 
-ENERGY 1 / RHYTHM 1 / MOTION 1. Calm operational interface for hackathon judges
-and city decision-makers; no decorative motion.
-
-- Layout: 60/40 map-and-insights split follows the selected reference and keeps
-  geography visible alongside action comparison. Narrow screens stack the same views.
-- Typography: locally bundled Inter matches the source and keeps dense labels readable.
-- Colors: off-white canvas, white surfaces, forest text, and blue actions come from
-  the source. Orange dashed borders identify modeled results, not decoration.
-- Map colors: concentration bands are semantic data colors, outside the UI palette.
-- Geometry: 16px panel radii, 12px cards, and 3px provenance badges distinguish levels.
-- Spacing: 20px outer padding, 16px panel gap, and compact cards match reference density.
-- Elevation: small shadows only for header and controls floating over the map.
-- Icons: Moon/Sun identify theme; RotateCw recalculates; Trophy shows rank;
-  ArrowRight connects before/after; MapPin and Layers identify geography and layers.
-- Assets: supplied contour logo reused; actual OpenStreetMap tiles replace fake map art.
-- Hatch: a technical map pattern encodes modeled provenance. It is not an illustration.
-
-Intentional correctness changes: synthetic badges replace invented observations;
-computed scenario results replace inconsistent fixed values; one tooltip replaces
-overlapping map labels; true tabs replace cosmetic tab clicks; a real theme toggle
-styles the whole dashboard. The snapshot date is fixed to the synthetic fixture's
-date, while the header clock shows current IST.
+- Pale ice blue canvas, atmospheric landscape backdrop, translucent pearl glass, navy text, teal actions.
+- A 62/38 map and scenario workspace, stacking below 850px.
+- Slim header, honest snapshot notices, workspace title, scenario comparison shown once.
+- Locally bundled Inter and existing Lucide icons.
+- Leaflet retains real OpenStreetMap geography and interactive selection. Raised grid faces encode concentration visually, not terrain elevation.
+- Observed, modeled, synthetic and stale labels remain truthful. Values come from existing APIs and demo engine.
+- Ranking and assumptions use progressive disclosure; all analysis tabs remain available.
+- Light theme defaults; dark theme and reduced-motion preference remain supported.

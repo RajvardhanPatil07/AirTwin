@@ -17,7 +17,8 @@ async def lifespan(app):
     stop.set()
 
 app = FastAPI(title='AirTwin Maharashtra + PCMC', version='0.1.0', lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
+app.add_middleware(CORSMiddleware, allow_origins=[origin.strip() for origin in os.getenv('CORS_ORIGINS', '').split(',') if origin.strip()],
+                   allow_origin_regex=r'https?://(localhost|127\.0\.0\.1)(:[0-9]+)?',
                    allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
 for routes in [forecast, backtest, map, attribution, scenarios, explain]:
     app.include_router(routes.router, prefix='/api')
@@ -26,7 +27,7 @@ for routes in [forecast, backtest, map, attribution, scenarios, explain]:
 def health():
     runtime = get_runtime()
     return {'regions': ['pcmc', 'maharashtra'], 'chat_provider': 'gemini', 'chat_configured': bool(os.getenv('GEMINI_API_KEY')), 'status': 'ok', 'source_type': 'modeled', 'assumptions': runtime.warnings,
-            'model': 'LightGBM direct horizons with quantile models', 'dataset_rows': len(runtime.frame),
+            'model': runtime.artifact['report'].get('model', 'LightGBM direct horizons'), 'dataset_rows': len(runtime.frame),
             'target_source_types': sorted(runtime.frame.source_type.unique()),
             'last_dataset_time': runtime.frame.timestamp.max().isoformat(),
             'warnings': runtime.warnings, 'fingerprint': runtime.fingerprint}

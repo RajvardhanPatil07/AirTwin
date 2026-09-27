@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   CircleMarker,
   GeoJSON,
@@ -58,7 +58,7 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
       map.invalidateSize();
       if (region?.id === "maharashtra")
         map.fitBounds(region.bounds, { padding: [30, 30] });
-      else map.setZoom(map.getContainer().clientHeight < 700 ? 10 : 11);
+      else map.setZoom(11);
     });
     observer.observe(map.getContainer());
     // This SVG pattern encodes modeled grid provenance; geography is rendered by Leaflet.
@@ -107,6 +107,8 @@ interface Props {
   demo: boolean;
   weather?: Weather;
   zones?: ZoneCollection;
+  timeline?: ReactNode;
+  forecastLabel?: string | null;
 }
 export function MapView({
   stations,
@@ -120,19 +122,25 @@ export function MapView({
   weather,
   zones,
   region,
+  timeline,
+  forecastLabel = null,
 }: Props) {
   const [layers, setLayers] = useState({
     Hotspots: true,
     Stations: true,
-    Zones: true,
+    Zones: false,
   });
   const [hover, setHover] = useState<string | null>(null);
   const [tileError, setTileError] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(
+    () => typeof window === "undefined" || window.innerWidth > 760,
+  );
   const baseline = cells.find((cell) => cell.id === selected.id);
   const tooltipTarget =
     stations.find((station) => station.id === hover) ??
     cells.find((cell) => cell.id === hover) ??
     cells.find((cell) => cell.id === selected.id) ??
+    stations.find((station) => station.id === selected.id) ??
     selected;
   const tooltipStation = stations.find(
     (station) => station.id === tooltipTarget.id,
@@ -191,19 +199,13 @@ export function MapView({
               }}
             ></Rectangle>
           ))}
-        {layers.Hotspots &&
-          cells.map((cell) => (
-            <Rectangle
-              key={`hatch-${cell.id}`}
-              bounds={cell.bounds}
-              interactive={false}
-              pathOptions={{
-                stroke: false,
-                fillOpacity: 0.7,
-                className: "grid-hatch",
-              }}
-            />
-          ))}
+        {layers.Hotspots && cells.map((cell) => {
+          const [[, west], [north, east]] = cell.bounds;
+          const rise = Math.min(Math.max(cell.pm25, 0), 250) / 250 * 0.004;
+          return <Polygon key={`depth-${cell.id}`} interactive={false}
+            positions={[[north, west], [north + rise, west], [north + rise, east], [north, east]]}
+            pathOptions={{ color: "#ffffff", weight: 0.5, fillColor: colorFor(cell.pm25), fillOpacity: 0.65 }} />;
+        })}
         {layers.Zones && zones && (
           <GeoJSON
             data={zones as unknown as GeoJsonObject}
@@ -311,12 +313,16 @@ export function MapView({
                 tooltipStation
                   ? demo
                     ? "DEMO LOCATION"
-                    : tooltipStation.source_type === "modeled"
+                    : forecastLabel
+                      ? "STATION FORECAST"
+                      : tooltipStation.source_type === "modeled"
                       ? "CAMS REFERENCE"
                       : "STATION"
-                  : after
-                    ? "SCENARIO"
-                    : "INTERPOLATED"
+                  : forecastLabel
+                    ? "FORECAST"
+                    : after
+                      ? "SCENARIO"
+                      : "INTERPOLATED"
               }
             />
             {demo && <div className="tooltip-note">Synthetic demo inputs</div>}
@@ -334,12 +340,14 @@ export function MapView({
       <div className="map-banner">
         <DataBadge
           source="modeled"
-          detail={after ? "SCENARIO" : "INTERPOLATED"}
+          detail={forecastLabel ? "FORECAST" : after ? "SCENARIO" : "INTERPOLATED"}
         />
         <span>
-          {after
-            ? "Projected after intervention"
-            : "Baseline concentration grid"}
+          {forecastLabel
+            ? `Hotspot grid · ${forecastLabel}`
+            : after
+              ? "Projected after intervention"
+              : "Baseline concentration grid"}
           {demo && " · synthetic inputs"}
         </span>
       </div>
@@ -374,6 +382,7 @@ export function MapView({
           </small>
         </span>
       </div>
+      {timeline}
       {tileError && (
         <div className="tile-warning" role="status">
           Basemap unavailable. Concentration grid remains interactive.
@@ -394,7 +403,14 @@ export function MapView({
           </div>
         </div>
       )}
-      <div className="map-legend">
+      <div className={`map-legend ${legendOpen ? "" : "collapsed"}`}>
+        <button
+          className="legend-toggle"
+          aria-expanded={legendOpen}
+          onClick={() => setLegendOpen(!legendOpen)}
+        >
+          <Layers size={13} /> {legendOpen ? "Hide legend" : "Legend"}
+        </button>
         <div className="eyebrow">PM2.5 CONCENTRATION BANDS · µg/m³</div>
         <div className="band-grid">
           {BANDS.map(([label, color]) => (
@@ -406,7 +422,7 @@ export function MapView({
         </div>
         <div className="legend-provenance">
           <DataBadge source="observed" detail="SOLID" />
-          <DataBadge source="modeled" detail="HATCH" />
+          <DataBadge source="modeled" detail="GRID" />
           <DataBadge source="synthetic" />
         </div>
         <p>Reference markers stay at baseline in after view.</p>

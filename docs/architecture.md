@@ -47,7 +47,8 @@ is no hidden background polling, automatic alert service or public deployment.
 - `services/attribution.py`: total concentration shares, distinct from local weights.
 - `services/scenarios.py`: one additive equation for selected location and full grid.
 - `services/runtime.py`: coherent cached snapshot, model/reference selection and replay.
-- `services/explainer.py`: actual-output context and Gemini with evidence checks; no canned fallback. Provider failures return explicit errors.
+- `services/explainer.py`: actual-output context and Gemini with evidence checks plus one feedback retry; on failure, a labeled deterministic summary of the same evidence.
+- `services/model.py`: level-normalized direct LightGBM horizons, rolling-origin persistence blend and split-conformal bands; `skill[]` per horizon.
 - `routers/`: validated FastAPI contract; unknown IDs/horizons/cuts return errors.
 - `frontend/src/lib/api.ts`: backend requests, explicit initial synthetic fallback,
   subsequent retry states and replay parameters.

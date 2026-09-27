@@ -1,7 +1,10 @@
 # AirTwin PCMC frontend
 
 React/Vite/TypeScript dashboard preserving the supplied Kombai screenshot.
-It now connects to the FastAPI backend by default at `http://127.0.0.1:8000`.
+Development and local preview connect to FastAPI through the same-origin `/backend` proxy.
+Run `python3 scripts/dev.py` from the repository root to start both services without retraining.
+For hosted builds, set `VITE_API_BASE_URL` to the public backend URL and configure
+backend `CORS_ORIGINS` with the frontend origin. An empty API URL explicitly selects demo mode.
 
 ```sh
 npm ci

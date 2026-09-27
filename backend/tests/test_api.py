@@ -72,13 +72,32 @@ def test_replay_and_gemini_requires_key(client, monkeypatch):
     assert 'pre-holdout' in ' '.join(replay_forecast.json()['assumptions'])
     location = stations['stations'][0]['id']
     answer = client.post('/api/explain', json={'location_id': location, 'question': 'Why is pollution high?'})
-    assert answer.status_code == 503
-    assert 'No template' in answer.json()['detail']
+    assert answer.status_code == 200
+    body = answer.json()
+    assert body['method'] == 'grounded_summary'
+    assert 'GEMINI_API_KEY missing' in body['assumptions'][0]
+    assert all(claim['evidence_ids'] for claim in body['claims'])
 
 
-def test_cors(client):
-    response = client.options('/api/stations', headers={'Origin': 'http://127.0.0.1:5173', 'Access-Control-Request-Method': 'GET'})
-    assert response.headers['access-control-allow-origin'] == 'http://127.0.0.1:5173'
+@pytest.mark.parametrize('origin', ['http://127.0.0.1:5173', 'http://127.0.0.1:5188', 'http://localhost:5188'])
+def test_cors(client, origin):
+    response = client.options('/api/stations', headers={'Origin': origin, 'Access-Control-Request-Method': 'GET'})
+    assert response.headers['access-control-allow-origin'] == origin
+
+
+def test_unavailable_gemini_model_is_not_reported_as_rejected_key(monkeypatch):
+    from app.services import explainer
+    from fastapi import HTTPException
+    monkeypatch.setenv('GEMINI_API_KEY', 'test-only-not-a-real-key')
+    monkeypatch.setenv('GEMINI_MODEL', 'retired-model')
+    class Reply:
+        status_code = 404
+    monkeypatch.setattr(explainer.requests, 'post', lambda *args, **kwargs: Reply())
+    with pytest.raises(HTTPException) as error:
+        explainer.gemini_claims('key', 'retired-model', {'evidence': {}}, 'Why?', [])
+    assert error.value.status_code == 503
+    assert 'retired-model is unavailable' in error.value.detail
+    assert 'GEMINI_MODEL' in error.value.detail
 
 
 def test_explainer_rejects_invented_provider_number(client, monkeypatch):
@@ -93,7 +112,19 @@ def test_explainer_rejects_invented_provider_number(client, monkeypatch):
     monkeypatch.setattr(explainer.requests, 'post', lambda *args, **kwargs: ProviderReply())
     location = client.get('/api/stations').json()['stations'][0]['id']
     result = client.post('/api/explain', json={'location_id': location, 'question': 'What happens next?'})
-    assert result.status_code == 502
+    assert result.status_code == 200
+    assert result.json()['method'] == 'grounded_summary'
+    assert '99999999' not in result.json()['answer']
+
+
+def test_number_check_accepts_rounding_and_units_but_rejects_inventions():
+    from app.services.explainer import checked_claims
+    context = {'evidence': {'forecast': {'source_type': 'modeled', 'data': {'pm25': 39.9437, 'share': 0.3123, 'benefit': 304821.4}}}}
+    ok = {'claims': [{'text': 'PM2.5 falls to 39.9 µg/m³ (31%), benefit 304.8K person·µg/m³', 'source_type': 'modeled', 'evidence_ids': ['forecast']}]}
+    assert checked_claims(ok, context)
+    bad = {'claims': [{'text': 'PM2.5 will be 71.2 µg/m³', 'source_type': 'modeled', 'evidence_ids': ['forecast']}]}
+    with pytest.raises(ValueError):
+        checked_claims(bad, context)
 
 
 def test_gemini_uses_actual_context_and_applied_cuts(client, monkeypatch):

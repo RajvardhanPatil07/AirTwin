@@ -40,7 +40,7 @@ export function AskAirTwin({
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open]);
-  if (demo) return null;
+
   const close = () => {
     setOpen(false);
     trigger.current?.focus();
@@ -67,7 +67,7 @@ export function AskAirTwin({
           <header>
             <div>
               <h2>Ask AirTwin</h2>
-              <p>{location.name} · grounded in actual outputs</p>
+              <p>{location.name} · {demo ? "Demo preview" : "Grounded in model outputs"}</p>
             </div>
             <button aria-label="Close Ask AirTwin" onClick={close}>
               <X size={18} />
@@ -75,13 +75,12 @@ export function AskAirTwin({
           </header>
           <DataBadge source="modeled" detail="EXPLANATION" />
           <p className="helper">
-            Gemini reads this location’s forecast, weather, source proxies,
-            applied interventions and validation. Each answer cites computed
-            evidence.
+            {demo ? "The AI service is unavailable in offline demo mode. Connect the backend to ask about forecasts and interventions." : "Ask about this location’s forecast, contributing sources and interventions. Answers cite computed evidence."}
           </p>
           <form
             onSubmit={async (event) => {
               event.preventDefault();
+              if (demo) { setError("AI answers require the backend. Demo readings are synthetic; no AI answer has been generated."); return; }
               const version = ++requestVersion.current;
               setBusy(true);
               setError(null);
@@ -117,6 +116,18 @@ export function AskAirTwin({
               }
             }}
           >
+            <div className="ask-suggestions" aria-label="Suggested questions">
+              {[
+                "Which action helps most?",
+                "What happens in the next 24 hours?",
+                "Is it safe to jog tomorrow morning?",
+                "How accurate is this forecast?",
+              ].map((item) => (
+                <button type="button" key={item} onClick={() => setQuestion(item)}>
+                  {item}
+                </button>
+              ))}
+            </div>
             <label htmlFor="air-question">Your question</label>
             <input
               ref={input}
@@ -140,7 +151,14 @@ export function AskAirTwin({
                   <small>Evidence: {claim.evidence_ids.join(", ")}</small>
                 </div>
               ))}
-              <small>Model: {answer.model}</small>
+              {answer.method === "grounded_summary" && (
+                <p className="validation-warning">{answer.assumptions[0]}</p>
+              )}
+              <small>
+                {answer.method === "gemini_evidence_checked"
+                  ? `Gemini (${answer.model}) · every claim evidence-checked`
+                  : answer.model}
+              </small>
             </div>
           )}
         </section>

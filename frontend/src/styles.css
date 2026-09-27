@@ -1488,3 +1488,331 @@ input[type="range"]::-moz-range-thumb {
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
+
+/* Forecast timeline over the map */
+.timeline-bar {
+  position: absolute;
+  right: 16px;
+  bottom: 28px;
+  left: 392px;
+  z-index: 520;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 6px 20px #10221e16;
+  font-size: 11px;
+}
+.timeline-play {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+}
+[data-theme="dark"] .timeline-play {
+  color: #10221e;
+}
+.timeline-track {
+  flex: 1;
+  min-width: 0;
+}
+.timeline-track input {
+  width: 100%;
+  accent-color: var(--blue);
+}
+.timeline-ticks {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  font-size: 8px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.timeline-ticks span {
+  flex: 1;
+  text-align: center;
+}
+.timeline-ticks span:first-child {
+  text-align: left;
+}
+.timeline-ticks span:last-child {
+  text-align: right;
+}
+.timeline-ticks .active {
+  color: var(--text);
+  font-weight: 700;
+}
+.timeline-label {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+}
+.timeline-label span {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+/* Indicative NAQI + health advice */
+.health-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--soft);
+}
+.health-gauge {
+  position: relative;
+  width: 120px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.health-gauge svg {
+  width: 120px;
+  height: 70px;
+}
+.gauge-track,
+.gauge-value {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.gauge-track {
+  stroke: var(--border);
+}
+.gauge-value {
+  transition: stroke-dasharray 0.4s ease;
+}
+.health-gauge > div {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.health-gauge strong {
+  font-size: 26px;
+}
+.health-gauge span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.health-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.health-copy .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.health-copy p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.health-copy small {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.health-forecast {
+  color: var(--muted);
+}
+.band-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #10221e;
+  font-weight: 700;
+}
+
+/* Skill leaderboard */
+.skill-panel {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.skill-panel h3 {
+  margin: 4px 0 8px;
+  font-size: 14px;
+}
+.skill-chart {
+  height: 230px;
+}
+.skill-table {
+  display: grid;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.skill-table > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr 1fr;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.skill-table .skill-head {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.skill-table .gain {
+  color: var(--green);
+  font-weight: 700;
+}
+.skill-table .loss {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.legend-toggle {
+  display: none;
+}
+
+@media (max-width: 1500px) and (min-width: 1001px) {
+  .timeline-label span {
+    display: none;
+  }
+}
+@media (max-width: 1360px) and (min-width: 1001px) {
+  .timeline-bar {
+    left: 16px;
+    bottom: 16px;
+  }
+  .map-legend {
+    bottom: 96px;
+  }
+  .map-legend p {
+    display: none;
+  }
+}
+@media (max-width: 1000px) {
+  .timeline-bar {
+    left: 16px;
+    bottom: 16px;
+  }
+}
+
+/* Phone layout: no horizontal overflow, reachable controls */
+@media (max-width: 760px) {
+  .dashboard {
+    overflow-x: hidden;
+  }
+  .app-header,
+  .header-status {
+    width: 100%;
+    min-width: 0;
+  }
+  .header-status {
+    justify-content: flex-start;
+  }
+  .header-status .clock {
+    display: none;
+  }
+  .ask-trigger {
+    margin-left: auto;
+  }
+  .api-warning {
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+  .story p {
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+  }
+  .story-labels {
+    display: none;
+  }
+  .map-shell {
+    height: 520px;
+  }
+  .map-controls {
+    right: 12px;
+    left: 12px;
+    top: 58px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .map-controls button {
+    flex-shrink: 0;
+    min-height: 40px;
+  }
+  .wind-card,
+  .map-context {
+    display: none;
+  }
+  .map-legend {
+    width: auto;
+    right: 12px;
+    left: 12px;
+    bottom: 96px;
+    max-height: 45%;
+    overflow: auto;
+    padding: 12px;
+  }
+  .map-legend.collapsed > :not(.legend-toggle) {
+    display: none;
+  }
+  .map-legend.collapsed {
+    right: auto;
+    padding: 0;
+  }
+  .legend-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .timeline-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .timeline-track {
+    flex-basis: calc(100% - 46px);
+  }
+  .timeline-label {
+    flex-direction: row;
+    gap: 6px;
+  }
+  .health-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .skill-table {
+    font-size: 10px;
+  }
+}
+
+.ask-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.ask-suggestions button {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--soft);
+  font-size: 11px;
+}

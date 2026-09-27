@@ -41,8 +41,8 @@ export function ScenarioPanel({
         >
           <div className="comparison-heading">
             <div>
-              <div className="eyebrow orange">MODELED SCENARIO</div>
-              <h2>{selected.name}</h2>
+              <h2>Clean-air scenario</h2>
+              <p>{selected.name}</p>
             </div>
             <span className="rank-badge">
               <Trophy size={12} /> RANK #{selected.rank}
@@ -71,8 +71,13 @@ export function ScenarioPanel({
               </strong>
             </div>
           </div>
+          <div className="reduction-strip" aria-live="polite">
+            <strong>Estimated reduction {number(selected.reduction_percent)}%</strong>
+            <span>{outdated ? "Run to update" : "Modeled estimate"}</span>
+          </div>
         </section>
       )}
+      <h3 className="intervention-heading">Adjust interventions</h3>
       <section className="sliders" aria-label="Emission cut intensities">
         {ACTIONS.map((action) => (
           <label className="slider-row" key={action.id}>
@@ -99,6 +104,8 @@ export function ScenarioPanel({
         {busy ? "Calculating scenario…" : "Run scenario"}
       </button>
       {response && (
+        <details className="ranked-actions">
+          <summary>Compare ranked actions</summary>
         <div
           className="results-table"
           role="region"
@@ -148,6 +155,7 @@ export function ScenarioPanel({
             </button>
           ))}
         </div>
+        </details>
       )}
       {response && <AssumptionsPanel assumptions={response.assumptions} />}
     </div>

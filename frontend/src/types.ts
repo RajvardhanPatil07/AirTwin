@@ -108,9 +108,33 @@ export interface BacktestResponse extends Provenance {
   method: string;
   seasonal_baseline?: Record<string, number>;
   cv?: Record<string, number | string>[];
+  skill?: SkillRow[];
+  model?: string;
   series: SeriesPoint[];
   metrics: Metrics | null;
   available?: boolean;
+}
+export interface SkillRow {
+  horizon: number;
+  mae: number;
+  persistence_mae: number;
+  lightgbm_only_mae: number;
+  seasonal_mae: number;
+  cams_mae?: number;
+  improvement_percent: number;
+  interval_coverage: number;
+  blend_weight: number;
+}
+export interface TimelineFrame {
+  hour: number;
+  timestamp: string;
+  source_type: SourceType;
+  stations: { id: string; pm25: number }[];
+  cells: { id: string; pm25: number }[];
+}
+export interface TimelineResponse extends Provenance {
+  origin: string;
+  frames: TimelineFrame[];
 }
 export interface AttributionResponse extends Provenance {
   location_id: string;
@@ -133,6 +157,7 @@ export interface ShapExplanation {
   base_value: number;
   prediction: number;
   method: string;
+  blend_weight?: number;
 }
 export interface Weather {
   source_type: SourceType;

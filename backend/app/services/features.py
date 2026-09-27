@@ -13,7 +13,18 @@ def hourly(frame):
     return frame.reindex(pd.date_range(frame.index.min(), frame.index.max(), freq='h'))
 
 
-def build_features(frame, horizon=24):
+def exogenous_at(exog, column, times):
+    if exog is None or column not in exog:
+        return np.full(len(times), np.nan)
+    return exog[column].reindex(times).to_numpy(dtype=float)
+
+
+def build_features(frame, horizon=24, exog=None):
+    """exog: optional frame indexed by timestamp with boundary_layer_height and cams_pm25.
+
+    cams_target is the CAMS value valid at the target hour. Historically this is the
+    provider's archived short-lead forecast; at serving time it is the current CAMS forecast.
+    """
     data = hourly(frame)
     x = pd.DataFrame(index=data.index)
     x['current_pm25'] = data.pm25
@@ -36,7 +47,9 @@ def build_features(frame, horizon=24):
         # Archived issue-time forecasts may be supplied; never shift realized weather forward.
         forecast = data.get(f'forecast_{horizon}_{column}', x[column])
         x[f'horizon_{column}'] = forecast.fillna(x[column])
-    x['boundary_layer_height'] = data.get('boundary_layer_height', np.nan)
+    x['boundary_layer_height'] = exogenous_at(exog, 'boundary_layer_height', x.index)
+    x['cams_issue'] = exogenous_at(exog, 'cams_pm25', x.index)
+    x['cams_target'] = exogenous_at(exog, 'cams_pm25', target_time)
     radians = np.deg2rad(x.wind_direction_10m)
     x['wind_u'] = -x.wind_speed_10m * np.sin(radians)
     x['wind_v'] = -x.wind_speed_10m * np.cos(radians)
@@ -46,11 +59,11 @@ def build_features(frame, horizon=24):
     return x
 
 
-def supervised(frame, horizon):
+def supervised(frame, horizon, exog=None):
     rows = []
     for station_id, station in frame.groupby('station_id'):
         data = hourly(station)
-        x = build_features(station, horizon)
+        x = build_features(station, horizon, exog)
         x['target'] = data.pm25.shift(-horizon)
         x['persistence'] = data.pm25
         x['issue_time'] = x.index
@@ -67,6 +80,8 @@ def group_for(feature):
         return 'persistence'
     if feature.startswith(('hour', 'dow', 'month', 'winter')):
         return 'temporal'
+    if feature.startswith('cams_'):
+        return 'cams'
     if feature in ('latitude', 'longitude'):
         return 'spatial'
     return 'weather'

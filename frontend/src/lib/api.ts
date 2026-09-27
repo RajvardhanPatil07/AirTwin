@@ -11,11 +11,12 @@ import type {
   Station,
   StationsResponse,
   RegionId,
+  TimelineResponse,
 } from "../types";
 import * as demo from "../mocks/engine";
 
 const base = (
-  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"
+  import.meta.env.VITE_API_BASE_URL ?? "/backend"
 ).replace(/\/$/, "");
 async function request<T>(
   path: string,
@@ -77,13 +78,13 @@ export async function loadDashboard(
       region: stations.region,
       coverage: stations.coverage,
     };
-  } catch {
+  } catch (error) {
     return {
       stations: demo.stations,
       cells: demo.cells,
       demo: true,
       warning:
-        "Backend unavailable or incompatible. Showing synthetic demo data.",
+        `Backend unavailable or incompatible (${error instanceof Error ? error.message : "connection failed"}). Showing synthetic demo data.`,
     };
   }
 }
@@ -94,6 +95,12 @@ function withReplay(path: string, replayAt: string | null) {
 }
 export const api = {
   replay: () => request<ReplayResponse>("/api/replay"),
+  timeline: (replayAt: string | null, region: RegionId) =>
+    request<TimelineResponse>(
+      withReplay(`/api/timeline?region=${region}`, replayAt),
+      undefined,
+      60000,
+    ),
   explain: (
     locationId: string,
     question: string,
@@ -117,7 +124,7 @@ export const api = {
           history,
         }),
       },
-      60000,
+      110000,
     ),
   forecast: (
     station: Station,

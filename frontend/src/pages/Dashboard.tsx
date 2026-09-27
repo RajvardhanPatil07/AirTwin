@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowRight, Moon, Sun, RefreshCw, MapPin } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Moon, Sun, RefreshCw, MapPin, Leaf } from "lucide-react";
 import type {
   RegionId,
   ActionId,
@@ -10,6 +10,7 @@ import type {
   ForecastResponse,
   ScenarioResponse,
   Station,
+  TimelineResponse,
 } from "../types";
 import { api, loadDashboard } from "../lib/api";
 import { dateLabel, number, timeLabel } from "../lib/format";
@@ -24,7 +25,8 @@ import {
 } from "../components/Charts";
 import { AssumptionsPanel } from "../components/AssumptionsPanel";
 import { AskAirTwin } from "../components/AskAirTwin";
-import { Clock } from "../components/Clock";
+import { HealthCard } from "../components/HealthCard";
+import { TimelineBar } from "../components/TimelineBar";
 
 const TABS = [
   "Overview",
@@ -36,13 +38,16 @@ const TABS = [
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
-  const [region, setRegion] = useState<RegionId>("maharashtra");
+  const [region, setRegion] = useState<RegionId>("pcmc");
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [locationId, setLocationId] = useState("bhosari");
   const [cellLocation, setCellLocation] = useState<Station | null>(null);
   const [tab, setTab] = useState<Tab>("Scenarios");
+  const [timeline, setTimeline] = useState<TimelineResponse | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [frameIndex, setFrameIndex] = useState(0);
   const [dark, setDark] = useState(false);
   const [after, setAfter] = useState(true);
   const [cuts, setCuts] = useState<Cuts>({ ...DEFAULT_CUTS });
@@ -108,6 +113,21 @@ export function Dashboard() {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
   useEffect(() => {
+    setTimeline(null);
+    setFrameIndex(0);
+    if (!data || data.demo) return;
+    let active = true;
+    setTimelineLoading(true);
+    api
+      .timeline(replayAt, region)
+      .then((next) => active && setTimeline(next))
+      .catch(() => active && setTimeline(null))
+      .finally(() => active && setTimelineLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [data, replayAt, region]);
+  useEffect(() => {
     if (!data || !location) return;
     let active = true;
     setLoading(true);
@@ -140,6 +160,24 @@ export function Dashboard() {
     };
   }, [data, location, appliedCuts, hours, retry, replayAt, region]);
 
+  const frame = frameIndex > 0 ? timeline?.frames[frameIndex] : undefined;
+  const mapCells = useMemo(() => {
+    if (!data) return [];
+    if (frame) {
+      const values = new Map(frame.cells.map((cell) => [cell.id, cell.pm25]));
+      return data.cells.map((cell) => ({ ...cell, pm25: values.get(cell.id) ?? cell.pm25 }));
+    }
+    return null;
+  }, [data, frame]);
+  const mapStations = useMemo(() => {
+    if (!data || !frame) return data?.stations ?? [];
+    const values = new Map(frame.stations.map((station) => [station.id, station.pm25]));
+    return data.stations.map((station) =>
+      values.has(station.id)
+        ? { ...station, pm25: values.get(station.id)!, source_type: "modeled" as const }
+        : station,
+    );
+  }, [data, frame]);
   const currentScenario =
     scenario?.location_id === location?.id ? scenario : null;
   const selected =
@@ -210,12 +248,7 @@ export function Dashboard() {
     <main className="dashboard">
       <header className="app-header">
         <div className="brand">
-          <img
-            src="/assets/airtwin-logo.png"
-            width={44}
-            height={44}
-            alt="AirTwin contour logo"
-          />
+          <span className="brand-mark" aria-label="AirTwin leaf logo" role="img"><Leaf size={36} strokeWidth={1.7} /></span>
           <div>
             <h1>AirTwin {region === "maharashtra" ? "Maharashtra" : "PCMC"}</h1>
             <p>
@@ -240,22 +273,10 @@ export function Dashboard() {
                 setRegion(event.target.value as RegionId);
               }}
             >
-              <option value="maharashtra">Maharashtra</option>
               <option value="pcmc">Pune + PCMC</option>
+              <option value="maharashtra">Maharashtra</option>
             </select>
           </label>
-          <Clock />
-          <span className="status-chip data-time">
-            Data as of {dateLabel(location.timestamp)} ·{" "}
-            {timeLabel(location.timestamp)}
-          </span>
-          <span className={`status-chip ${data.demo ? "demo-chip" : ""}`}>
-            {data.demo
-              ? "DEMO DATA"
-              : location.source_type === "synthetic"
-                ? "SYNTHETIC TARGET · ML"
-                : "API DATA"}
-          </span>
           {!data.demo && region === "pcmc" && (
             <button
               className="status-chip replay-toggle"
@@ -307,49 +328,36 @@ export function Dashboard() {
           refreshed hourly while the backend is running.
         </div>
       )}
-      <section className="story" aria-live="polite">
-        <div className="story-main">
-          <DataBadge source="modeled" />
-          <div>
-            <div className="eyebrow">
-              {location.short_name.toUpperCase()} · INTERVENTION RESULT
-            </div>
-            {selected ? (
-              <p>
-                Modeled intervention{" "}
-                {selected.reduction > 0
-                  ? "lowers PM2.5"
-                  : "leaves PM2.5 unchanged"}{" "}
-                at {location.short_name}:{" "}
-                <b className="before-number">{number(selected.before)}</b>
-                <ArrowRight size={17} />
-                <b className="after-number">{number(selected.after)} µg/m³</b>
-                <b className="reduction-number">
-                  ({selected.reduction > 0 ? "−" : ""}
-                  {number(selected.reduction_percent)}%)
-                </b>
-              </p>
-            ) : (
-              <p>Preparing the selected location’s scenario…</p>
-            )}
-          </div>
+      <section className="workspace-intro">
+        <h2>Explore air quality</h2>
+        <p>Compare local conditions and test clean-air interventions.</p>
+        <div className="intro-summary">
+          <div><span>Selected location</span><strong>{location.short_name}</strong></div>
+          <div><span>PM2.5 · {location.source_type}</span><strong>{number(location.pm25)} <small>µg/m³</small></strong></div>
+          <div><span>Scenario benefit · modeled</span><strong>{selected ? `${number(selected.reduction_percent)}%` : "Preparing…"}</strong></div>
         </div>
-        <div className="story-labels">
-          <DataBadge
-            source={location.source_type}
-            detail={data.demo ? "DEMO INPUT" : "BASELINE"}
-          />
-          <DataBadge source="modeled" detail="INTERVENTION" />
-        </div>
+        <span>{data.demo ? "Synthetic demonstration" : `Snapshot · ${dateLabel(location.timestamp)} · ${timeLabel(location.timestamp)} IST`}</span>
       </section>
       <section className="workspace">
         <MapView
-          stations={data.stations}
-          cells={after && selected ? selected.cells : data.cells}
+          stations={mapStations}
+          cells={mapCells ?? (after && selected ? selected.cells : data.cells)}
           selected={location}
           onSelect={chooseLocation}
-          after={after && Boolean(selected)}
-          onAfter={() => setAfter(!after)}
+          after={!frame && after && Boolean(selected)}
+          forecastLabel={frame ? `+${frame.hour} h forecast` : null}
+          onAfter={() => {
+            setFrameIndex(0);
+            setAfter(!after);
+          }}
+          timeline={data.demo ? <div className="timeline-bar timeline-unavailable">Forecast timeline requires backend data · synthetic demo shown</div> :
+            <TimelineBar
+              timeline={timeline}
+              index={frameIndex}
+              onIndex={setFrameIndex}
+              loading={timelineLoading}
+            />
+          }
           dark={dark}
           demo={data.demo}
           weather={
@@ -488,16 +496,15 @@ export function Dashboard() {
                       </h2>
                       <DataBadge source={location.source_type} />
                     </div>
-                    <div className="overview-reading">
-                      <span>Baseline PM2.5</span>
-                      <strong>
-                        {number(location.pm25)} <small>µg/m³</small>
-                      </strong>
-                      <p>
-                        {dateLabel(location.timestamp)} ·{" "}
-                        {timeLabel(location.timestamp)} IST
-                      </p>
-                    </div>
+                    <HealthCard
+                      pm25={location.pm25}
+                      source={location.source_type}
+                      forecast={forecast}
+                    />
+                    <p className="helper">
+                      Snapshot {dateLabel(location.timestamp)} ·{" "}
+                      {timeLabel(location.timestamp)} IST
+                    </p>
                     <p className="summary-note">
                       Compare likely sources and three emission-control actions.
                       Results are ranked by population-weighted exposure

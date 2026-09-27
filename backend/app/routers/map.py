@@ -23,3 +23,10 @@ def hotspots(mode: Literal['before', 'after'] = 'before', scenario_id: str | Non
     else:
         _, cells, _, _, _ = runtime.snapshot(replay_at)
     return {'cells': cells, 'source_type': 'modeled', 'assumptions': STATE_ASSUMPTIONS if region == 'maharashtra' else ASSUMPTIONS}
+
+
+@router.get('/timeline')
+def timeline(replay_at: str | None = None, region: Region = 'pcmc'):
+    if region == 'maharashtra':
+        return get_state_runtime().timeline(None, (0, 3, 6, 9, 12, 18, 24))
+    return get_runtime().timeline(replay_at)

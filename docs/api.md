@@ -17,8 +17,9 @@ is independent. Null chart points mean absence, not zero.
 | GET `/backtest` | location_id, replay_at | Held-out target/model/persistence series and metrics |
 | GET `/attribution` | location_id, replay_at | Background, shares and complete assumptions config |
 | POST `/scenarios` | location_id, cuts, optional replay_at | Ranked actions with selected-location values and after grids |
+| GET `/timeline` | region, replay_at | Snapshot + forecast frames (0–72 h; ≤24 h in replay) of station and grid PM2.5 |
 | GET `/replay` | None | High held-out target timestamp and reference location |
-| POST `/explain` | location_id, question, optional replay_at | Grounded answer, method, actual context and assumptions |
+| POST `/explain` | location_id, question, optional replay_at | Evidence-checked Gemini answer (`gemini_evidence_checked`) or labeled `grounded_summary` fallback |
 
 `replay_at` is an ISO timestamp with timezone offset. Snapshot selection never
 fills a missing observation. Replay forecasts use the pre-holdout 24-hour model;
@@ -51,7 +52,8 @@ Scenario IDs are held in a bounded in-memory cache and disappear on restart.
 - Forecast: history provenance and reference sensor, nullable series, source and
   assumptions, TreeSHAP groups/base/prediction, forecast-weather context.
 - Backtest: target provenance, method, series, metrics, pooled seasonal baseline,
-  purged CV details and validation-reference assumptions.
+  purged CV details, `skill[]` per horizon (AirTwin, LightGBM-only, persistence, seasonal,
+  CAMS MAE, blend weight, band coverage) and validation-reference assumptions.
 - Metrics: MAE/RMSE in concentration units, R², persistence MAE, improvement percent
   and interval coverage percent. Negative improvement is a model loss.
 - Attribution: four total concentration shares summing to one, separate from
@@ -92,4 +94,5 @@ Stations, hotspots, forecast, backtest and attribution accept `region=pcmc|mahar
 Explain also accepts `cuts`, `hours` and bounded `history`. State forecasts have null
 SHAP/p10/p90; state backtests return `available=false`, `metrics=null`, `series=[]`.
 Stations include regional bounds/boundary, coverage, pollutant units and weather.
-Gemini configuration errors return 503, unverifiable/network answers 502. No template fallback.
+Gemini configuration, network or verification failures return 200 with `method=grounded_summary`
+and the reason in `assumptions`; the summary is built only from computed outputs.

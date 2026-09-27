@@ -7,6 +7,7 @@ import "@fontsource/inter/latin-700.css";
 import "@fontsource/inter/latin-800.css";
 import "leaflet/dist/leaflet.css";
 import "./styles.css";
+import "./glass.css";
 import App from "./App";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

@@ -114,6 +114,8 @@ class StateRuntime(Runtime):
         if sample:
             self.warnings.append('Provider cache unavailable: using a dated committed CAMS sample, not current live readings.')
         self.scenarios = {}
+        self.timelines = {}
+        self.exog = None
         rows = []
         self.points = {p['id']: p for p in payload['points']}
         for point in payload['points']:
@@ -194,6 +196,7 @@ class StateRuntime(Runtime):
     def forecast(self, location_id, hours=24, replay_at=None):
         _, history, _, _, _, timestamp, nearest = self.location(location_id, replay_at)
         future = self.all_frame[(self.all_frame.station_id == nearest) & (self.all_frame.timestamp > timestamp)].head(hours)
+        future = future.dropna(subset=['pm25'])
         if len(future) < hours:
             raise HTTPException(503, 'CAMS cache lacks the requested horizon; refresh provider data.')
         points = [{'timestamp': row.timestamp.isoformat(), 'actual': float(row.pm25), 'predicted': None,

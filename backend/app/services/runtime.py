@@ -4,18 +4,19 @@ import pandas as pd
 import json
 from app.config import RAW
 from fastapi import HTTPException
-from app.services.data_loader import load_dataset
+from app.services.data_loader import load_all
 from app.services.model import load_or_train, predict, explain_features, metrics
-from app.services.spatial import make_grid, ASSUMPTIONS, CONFIG, ZONES, distance_km
+from app.services.spatial import make_grid, idw, ASSUMPTIONS, CONFIG, ZONES, distance_km
 from app.services.attribution import attribute
 from app.services.scenarios import simulate
 
 
 class Runtime:
     def __init__(self, force_sample=False):
-        self.frame, self.warnings, self.fingerprint = load_dataset(force_sample)
-        self.artifact = load_or_train(self.frame, self.fingerprint, self.warnings)
+        self.frame, self.warnings, self.fingerprint, self.exog = load_all(force_sample)
+        self.artifact = load_or_train(self.frame, self.fingerprint, self.warnings, self.exog)
         self.scenarios = {}
+        self.timelines = {}
         self.future_weather = []
         forecast_path = RAW / 'weather_forecast.json'
         if not force_sample and forecast_path.exists():
@@ -87,8 +88,8 @@ class Runtime:
         history = [{'timestamp': row.timestamp.isoformat(), 'actual': row.pm25, 'predicted': None,
                     'persistence': None, 'p10': None, 'p90': None} for row in series[series.timestamp >= timestamp - pd.Timedelta(hours=48)].itertuples()]
         assumptions = [*self.warnings,
-                       ('Replay uses the pre-holdout direct 24h model, with interpolation for shorter points.' if replay_at else 'Direct LightGBM horizons 1–24, 48 and 72; other hourly values are linearly interpolated.'),
-                       'Quantile p10/p90 bounds have measured holdout coverage, not guaranteed calibration.',
+                       ('Replay uses the pre-holdout direct 24h model, with interpolation for shorter points.' if replay_at else 'Direct LightGBM horizons 1–24, 48 and 72 blended with persistence; other hourly values are linearly interpolated.'),
+                       'p10/p90 bounds are split-conformal intervals calibrated before the holdout; holdout coverage is reported in Backtest.',
                        self.artifact['report']['weather_evaluation'],
                        '24/48/72h use stored issue-aligned forecast weather where available; shorter horizons use issue-weather persistence.']
         assumptions.append(f'Forecast origin is {timestamp.isoformat()}; stale observations do not become current measurements.')
@@ -100,18 +101,18 @@ class Runtime:
             if hours > 24:
                 raise HTTPException(422, 'Historical replay supports the held-out 24-hour model only')
             replay_artifact = {**self.artifact, 'models': {24: self.artifact['validation_models']}}
-            endpoint = predict(replay_artifact, series, 24)[-1]
+            endpoint = predict(replay_artifact, series, 24, self.exog)[-1]
             initial = float(series.pm25.iloc[-1])
             values = [tuple(initial + (value - initial) * h / 24 for value in endpoint) for h in range(1, hours + 1)]
         else:
-            values = predict(self.artifact, series, hours)
+            values = predict(self.artifact, series, hours, self.exog)
         forecast = [{'timestamp': (timestamp + pd.Timedelta(hours=i + 1)).isoformat(), 'actual': None,
                      'predicted': value[0], 'p10': value[1], 'p90': value[2], 'persistence': None}
                     for i, value in enumerate(values)]
         return {'location_id': location_id, 'series': history + forecast, 'source_type': 'modeled',
                 'history_source_type': str(series.source_type.iloc[-1]), 'assumptions': assumptions,
                 'history_reference': nearest_id,
-                'shap': explain_features(replay_artifact if replay_at else self.artifact, series), 'weather_forecast': self.future_weather}
+                'shap': explain_features(replay_artifact if replay_at else self.artifact, series, self.exog), 'weather_forecast': self.future_weather}
 
     def backtest(self, location_id, replay_at=None):
         _, _, _, _, _, _, nearest = self.location(location_id, replay_at)
@@ -131,12 +132,13 @@ class Runtime:
         values = metrics(rows.target.to_numpy(), rows.predicted.to_numpy(), rows.persistence.to_numpy(), rows.p10.to_numpy(), rows.p90.to_numpy())
         points = [{'timestamp': r.timestamp.isoformat(), 'actual': r.target, 'predicted': r.predicted,
                    'persistence': r.persistence, 'p10': r.p10, 'p90': r.p90} for r in rows.itertuples()]
-        return {'location_id': location_id, 'series': points, 'metrics': values, 'method': report['method'] + ' · LightGBM direct 24h',
+        return {'location_id': location_id, 'series': points, 'metrics': values, 'method': report['method'] + ' · AirTwin 24 h (LightGBM + persistence blend)',
                 'source_type': 'modeled', 'target_source_type': str(rows.source_type.iloc[0]),
                 'assumptions': [*self.warnings, 'Historical predictions use a separate pre-holdout model; serving uses refit models.',
                                 report['weather_evaluation'], reference_note,
                                 'Metrics use all displayed hourly targets; overlapping horizons are not independent experiments.'],
-                'seasonal_baseline': report['seasonal_hourly_mean'], 'cv': report['cv']}
+                'seasonal_baseline': report['seasonal_hourly_mean'], 'cv': report['cv'],
+                'skill': report.get('skill', []), 'model': report.get('model', 'LightGBM')}
 
     def attribution(self, location_id, replay_at=None):
         location, _, _, background, weather, timestamp, _ = self.location(location_id, replay_at)
@@ -149,6 +151,42 @@ class Runtime:
         if len(self.scenarios) >= 100:
             self.scenarios.pop(next(iter(self.scenarios)))
         self.scenarios[result['scenario_id']] = result
+        return result
+
+    def timeline(self, replay_at=None, steps=(0, 3, 6, 9, 12, 18, 24, 48, 72)):
+        """Hotspot grid at future hours: per-station forecasts interpolated by IDW."""
+        stations, cells, background, weather, timestamp = self.snapshot(replay_at)
+        if replay_at:
+            steps = tuple(step for step in steps if step <= 24)
+        key = (timestamp.isoformat(), steps)
+        if key in self.timelines:
+            return self.timelines[key]
+        horizon = max(steps)
+        forecasts = {}
+        for station in stations:
+            try:
+                forecasts[station['id']] = self.forecast(station['id'], horizon, replay_at)['series'][-horizon:]
+            except (HTTPException, ValueError, KeyError, IndexError):
+                continue
+        frames = []
+        for step in steps:
+            points = []
+            for s in stations:
+                value = s['pm25'] if step == 0 else (forecasts.get(s['id']) or [{}] * horizon)[step - 1].get('predicted')
+                if value is not None and pd.notna(value):
+                    points.append({**s, 'pm25': float(value)})
+            if not points:
+                continue
+            frame_cells = [{'id': c['id'], 'pm25': idw(c['latitude'], c['longitude'], points)} for c in cells]
+            frames.append({'hour': step, 'timestamp': (timestamp + pd.Timedelta(hours=step)).isoformat(),
+                           'source_type': stations[0]['source_type'] if step == 0 else 'modeled',
+                           'stations': [{'id': p['id'], 'pm25': p['pm25']} for p in points], 'cells': frame_cells})
+        result = {'source_type': 'modeled', 'origin': timestamp.isoformat(), 'frames': frames,
+                  'assumptions': ['Hour 0 interpolates the observed snapshot; later frames interpolate per-station AirTwin forecasts by IDW.',
+                                  'Forecast frames are MODELED and not independently validated per grid cell.', *self.warnings]}
+        if len(self.timelines) > 8:
+            self.timelines.pop(next(iter(self.timelines)))
+        self.timelines[key] = result
         return result
 
     def replay(self):
