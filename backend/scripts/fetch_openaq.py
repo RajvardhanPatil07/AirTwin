@@ -26,6 +26,7 @@ def fetch(start, end):
                 LOG.warning("Skipping sensor %s: unsupported PM2.5 units", sensor["id"])
                 continue
             stations += 1
+            LOG.info("Downloading sensor %s at %s", sensor["id"], location.get("name"))
             try:
                 for item in pages(f"{API}/sensors/{sensor['id']}/hours",
                                   {"datetime_from": start.isoformat(), "datetime_to": end.isoformat()}, headers):

@@ -40,7 +40,7 @@ def merge(air, weather):
     weather = weather.copy()
     weather["timestamp"] = pd.to_datetime(weather["timestamp"], utc=True).dt.tz_convert(TIMEZONE).dt.floor("h")
     weather = weather.drop_duplicates("timestamp")
-    result = air.merge(weather[["timestamp", *WEATHER_COLUMNS, "weather_source_type", "weather_provider"]],
+    result = air.merge(weather[["timestamp", *WEATHER_COLUMNS, *[c for c in weather if c.startswith("forecast_")], "weather_source_type", "weather_provider"]],
                        on="timestamp", how="left", validate="many_to_one")
     result["weather_source_type"] = result.weather_source_type.fillna("missing")
     result["weather_provider"] = result.weather_provider.fillna("unavailable")
