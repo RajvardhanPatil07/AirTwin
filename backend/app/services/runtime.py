@@ -57,7 +57,7 @@ class Runtime:
         return stations, cells, background, weather, timestamp
 
     def stations(self, replay_at=None):
-        stations, _, _, weather, timestamp = self.snapshot(replay_at)
+        stations, cells, _, weather, timestamp = self.snapshot(replay_at)
         source = stations[0]['source_type']
         warnings = [*self.warnings]
         age = (pd.Timestamp.now(tz=timestamp.tz) - timestamp).total_seconds() / 3600

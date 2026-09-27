@@ -39,3 +39,15 @@ def test_zero_cuts_and_additivity_bounds():
     for before, after in zip(cells, combined['cells']):
         assert before['background'] <= after['pm25'] <= before['pm25']
     assert combined['reduction_low'] <= combined['reduction'] <= combined['reduction_high']
+
+
+def test_idw_downweights_stale_station():
+    fresh = dict(id='fresh', latitude=18.60, longitude=73.80, pm25=40, age_hours=0)
+    stale = dict(id='stale', latitude=18.60, longitude=73.82, pm25=160, age_hours=18)
+    midpoint = idw(18.60, 73.81, [fresh, stale])
+    assert midpoint < 100
+
+
+def test_city_grid_is_dense():
+    cells, _ = make_grid(STATIONS, WEATHER, TIME)
+    assert len(cells) == 24 * 24

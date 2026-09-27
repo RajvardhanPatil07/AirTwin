@@ -3,13 +3,14 @@ import json
 import math
 import numpy as np
 import yaml
-from app.config import ROOT, BBOX
+from app.config import ROOT, BBOX, CITY_GRID_SIZE, STATION_RECENCY_HALF_LIFE_HOURS
 
 CONFIG = yaml.safe_load((ROOT / 'config/assumptions.yaml').read_text())
 ZONES = json.loads((ROOT / 'data/zones.geojson').read_text())
 ASSUMPTIONS = [
-    'Grid PM2.5 is IDW interpolation (power 2), not additional station observations.',
-    'Regional background is the 15th percentile of a simultaneous station snapshot, capped at cell concentration.',
+    'Grid PM2.5 is freshness-weighted IDW interpolation (power 2), not additional station observations.',
+    'Each sensor contributes its freshest reading inside the configured age window; older anchors decay with a 6-hour half-life.',
+    'Regional background is the 15th percentile of the recent station anchor set, capped at cell concentration.',
     'Source shares use hand-drawn zone proximity, assumed traffic profiles and weather proxies; they are not chemical source apportionment.',
     'Industrial upwind weighting uses meteorological wind-from direction; zone coordinates and activity are approximate.',
     'Emission-to-concentration pass-through is 0.7 (sensitivity 0.6–0.8 with ±20% source scaling). Weather is held fixed.',
@@ -25,7 +26,12 @@ def idw(lat, lon, stations):
     distances = np.array([distance_km(lat, lon, s['latitude'], s['longitude']) for s in stations])
     if distances.min() < 1e-6:
         return float(stations[int(distances.argmin())]['pm25'])
-    weights = 1 / distances ** CONFIG['idw_power']
+    spatial_weights = 1 / distances ** CONFIG['idw_power']
+    ages = np.array([max(0.0, float(s.get('age_hours', 0.0))) for s in stations])
+    recency_weights = np.power(0.5, ages / max(STATION_RECENCY_HALF_LIFE_HOURS, 0.1))
+    weights = spatial_weights * recency_weights
+    if weights.sum() <= 0:
+        weights = spatial_weights
     return float(np.dot(weights, [s['pm25'] for s in stations]) / weights.sum())
 
 
@@ -68,7 +74,8 @@ def local_weights(lat, lon, hour, weather):
     return {'traffic': traffic / total, 'industry': industry / total, 'dust': dust / total}
 
 
-def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None):
+def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=None, mask=None, weather_at=None):
+    grid_size = grid_size or CITY_GRID_SIZE
     west, south, east, north = bbox
     background = float(np.percentile([s['pm25'] for s in stations], CONFIG['background_percentile']))
     population = CONFIG['population']

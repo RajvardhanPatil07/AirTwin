@@ -1,6 +1,6 @@
 """State boundary and approximate city sampling coordinates, not sensor locations."""
 import json
-from app.config import ROOT, BBOX
+from app.config import ROOT, BBOX, CITY_GRID_SIZE
 
 STATE_BOUNDARY = json.loads((ROOT / 'data/maharashtra.geojson').read_text())
 STATE_BBOX = (72.6, 15.6, 80.95, 22.1)
@@ -43,6 +43,6 @@ def region_metadata(region):
     bbox = STATE_BBOX if region == 'maharashtra' else BBOX
     west, south, east, north = bbox
     return {'id': region, 'name': 'Maharashtra' if region == 'maharashtra' else 'Pune + PCMC',
-            'bounds': [[south, west], [north, east]], 'grid_size': 24 if region == 'maharashtra' else 12,
+            'bounds': [[south, west], [north, east]], 'grid_size': 24 if region == 'maharashtra' else CITY_GRID_SIZE,
             'boundary': STATE_BOUNDARY if region == 'maharashtra' else None,
             'forecast_provider': 'CAMS via Open-Meteo' if region == 'maharashtra' else 'AirTwin LightGBM'}

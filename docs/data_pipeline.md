@@ -97,3 +97,24 @@ a separate chronological holdout, runs purged TimeSeriesSplit, saves ignored
 artifacts/metrics and generates docs/model_card.md. `scripts/run_all.sh` executes
 fetch → build → train → serve. Startup regenerates artifacts if necessary without
 silently claiming a real-data model when only the synthetic sample is available.
+
+
+## Dense Pune + PCMC runtime map
+
+The city runtime deliberately separates **measurement density** from **display
+resolution**.
+
+- OpenAQ remains the observed PM2.5 anchor source.
+- The runtime now keeps each station's freshest reading inside the configured
+  maximum-age window instead of requiring all stations to report in the same
+  exact hour.
+- Interpolation applies spatial IDW plus exponential recency decay with a
+  configurable 6-hour half-life, so a stale sensor contributes less than an
+  equally distant fresh sensor.
+- The Pune + PCMC grid is 24 × 24 (576 MODELED cells), up from 12 × 12.
+- Every station preserves its own observation timestamp. Grid cells remain
+  MODELED and must never be described as 576 physical sensors.
+- Centroid weather remains a limitation of the current training dataset; denser
+  station-specific meteorology is future work.
+
+This improves useful spatial density without inventing observations.
