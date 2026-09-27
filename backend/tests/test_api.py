@@ -156,3 +156,19 @@ def test_gemini_uses_actual_context_and_applied_cuts(client, monkeypatch):
     assert response.json()['method'] == 'gemini_evidence_checked'
     assert captured['context']['evidence']['scenarios']['data']['cuts']['traffic'] == 0
     assert captured['conversation'][0]['content'] == 'Explain the weather.'
+
+
+def test_provider_bare_claim_array_keeps_evidence_checks(monkeypatch):
+    from app.services import explainer
+    context = {'evidence': {'population': {'source_type': 'synthetic', 'data': {'population': 100}}}}
+    class ProviderReply:
+        status_code = 200
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return {'candidates': [{'content': {'parts': [{'text': '[{"text":"Population 100 is synthetic","source_type":"synthetic","evidence_ids":["population"]}]'}]}}]}
+    monkeypatch.setattr(explainer.requests, 'post', lambda *a, **kw: ProviderReply())
+    assert explainer.gemini_claims('test-key', 'test-model', context, 'Explain', [])[0]['source_type'] == 'synthetic'
+    context['evidence']['population']['data']['population'] = 10
+    with pytest.raises(ValueError, match='numbers outside'):
+        explainer.gemini_claims('test-key', 'test-model', context, 'Explain', [])

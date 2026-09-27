@@ -40,6 +40,15 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
         {k: v for k, v in item.items() if k not in ['cells', 'assumptions']} for item in scenarios['results']],
         'population_source_type': 'synthetic', 'units': 'Exposure: person·µg/m³, not people protected.'})
     add('validation', 'modeled', validation)
+    add('population', 'synthetic', {'description': 'Constructed population weights, not measured population. Exposure benefit is person·µg/m³, not people protected.'})
+    individual = sorted((item for item in scenarios['results'] if item['id'] != 'combined'), key=lambda item: -item['exposure_benefit'])
+    best = individual[0] if individual and individual[0]['exposure_benefit'] > 0 else None
+    bounds_available = all('exposure_benefit_low' in item and 'exposure_benefit_high' in item for item in individual)
+    separated = bool(best and bounds_available and all(best['exposure_benefit_low'] > item['exposure_benefit_high'] for item in individual[1:]))
+    add('intervention_comparison', 'modeled', {'best_individual': best['name'] if best else None,
+        'ranking_basis': 'Region-wide population-weighted exposure reduction at the chosen cuts, not equal cost or feasibility.',
+        'sensitivity_status': 'separated' if separated else 'overlap' if best and bounds_available else 'unavailable' if best else 'no benefit',
+        'limitation': 'Sensitivity is an assumption envelope, not a confidence interval or causal validation.'})
     add('stations', stations['source_type'], stations['stations'])
     history = series[series.timestamp >= timestamp - pd.Timedelta(hours=48)]
     add('history_summary', 'modeled', {'input_source_types': sorted(history.source_type.unique()),
@@ -51,7 +60,6 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
     return {'evidence': evidence, 'region': getattr(runtime, 'region_name', 'Pune + PCMC')}
 
 
-# Unit and pollutant names are vocabulary, not claims: "PM2.5", "PM10", "µg/m³", "NO2", "24-hour".
 VOCABULARY = re.compile(r'PM\s?2\.5|PM\s?10|µg/m³|μg/m³|ug/m3|m³|NO2|SO2|O3|CO2|SDG\s?\d+|p10|p90|[TtHh]\d+', re.I)
 NUMBER = re.compile(r'(?<![\w.])-?\d+(?:,\d{3})*(?:\.\d+)?')
 
@@ -66,7 +74,6 @@ def evidence_numbers(value, found=None):
         return found
     if isinstance(value, (int, float)):
         found.append(float(value))
-        # Percent views of fractions (e.g. share 0.31 → 31%).
         if abs(value) <= 1:
             found.append(float(value) * 100)
     elif isinstance(value, str):
@@ -82,14 +89,12 @@ def evidence_numbers(value, found=None):
 
 
 def supported(number, allowed, question_numbers):
-    """A number is supported if it appears in evidence up to display rounding, or in the question."""
     if number in question_numbers:
         return True
     for value in allowed:
         tolerance = max(0.051, abs(value) * 0.005)
         if abs(number - value) <= tolerance:
             return True
-        # Rounded to an integer / one decimal, or reported in thousands (e.g. 304.8K).
         if round(value) == number or round(value, 1) == number or round(value / 1000, 1) == number or round(value / 1000, 2) == number:
             return True
     return False
@@ -121,7 +126,6 @@ def fmt(value, digits=1):
 
 
 def grounded_summary(context, question):
-    """Deterministic answer built only from computed outputs; used when the LLM is unavailable."""
     evidence = context['evidence']
     baseline, forecast = evidence['baseline'], evidence['forecast']['data']
     scenarios, attribution = evidence['scenarios']['data'], evidence['attribution']['data']
@@ -190,7 +194,10 @@ def gemini_claims(key, model, context, question, history):
         try:
             parts = response.json()['candidates'][0]['content']['parts']
             content = ''.join(part.get('text', '') for part in parts if not part.get('thought'))
-            return checked_claims(json.loads(content), context, question)
+            candidate = json.loads(content)
+            if isinstance(candidate, list):
+                candidate = {'claims': candidate}
+            return checked_claims(candidate, context, question)
         except (KeyError, IndexError, TypeError, ValueError, AttributeError) as error:
             feedback = str(error)
     raise ValueError(feedback or 'Unverifiable answer')

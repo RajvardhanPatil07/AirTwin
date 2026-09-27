@@ -27,6 +27,8 @@ def simulate(location, cells, background, cuts, weather, timestamp):
                         'reduction': reduction, 'reduction_low': low, 'reduction_high': high,
                         'reduction_percent': 100 * reduction / location['pm25'] if location['pm25'] else 0,
                         'exposure_benefit': sum((cell['pm25'] - after_grid[i]['pm25']) * cell['population'] for i, cell in enumerate(cells)),
+                        'exposure_benefit_low': sum(delta(cell['pm25'], cell['background'], cell['local_weights'], action_cuts, CONFIG['pass_through']['low']) * (1 - CONFIG['share_sensitivity']) * cell['population'] for cell in cells),
+                        'exposure_benefit_high': sum(min(max(cell['pm25'] - cell['background'], 0), delta(cell['pm25'], cell['background'], cell['local_weights'], action_cuts, CONFIG['pass_through']['high']) * (1 + CONFIG['share_sensitivity'])) * cell['population'] for cell in cells),
                         'population_source_type': 'synthetic', 'cells': after_grid,
                         'source_type': 'modeled', 'assumptions': ASSUMPTIONS})
     results.sort(key=lambda item: -item['exposure_benefit'])
