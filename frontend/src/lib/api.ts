@@ -1,5 +1,7 @@
 import type {
   AttributionResponse,
+  ExplainResponse,
+  ReplayResponse,
   BacktestResponse,
   Cuts,
   DashboardData,
@@ -11,7 +13,9 @@ import type {
 } from "../types";
 import * as demo from "../mocks/engine";
 
-const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+const base = (
+  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"
+).replace(/\/$/, "");
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     ...init,
@@ -29,7 +33,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export async function loadDashboard(): Promise<DashboardData> {
+export async function loadDashboard(
+  replayAt: string | null = null,
+): Promise<DashboardData> {
   if (!base)
     return {
       stations: demo.stations,
@@ -39,8 +45,10 @@ export async function loadDashboard(): Promise<DashboardData> {
     };
   try {
     const [stations, hotspots] = await Promise.all([
-      request<StationsResponse>("/api/stations"),
-      request<HotspotsResponse>("/api/hotspots?mode=before"),
+      request<StationsResponse>(withReplay("/api/stations", replayAt)),
+      request<HotspotsResponse>(
+        withReplay("/api/hotspots?mode=before", replayAt),
+      ),
     ]);
     if (!stations.stations?.length || !hotspots.cells?.length)
       throw new Error("API returned no locations or grid cells");
@@ -48,7 +56,9 @@ export async function loadDashboard(): Promise<DashboardData> {
       stations: stations.stations,
       cells: hotspots.cells,
       demo: false,
-      warning: null,
+      warning: stations.warnings?.join(" ") || null,
+      weather: stations.weather,
+      zones: stations.zones,
     };
   } catch {
     return {
@@ -60,30 +70,76 @@ export async function loadDashboard(): Promise<DashboardData> {
     };
   }
 }
+function withReplay(path: string, replayAt: string | null) {
+  return replayAt
+    ? `${path}${path.includes("?") ? "&" : "?"}replay_at=${encodeURIComponent(replayAt)}`
+    : path;
+}
 export const api = {
-  forecast: (station: Station, isDemo: boolean, hours: number) =>
+  replay: () => request<ReplayResponse>("/api/replay"),
+  explain: (locationId: string, question: string, replayAt: string | null) =>
+    request<ExplainResponse>("/api/explain", {
+      method: "POST",
+      body: JSON.stringify({
+        location_id: locationId,
+        question,
+        replay_at: replayAt,
+      }),
+    }),
+  forecast: (
+    station: Station,
+    isDemo: boolean,
+    hours: number,
+    replayAt: string | null = null,
+  ) =>
     isDemo
       ? Promise.resolve(demo.forecast(station, hours))
       : request<ForecastResponse>(
-          `/api/forecast?location_id=${encodeURIComponent(station.id)}&hours=${hours}`,
+          withReplay(
+            `/api/forecast?location_id=${encodeURIComponent(station.id)}&hours=${hours}`,
+            replayAt,
+          ),
         ),
-  backtest: (station: Station, isDemo: boolean) =>
+  backtest: (
+    station: Station,
+    isDemo: boolean,
+    replayAt: string | null = null,
+  ) =>
     isDemo
       ? Promise.resolve(demo.backtest(station))
       : request<BacktestResponse>(
-          `/api/backtest?location_id=${encodeURIComponent(station.id)}`,
+          withReplay(
+            `/api/backtest?location_id=${encodeURIComponent(station.id)}`,
+            replayAt,
+          ),
         ),
-  attribution: (station: Station, isDemo: boolean) =>
+  attribution: (
+    station: Station,
+    isDemo: boolean,
+    replayAt: string | null = null,
+  ) =>
     isDemo
       ? Promise.resolve(demo.attribution(station))
       : request<AttributionResponse>(
-          `/api/attribution?location_id=${encodeURIComponent(station.id)}`,
+          withReplay(
+            `/api/attribution?location_id=${encodeURIComponent(station.id)}`,
+            replayAt,
+          ),
         ),
-  scenarios: (station: Station, cuts: Cuts, isDemo: boolean) =>
+  scenarios: (
+    station: Station,
+    cuts: Cuts,
+    isDemo: boolean,
+    replayAt: string | null = null,
+  ) =>
     isDemo
       ? Promise.resolve(demo.runScenario(station, cuts))
       : request<ScenarioResponse>("/api/scenarios", {
           method: "POST",
-          body: JSON.stringify({ location_id: station.id, cuts }),
+          body: JSON.stringify({
+            location_id: station.id,
+            cuts,
+            replay_at: replayAt,
+          }),
         }),
 };

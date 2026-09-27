@@ -6,7 +6,7 @@ afterEach(() => {
   vi.resetModules();
 });
 describe("API availability and provenance", () => {
-  it("runs without making API calls when no backend is configured", async () => {
+  it("runs without making API calls when frontend-only demo mode is explicitly configured", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "");
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
@@ -44,12 +44,10 @@ describe("API availability and provenance", () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://test.invalid");
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ({ source_type: "modeled", stations: [] }),
-        }),
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ source_type: "modeled", stations: [] }),
+      }),
     );
     const { loadDashboard } = await import("./api");
     expect((await loadDashboard()).demo).toBe(true);
