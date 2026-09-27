@@ -55,7 +55,7 @@ export function ScenarioPanel({
                   ? "SYNTHETIC DEMO INPUT"
                   : inputSource === "observed"
                     ? "OBSERVED · STATION"
-                    : "MODELED · INTERPOLATED"}
+                    : "MODELED · BASELINE"}
               </div>
               <span>Selected location baseline</span>
               <strong>

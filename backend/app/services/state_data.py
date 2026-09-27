@@ -157,11 +157,12 @@ class StateRuntime(Runtime):
             return nearest['weather']
         weather = weather_at(18.52, 73.86)
         observed = [point for point in self.payload.get('observed', []) if (pd.Timestamp.now(tz=TIMEZONE) - pd.Timestamp(point['timestamp'])).total_seconds() <= 86400]
-        interpolation_points = stations + observed
+        interpolation_points = stations + [point for point in observed
+            if pd.Timestamp(point['timestamp']).tz_convert(TIMEZONE).floor('h') == self.origin]
         cells, background = make_grid(interpolation_points, weather, self.origin, STATE_BBOX, 24, inside_state, weather_at)
         for cell in cells:
             cell['assumptions'] = STATE_ASSUMPTIONS
-        return interpolation_points, cells, background, weather, self.origin
+        return stations + observed, cells, background, weather, self.origin
 
     def stations(self, replay_at=None):
         stations, _, _, weather, _ = self.snapshot(replay_at)

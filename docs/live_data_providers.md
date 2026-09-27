@@ -18,7 +18,8 @@ wind direction, precipitation, surface pressure and cloud cover.
 
 The backend refreshes the state cache hourly while running. The browser checks for
 updates every minute. OpenAQ locations are filtered to Maharashtra and only PM2.5
-concentration readings within 24 hours become OBSERVED points. On the recorded run,
+concentration readings within 24 hours become OBSERVED points. Only readings in the
+same origin hour join CAMS references in interpolation/background calculations. On the recorded run,
 136 in-boundary PM2.5 sensors were discovered, but no readings passed this freshness
 filter. Old measurements are never relabeled current.
 
