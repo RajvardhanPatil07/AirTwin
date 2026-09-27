@@ -116,9 +116,11 @@ export function Dashboard() {
     };
   }, [data, location, appliedCuts, hours, retry, replayAt]);
 
+  const currentScenario =
+    scenario?.location_id === location?.id ? scenario : null;
   const selected =
-    scenario?.results.find((result) => result.id === action) ??
-    scenario?.results[0] ??
+    currentScenario?.results.find((result) => result.id === action) ??
+    currentScenario?.results[0] ??
     null;
   const outdated = Object.keys(cuts).some(
     (key) => cuts[key as keyof Cuts] !== appliedCuts[key as keyof Cuts],
@@ -286,7 +288,7 @@ export function Dashboard() {
           cells={after && selected ? selected.cells : data.cells}
           selected={location}
           onSelect={chooseLocation}
-          after={after}
+          after={after && Boolean(selected)}
           onAfter={() => setAfter(!after)}
           dark={dark}
           demo={data.demo}
@@ -326,7 +328,7 @@ export function Dashboard() {
               className={`result-status ${outdated ? "stale" : ""}`}
               role="status"
             >
-              {loading
+              {loading || !selected
                 ? "LOADING"
                 : outdated
                   ? "RESULTS OUTDATED"
@@ -380,7 +382,7 @@ export function Dashboard() {
                 </button>
               </div>
             )}
-            {loading ? (
+            {loading || (!selected && !error) ? (
               <div className="loading-state" role="status">
                 <RefreshCw size={18} className="spin" />
                 Loading location analysis…
@@ -391,7 +393,7 @@ export function Dashboard() {
                   <ScenarioPanel
                     cuts={cuts}
                     onCuts={setCuts}
-                    response={scenario}
+                    response={currentScenario}
                     selected={selected}
                     onSelect={setAction}
                     onRun={run}
