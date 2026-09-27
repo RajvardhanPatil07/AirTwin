@@ -60,7 +60,6 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
     return {'evidence': evidence, 'region': getattr(runtime, 'region_name', 'Pune + PCMC')}
 
 
-# Unit and pollutant names are vocabulary, not claims: "PM2.5", "PM10", "µg/m³", "NO2", "24-hour".
 VOCABULARY = re.compile(r'PM\s?2\.5|PM\s?10|µg/m³|μg/m³|ug/m3|m³|NO2|SO2|O3|CO2|SDG\s?\d+|p10|p90|[TtHh]\d+', re.I)
 NUMBER = re.compile(r'(?<![\w.])-?\d+(?:,\d{3})*(?:\.\d+)?')
 
@@ -75,7 +74,6 @@ def evidence_numbers(value, found=None):
         return found
     if isinstance(value, (int, float)):
         found.append(float(value))
-        # Percent views of fractions (e.g. share 0.31 → 31%).
         if abs(value) <= 1:
             found.append(float(value) * 100)
     elif isinstance(value, str):
@@ -91,14 +89,12 @@ def evidence_numbers(value, found=None):
 
 
 def supported(number, allowed, question_numbers):
-    """A number is supported if it appears in evidence up to display rounding, or in the question."""
     if number in question_numbers:
         return True
     for value in allowed:
         tolerance = max(0.051, abs(value) * 0.005)
         if abs(number - value) <= tolerance:
             return True
-        # Rounded to an integer / one decimal, or reported in thousands (e.g. 304.8K).
         if round(value) == number or round(value, 1) == number or round(value / 1000, 1) == number or round(value / 1000, 2) == number:
             return True
     return False
@@ -130,7 +126,6 @@ def fmt(value, digits=1):
 
 
 def grounded_summary(context, question):
-    """Deterministic answer built only from computed outputs; used when the LLM is unavailable."""
     evidence = context['evidence']
     baseline, forecast = evidence['baseline'], evidence['forecast']['data']
     scenarios, attribution = evidence['scenarios']['data'], evidence['attribution']['data']
