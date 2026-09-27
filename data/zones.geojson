@@ -1,0 +1,6 @@
+{"type":"FeatureCollection","source_type":"synthetic","assumptions":["Hand-drawn approximate proxy zones, not official boundaries or measured activity."],"features":[
+{"type":"Feature","properties":{"name":"Bhosari MIDC proxy","category":"industry","source_type":"synthetic","weight":1},"geometry":{"type":"Polygon","coordinates":[[[73.831,18.606],[73.873,18.606],[73.873,18.652],[73.831,18.652],[73.831,18.606]]]}},
+{"type":"Feature","properties":{"name":"Chakan MIDC proxy","category":"industry","source_type":"synthetic","weight":1},"geometry":{"type":"Polygon","coordinates":[[[73.823,18.735],[73.905,18.735],[73.905,18.792],[73.823,18.792],[73.823,18.735]]]}},
+{"type":"Feature","properties":{"name":"Highway corridor proxy","category":"traffic","source_type":"synthetic","weight":1},"geometry":{"type":"LineString","coordinates":[[73.73,18.77],[73.75,18.69],[73.77,18.61],[73.79,18.53],[73.82,18.46]]}},
+{"type":"Feature","properties":{"name":"Hinjewadi construction proxy","category":"dust","source_type":"synthetic","weight":1},"geometry":{"type":"Polygon","coordinates":[[[73.71,18.56],[73.77,18.56],[73.77,18.62],[73.71,18.62],[73.71,18.56]]]}}
+]}
