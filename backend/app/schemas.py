@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 SourceType = Literal['observed', 'modeled', 'synthetic']
+Region = Literal['pcmc', 'maharashtra']
 
 
 class Provenance(BaseModel):
@@ -24,6 +25,8 @@ class Station(Provenance):
     longitude: float
     pm25: float
     timestamp: str
+    pollutants: dict = Field(default_factory=dict)
+    weather: dict = Field(default_factory=dict)
 
 
 class Cell(Provenance):
@@ -66,6 +69,8 @@ class StationsResponse(Provenance):
     data_mode: str
     weather: dict = {}
     zones: dict = {}
+    region: dict = Field(default_factory=dict)
+    coverage: dict = Field(default_factory=dict)
 
 
 class HotspotsResponse(Provenance):
@@ -86,7 +91,7 @@ class ForecastResponse(Provenance):
     history_source_type: SourceType
     history_reference: str
     series: list[SeriesPoint]
-    shap: dict
+    shap: dict | None = None
     weather_forecast: list[dict] = []
 
 
@@ -104,7 +109,8 @@ class BacktestResponse(Provenance):
     target_source_type: SourceType
     method: str
     series: list[SeriesPoint]
-    metrics: Metrics
+    metrics: Metrics | None
+    available: bool = True
     seasonal_baseline: dict = {}
     cv: list[dict] = []
 
@@ -126,15 +132,27 @@ class ScenarioRequest(BaseModel):
     location_id: str
     cuts: Cuts
     replay_at: str | None = None
+    region: Region = 'pcmc'
+
+
+class ChatMessage(BaseModel):
+    role: Literal['user', 'assistant']
+    content: str = Field(min_length=1, max_length=8000)
 
 
 class ExplainRequest(BaseModel):
     location_id: str
     question: str = Field(min_length=1, max_length=1000)
     replay_at: str | None = None
+    region: Region = 'pcmc'
+    cuts: Cuts = Field(default_factory=lambda: Cuts(traffic=20, industry=30, dust=30))
+    hours: int = Field(default=24, ge=1, le=72)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=8)
 
 
 class ExplainResponse(Provenance):
     answer: str
     method: str
     context: dict
+    claims: list[dict]
+    model: str

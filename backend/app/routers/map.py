@@ -1,17 +1,20 @@
 from typing import Literal
 from fastapi import APIRouter, HTTPException
-from app.schemas import StationsResponse, HotspotsResponse
+from app.schemas import StationsResponse, HotspotsResponse, Region
+from app.services.state_data import get_state_runtime
+from app.services.regions import region_metadata
 from app.services.runtime import get_runtime
 from app.services.spatial import ASSUMPTIONS
 router = APIRouter()
 
 @router.get('/stations', response_model=StationsResponse)
-def stations(replay_at: str | None = None):
-    return get_runtime().stations(replay_at)
+def stations(replay_at: str | None = None, region: Region = 'pcmc'):
+    runtime = get_runtime() if region == 'pcmc' else get_state_runtime()
+    return {**runtime.stations(replay_at), 'region': region_metadata(region)}
 
 @router.get('/hotspots', response_model=HotspotsResponse)
-def hotspots(mode: Literal['before', 'after'] = 'before', scenario_id: str | None = None, replay_at: str | None = None):
-    runtime = get_runtime()
+def hotspots(mode: Literal['before', 'after'] = 'before', scenario_id: str | None = None, replay_at: str | None = None, region: Region = 'pcmc'):
+    runtime = get_runtime() if region == 'pcmc' else get_state_runtime()
     if mode == 'after':
         result = runtime.scenarios.get(scenario_id)
         if result is None:

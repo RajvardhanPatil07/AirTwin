@@ -68,21 +68,23 @@ def local_weights(lat, lon, hour, weather):
     return {'traffic': traffic / total, 'industry': industry / total, 'dust': dust / total}
 
 
-def make_grid(stations, weather, timestamp):
-    west, south, east, north = BBOX
+def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None):
+    west, south, east, north = bbox
     background = float(np.percentile([s['pm25'] for s in stations], CONFIG['background_percentile']))
     population = CONFIG['population']
     cells = []
-    for row in range(12):
-        for col in range(12):
-            a, b = south + row * (north - south) / 12, west + col * (east - west) / 12
-            c, d = a + (north - south) / 12, b + (east - west) / 12
+    for row in range(grid_size):
+        for col in range(grid_size):
+            a, b = south + row * (north - south) / grid_size, west + col * (east - west) / grid_size
+            c, d = a + (north - south) / grid_size, b + (east - west) / grid_size
             lat, lon = (a + c) / 2, (b + d) / 2
+            if mask and not mask(lat, lon):
+                continue
             value = idw(lat, lon, stations)
             density = math.exp(-((lat - population['latitude']) ** 2 + (lon - population['longitude']) ** 2) / population['scale_degrees_squared'])
             cells.append({'id': f'cell-{row}-{col}', 'latitude': lat, 'longitude': lon,
                           'bounds': [[a, b], [c, d]], 'pm25': value, 'background': min(background, value),
                           'population': round(population['base'] + population['core_extra'] * density),
-                          'population_source_type': 'synthetic', 'local_weights': local_weights(lat, lon, timestamp.hour, weather),
+                          'population_source_type': 'synthetic', 'local_weights': local_weights(lat, lon, timestamp.hour, weather_at(lat, lon) if weather_at else weather),
                           'source_type': 'modeled', 'assumptions': ASSUMPTIONS})
     return cells, background
