@@ -210,7 +210,8 @@ class Runtime:
             frames.append({'hour': step, 'timestamp': (timestamp + pd.Timedelta(hours=step)).isoformat(),
                            'source_type': stations[0]['source_type'] if step == 0 else 'modeled',
                            'stations': [{'id': p['id'], 'pm25': p['pm25']} for p in points], 'cells': frame_cells})
-        assumptions = ['Hour 0 matches the baseline hotspot grid; later frames interpolate per-station AirTwin forecasts by IDW.',
+        provider = 'CAMS provider' if getattr(self, 'region_id', None) else 'AirTwin'
+        assumptions = [f'Hour 0 matches the baseline hotspot grid; later frames interpolate per-station {provider} forecasts by IDW.',
                        'Forecast frames are MODELED and not independently validated per grid cell.', *self.warnings]
         if len(stations) == 1 and stations[0]['source_type'] == 'synthetic':
             assumptions.append('The one-station SYNTHETIC demo uses illustrative map anchors scaled from its single forecast; they are not additional monitoring stations or independently forecast locations.')

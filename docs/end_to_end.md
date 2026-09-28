@@ -10,7 +10,7 @@ requires the OpenMP library (`libomp`). Follow the README installation steps.
 | `OPENAQ_API_KEY` | root `.env` | Live observed ingestion. Missing/unusable data falls back to modeled CAMS or labeled synthetic targets. |
 | `GEMINI_API_KEY` | root `.env` | Generated explanation. Missing key, provider outage or rejected claims returns a labeled deterministic evidence summary. |
 | `GEMINI_MODEL` | root `.env` | Provider model identifier; the example value must be available to your account. |
-| `LIVE_REFRESH_ENABLED` | root `.env` | `1` enables hourly Maharashtra provider-cache refresh; `0` disables it for offline verification. Does not retrain PCMC. |
+| `LIVE_REFRESH_ENABLED` | root `.env` | `1` enables hourly Pune–PCMC and Maharashtra provider-cache refresh; `0` selects the historical PCMC dataset for offline verification. Does not retrain the historical model. |
 | `LIVE_REFRESH_SECONDS` | root `.env` | Cache refresh interval, default 3600 seconds. |
 | `CORS_ORIGINS` | root `.env` | Comma-separated deployed frontend origins; loopback origins are allowed automatically. |
 | `VITE_API_BASE_URL` | `frontend/.env` | Defaults to `/backend` through the Vite proxy. Use a public API URL for separate hosting; an empty value explicitly enables frontend-only synthetic mode. |

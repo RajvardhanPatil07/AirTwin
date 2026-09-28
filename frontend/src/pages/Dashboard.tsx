@@ -38,7 +38,7 @@ const TABS = [
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
-  const [region, setRegion] = useState<RegionId>("maharashtra");
+  const [region, setRegion] = useState<RegionId>("pcmc");
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -251,7 +251,7 @@ export function Dashboard() {
         <div className="brand">
           <span className="brand-mark" aria-label="AirTwin leaf logo" role="img"><Leaf size={36} strokeWidth={1.7} /></span>
           <div>
-            <h1>AirTwin {region === "maharashtra" ? "Maharashtra" : "PCMC"}</h1>
+            <h1>AirTwin {region === "maharashtra" ? "Maharashtra" : "Pune + PCMC"}</h1>
             <p>
               Urban Environmental Digital Twin ·{" "}
               {region === "maharashtra"
