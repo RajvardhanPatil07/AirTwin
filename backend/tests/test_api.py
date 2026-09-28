@@ -50,6 +50,23 @@ def test_contract_and_provenance(client):
     assert shap['base_value'] + sum(shap['groups'].values()) == pytest.approx(shap['prediction'], abs=1e-6)
 
 
+def test_synthetic_timeline_matches_baseline_and_keeps_spatial_variation(client):
+    baseline_response = client.get('/api/hotspots')
+    timeline_response = client.get('/api/timeline')
+    assert baseline_response.status_code == timeline_response.status_code == 200
+    baseline = {cell['id']: cell['pm25'] for cell in baseline_response.json()['cells']}
+    timeline = timeline_response.json()
+    zero = next(frame for frame in timeline['frames'] if frame['hour'] == 0)
+    future = next(frame for frame in timeline['frames'] if frame['hour'] == 3)
+    assert zero['source_type'] == 'synthetic'
+    assert {cell['id']: cell['pm25'] for cell in zero['cells']} == pytest.approx(baseline)
+    values = [cell['pm25'] for cell in future['cells']]
+    assert max(values) - min(values) > 0.1
+    station_ids = {station['id'] for station in client.get('/api/stations').json()['stations']}
+    assert {point['id'] for point in future['stations']} == station_ids
+    assert 'SYNTHETIC' in ' '.join(timeline['assumptions'])
+
+
 def test_scenario_after_map_and_invalid_inputs(client):
     location = client.get('/api/stations').json()['stations'][0]['id']
     response = client.post('/api/scenarios', json={'location_id': location, 'cuts': {'traffic': 20, 'industry': 30, 'dust': 30}})
