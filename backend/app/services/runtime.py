@@ -6,7 +6,7 @@ from app.config import RAW
 from fastapi import HTTPException
 from app.services.data_loader import load_all
 from app.services.model import load_or_train, predict, explain_features, metrics
-from app.services.spatial import make_grid, idw, ASSUMPTIONS, CONFIG, ZONES, distance_km
+from app.services.spatial import make_grid, idw, interpolation_anchors, ASSUMPTIONS, CONFIG, ZONES, distance_km
 from app.services.attribution import attribute
 from app.services.scenarios import simulate
 
@@ -194,13 +194,20 @@ class Runtime:
                     points.append({**s, 'pm25': float(value)})
             if not points:
                 continue
-            frame_cells = [{'id': c['id'], 'pm25': idw(c['latitude'], c['longitude'], points)} for c in cells]
+            if step == 0:
+                frame_cells = [{'id': c['id'], 'pm25': c['pm25']} for c in cells]
+            else:
+                anchors = interpolation_anchors(points)
+                frame_cells = [{'id': c['id'], 'pm25': idw(c['latitude'], c['longitude'], anchors)} for c in cells]
             frames.append({'hour': step, 'timestamp': (timestamp + pd.Timedelta(hours=step)).isoformat(),
                            'source_type': stations[0]['source_type'] if step == 0 else 'modeled',
                            'stations': [{'id': p['id'], 'pm25': p['pm25']} for p in points], 'cells': frame_cells})
+        assumptions = ['Hour 0 matches the baseline hotspot grid; later frames interpolate per-station AirTwin forecasts by IDW.',
+                       'Forecast frames are MODELED and not independently validated per grid cell.', *self.warnings]
+        if len(stations) == 1 and stations[0]['source_type'] == 'synthetic':
+            assumptions.append('The one-station SYNTHETIC demo uses illustrative map anchors scaled from its single forecast; they are not additional monitoring stations or independently forecast locations.')
         result = {'source_type': 'modeled', 'origin': timestamp.isoformat(), 'frames': frames,
-                  'assumptions': ['Hour 0 interpolates the observed snapshot; later frames interpolate per-station AirTwin forecasts by IDW.',
-                                  'Forecast frames are MODELED and not independently validated per grid cell.', *self.warnings]}
+                  'assumptions': assumptions}
         if len(self.timelines) > 8:
             self.timelines.pop(next(iter(self.timelines)))
         self.timelines[key] = result
