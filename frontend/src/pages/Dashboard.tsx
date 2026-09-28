@@ -38,7 +38,7 @@ const TABS = [
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
-  const [region, setRegion] = useState<RegionId>("pcmc");
+  const [region, setRegion] = useState<RegionId>("maharashtra");
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
