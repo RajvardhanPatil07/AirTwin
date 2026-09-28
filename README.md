@@ -26,7 +26,7 @@ AirTwin brings station readings, a 72-hour PM2.5 outlook, model explanations, an
 | Historical replay | A dated held-out snapshot and its analysis | Historical evidence, not a live reading |
 | Ask AirTwin | Explanations grounded in computed outputs and cited evidence IDs | Generated answers are checked for supported values; a labeled summary works without Gemini |
 
-The Pune and PCMC forecast uses LightGBM blended with persistence. The Maharashtra view uses CAMS provider forecasts at reference points; the local model's backtest does not validate that wider view. [Architecture](docs/architecture.md) · [API](docs/api.md) · [Data sources](docs/data_sources.md)
+The current Pune–PCMC view refreshes CAMS/Open-Meteo air-quality and weather forecasts at 25 named area reference points while the backend runs, plus OpenAQ PM2.5 station readings when they pass a 24-hour freshness check. These reference points are modeled samples, not neighborhood monitors. Historical replay uses the separate LightGBM model blended with persistence. The Maharashtra view uses CAMS provider forecasts at reference points; historical model backtests do not validate current provider forecasts. [Architecture](docs/architecture.md) · [API](docs/api.md) · [Data sources](docs/data_sources.md)
 
 ## Run it locally
 
@@ -44,7 +44,7 @@ python scripts/dev.py
 
 Open **http://127.0.0.1:5188/**. The API docs are at **http://127.0.0.1:8000/docs**. First startup can take several minutes because the backend trains a model if no matching artifact exists. With no downloaded dataset, it trains on the committed **synthetic sample**. That exercises the workflow but does not reproduce the observed-data results below.
 
-To run the full synthetic pipeline, use `bash scripts/run_all.sh --offline`. To fetch provider data, copy `.env.example` to `.env`, set credentials locally, and run `bash scripts/run_all.sh --live`. The root `.env` is ignored by Git. [Setup and failure cases](docs/troubleshooting.md) · [Pipeline](docs/data_pipeline.md)
+To run the full synthetic pipeline, use `bash scripts/run_all.sh --offline`. The running backend fetches current Pune–PCMC and Maharashtra provider context hourly when `LIVE_REFRESH_ENABLED=1`. An OpenAQ key enables observed-station discovery; CAMS/Open-Meteo model context does not require that key. Historical PCMC model training remains a separate operation: copy `.env.example` to `.env`, set credentials locally, and run `bash scripts/run_all.sh --live` when you want to rebuild it. The root `.env` is ignored by Git. [Setup and failure cases](docs/troubleshooting.md) · [Pipeline](docs/data_pipeline.md)
 
 The frontend uses the local API through Vite's `/backend` proxy. If the API is unavailable at initial load, it switches to a labeled, illustrative frontend demo. For a hosted frontend, set `VITE_API_BASE_URL` to a public backend URL and allow the frontend origin in `CORS_ORIGINS`. An explicitly empty API URL selects demo mode. [Deployment details](frontend/README.md)
 

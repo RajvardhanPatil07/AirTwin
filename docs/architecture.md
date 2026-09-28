@@ -31,9 +31,11 @@ Training computes separate held-out models and refits serving models on all usab
 data. Raw CSV, processed Parquet and joblib artifacts are ignored. The generated
 model card is committed evidence; the sample stays under 1 MB.
 
-Data are refreshed deliberately by rerunning the pipeline and restarting the
-backend. The UI labels the data timestamp and warns about stale snapshots; there
-is no hidden background polling, automatic alert service or public deployment.
+The historical LightGBM dataset is refreshed deliberately by rerunning the pipeline
+and restarting the backend. Separate current provider caches for Pune–PCMC and
+Maharashtra refresh hourly while the backend runs; the browser checks for updated
+snapshots each minute. The UI labels source and timestamp and warns about stale
+data. There is no automatic alert service.
 
 ## Module responsibilities
 

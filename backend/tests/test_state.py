@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import pytest
-from app.services.state_data import StateRuntime, SAMPLE, AIR_FIELDS, WEATHER_FIELDS
+from app.services.state_data import StateRuntime, PuneRuntime, SAMPLE, AIR_FIELDS, WEATHER_FIELDS
 from app.services.regions import inside_state
 from app.services.explainer import build_context, checked_claims
 
@@ -33,6 +33,21 @@ def test_state_forecast_and_no_invented_validation(state):
     attribution = state.attribution(location)
     assert attribution['source_type'] == 'modeled'
     assert len(attribution['shares']) == 4
+
+
+def test_pune_live_runtime_labels_provider_data_and_keeps_validation_separate():
+    payload = json.loads(SAMPLE.read_text())
+    payload['points'] = payload['points'][1:3]
+    live = PuneRuntime(payload)
+    response = live.stations()
+    assert response['region']['id'] == 'pcmc'
+    assert response['region']['forecast_provider'] == 'CAMS via Open-Meteo'
+    assert response['coverage']['modeled_points'] == 2
+    assert all(station['source_type'] == 'modeled' for station in response['stations'])
+    location_id = response['stations'][0]['id']
+    assert live.forecast(location_id, 24)['shap'] is None
+    assert live.backtest(location_id)['available'] is False
+    assert len(live.snapshot()[1]) == 144
 
 def test_gemini_claim_checks():
     context = {'evidence': {'forecast': {'source_type': 'modeled', 'data': {'pm25': 34.2}}}}

@@ -21,10 +21,13 @@ def client(tmp_path_factory):
     import app.services.runtime as module
     original = module.get_runtime
     import app.main as main
+    import app.services.state_data as state_data
     from app.routers import forecast, backtest, map, attribution, scenarios, explain
     modules = [main, forecast, backtest, map, attribution, scenarios, explain]
     for target in modules:
         target.get_runtime = lambda: runtime
+    patch.setattr(state_data, 'get_runtime', lambda: runtime)
+    patch.setattr(state_data, 'get_pune_runtime', lambda: None)
     with TestClient(app) as test_client:
         yield test_client
     for target in modules:

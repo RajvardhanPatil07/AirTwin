@@ -4,6 +4,15 @@ Provider terms checked 27 September 2026. Availability and prices can change.
 
 ## What runs now
 
+The Pune + PCMC live view samples CAMS/Open-Meteo at 25 named area reference
+coordinates across the mapped region. The backend refreshes those values hourly
+and adds OpenAQ PM2.5 readings only when their timestamps are within 24 hours.
+The named points are MODELED provider estimates, not monitors at each neighborhood.
+Historical replay and its LightGBM backtest remain a separate dataset and do not
+validate the current CAMS forecast. If a provider refresh fails, the last cache
+retains its timestamp and a warning; before the first successful refresh, the
+dashboard uses its labeled historical or synthetic fallback.
+
 AirTwin defaults to Maharashtra, with a boundary-masked 24×24 candidate grid and
 36 approximate city reference locations. These are sampling locations, not 36
 independent monitors or uniform district coverage. The API fetches eight CAMS air

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import forecast, backtest, map, attribution, scenarios, explain
 from app.services.runtime import get_runtime
+from app.services.state_data import get_pune_runtime
 
 @asynccontextmanager
 async def lifespan(app):
@@ -26,7 +27,12 @@ for routes in [forecast, backtest, map, attribution, scenarios, explain]:
 @app.get('/api/health')
 def health():
     runtime = get_runtime()
+    pune = get_pune_runtime()
     return {'regions': ['pcmc', 'maharashtra'], 'chat_provider': 'gemini', 'chat_configured': bool(os.getenv('GEMINI_API_KEY')), 'status': 'ok', 'source_type': 'modeled', 'assumptions': runtime.warnings,
+            'pune_live': {'ready': pune is not None,
+                          'updated_at': pune.payload['updated_at'] if pune else None,
+                          'modeled_points': len(pune.points) if pune else 0,
+                          'observed_points': len(pune.payload.get('observed', [])) if pune else 0},
             'model': runtime.artifact['report'].get('model', 'LightGBM direct horizons'), 'dataset_rows': len(runtime.frame),
             'target_source_types': sorted(runtime.frame.source_type.unique()),
             'last_dataset_time': runtime.frame.timestamp.max().isoformat(),
