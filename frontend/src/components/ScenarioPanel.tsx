@@ -84,7 +84,7 @@ export function ScenarioPanel({
           <h3>{outdated ? "Previous action comparison" : "Which individual action helps most?"}</h3>
           <p>{comparison.best ? <><strong>{comparison.best.name}</strong> leads for the applied cuts, ranked across this region by population-weighted exposure reduction.</> : "No modeled exposure reduction at these cuts. Try increasing an intervention."}</p>
           <p>{comparison.status === "separated" ? "Its benefit range stays above the other individual actions within the tested sensitivity envelope." : comparison.status === "overlap" ? "Exposure-benefit ranges overlap. These bounds alone do not establish a robust winner; overlap does not prove the ranking reverses." : comparison.status === "unavailable" ? "This backend does not supply exposure sensitivity bounds. Ranking robustness is unavailable." : "The combined package adds the three individual effects; it is not a fourth independent policy."}</p>
-          <small>Same snapshot and weather; cuts can differ by action. Sensitivity varies pass-through 0.6–0.8 and source scaling ±20%. These are assumption bounds, not confidence intervals. Population is synthetic.</small>
+          <small>Same snapshot and weather; cuts can differ by action. Sensitivity varies pass-through 0.6–0.8 and source scaling ±20%. These are assumption bounds, not confidence intervals. {selected?.population_source_type === "modeled" ? "Population uses WorldPop 2020 modeled counts." : "Population is synthetic."}</small>
         </section>
       )}
       <h3 className="intervention-heading">Adjust interventions</h3>

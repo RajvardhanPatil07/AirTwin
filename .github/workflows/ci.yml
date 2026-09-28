@@ -27,6 +27,9 @@ jobs:
       - run: python scripts/check_repository.py
       - run: python scripts/check_documentation.py
       - run: python backend/scripts/validate_forecasts.py --offline --horizons 24 --policies pollution_only --output /tmp/seasonal-smoke.json
+      - run: python backend/scripts/validate_forecasts.py --offline --challenger --horizons 24 --policies pollution_only --output /tmp/challenger-smoke.json
+      - run: python scripts/validate_interventions.py --offline --output /tmp/intervention-smoke.json
+      - run: python backend/scripts/run_experiments.py --offline --horizons 24 --policies pollution_only --arms history --n-estimators 30 --no-challenger --output /tmp/paired-smoke.json
       - name: Verify connected offline API
         run: |
           LIVE_REFRESH_ENABLED=0 python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8012 > /tmp/airtwin-api.log 2>&1 &

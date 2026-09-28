@@ -36,8 +36,11 @@ locations, additional monitoring stations, training rows, or independent
 forecasts, and they are used only to shape the illustrative non-uniform demo
 surface.
 
-The hand-made `data/zones.geojson` outlines are SYNTHETIC proxy geometry, not
-surveyed industrial boundaries or proof of active construction. Weights use:
+For PCMC, the bundled OpenStreetMap extract supplies selected mapped industrial
+landuse, construction landuse and major-road geometry. It is dated and incomplete;
+mapped geometry does not prove current activity or emissions. The hand-made
+`data/zones.geojson` remains a fallback and the Maharashtra extension still uses
+illustrative Pune-only proxies. Weights use:
 
 - Traffic: assumed corridor proximity and a peak-hour multiplier at 8–10 and 18–20.
 - Industry: approximate zone-center proximity with a 5 km decay scale and upwind
@@ -59,9 +62,16 @@ Low/high sensitivity varies pass-through from 0.6 to 0.8 and aggregate source
 scaling by ±20%; high reduction is capped at local excess. These are sensitivity
 bounds, not empirically calibrated confidence intervals. Meteorology is held fixed.
 
+Regional category evidence, parameter provenance and independent source/response
+stress tests are in [intervention evidence](intervention_evidence.md). No published
+report has established the numeric pass-through coefficients used here.
+
 ## Population and benefit
 
-Population follows an explicitly SYNTHETIC core-density curve. WorldPop is not used.
+For PCMC, population uses WorldPop India 2020 1 km UN-adjusted MODELED counts,
+allocated by area overlap to the 12×12 map cells. They are dated estimates, not
+a current census. The offline synthetic demo and Maharashtra extension retain
+SYNTHETIC population. Details are in [spatial sources](spatial_sources.md).
 Exposure benefit = Σ(cell reduction × cell population), in person·µg/m³. It is not
 a count of people protected, cumulative dose, avoided deaths or demonstrated policy
 impact. Selected-location reduction and AOI-wide benefit have different scopes.

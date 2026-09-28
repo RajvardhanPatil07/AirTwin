@@ -4,6 +4,7 @@ import math
 import numpy as np
 import yaml
 from app.config import ROOT, BBOX
+from app.services.spatial_inputs import load_spatial_inputs
 
 CONFIG = yaml.safe_load((ROOT / 'config/assumptions.yaml').read_text())
 ZONES = json.loads((ROOT / 'data/zones.geojson').read_text())
@@ -16,6 +17,8 @@ ASSUMPTIONS = [
     'Industrial upwind weighting uses meteorological wind-from direction; zone coordinates and activity are approximate.',
     'Emission-to-concentration pass-through is 0.7 (sensitivity 0.6–0.8 with ±20% source scaling). Weather is held fixed.',
     'Population weights are SYNTHETIC, not WorldPop; exposure benefit is person·µg/m³, not people protected.',
+    'Source categories have regional report support; local shares and response coefficients are not empirically calibrated.',
+    'Rankings compare the chosen emission cuts, not equal cost or feasibility; independent source/response stress tests can reverse the central leader.',
 ]
 
 
@@ -63,7 +66,23 @@ def zone_center(feature):
     return float(np.mean([c[1] for c in coords])), float(np.mean([c[0] for c in coords]))
 
 
-def local_weights(lat, lon, hour, weather):
+def spatial_assumptions(spatial_inputs=None):
+    if not spatial_inputs:
+        return ASSUMPTIONS
+    revised = []
+    for statement in ASSUMPTIONS:
+        if statement.startswith('Source shares use hand-drawn') and spatial_inputs.get('zones'):
+            revised.append('Source shares use mapped OpenStreetMap zone/road proximity, assumed activity and weather proxies; they are not chemical source apportionment.')
+        elif statement.startswith('Industrial upwind weighting') and spatial_inputs.get('zones'):
+            revised.append('Industrial upwind weighting uses meteorological wind-from direction; OSM mapped locations are incomplete and do not measure activity or emissions.')
+        elif statement.startswith('Population weights are SYNTHETIC'):
+            revised.append('Population counts are WorldPop 2020 MODELED 1 km estimates redistributed to cells by area; exposure benefit is person·µg/m³, not people protected.')
+        else:
+            revised.append(statement)
+    return revised
+
+
+def local_weights(lat, lon, hour, weather, zones=None):
     traffic = CONFIG['traffic']['base']
     industry = CONFIG['industry']['base']
     dust = CONFIG['dust']['base']
@@ -71,7 +90,7 @@ def local_weights(lat, lon, hour, weather):
     rain = weather.get('precipitation', 0) or 0
     wind_from = weather.get('wind_direction_10m')
     dryness = max(0.1, 1 - humidity / 100) * (0.2 if rain > 0 else 1)
-    for feature in ZONES['features']:
+    for feature in (zones or ZONES)['features']:
         zlat, zlon = zone_center(feature)
         distance = distance_km(lat, lon, zlat, zlon)
         category = feature['properties']['category']
@@ -92,7 +111,7 @@ def local_weights(lat, lon, hour, weather):
     return {'traffic': traffic / total, 'industry': industry / total, 'dust': dust / total}
 
 
-def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None, background_override=None):
+def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None, background_override=None, spatial_inputs=None):
     west, south, east, north = bbox
     background = (
         float(background_override)
@@ -101,6 +120,10 @@ def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, 
     )
     population = CONFIG['population']
     map_anchors = interpolation_anchors(stations)
+    use_sourced = bool(spatial_inputs and tuple(spatial_inputs['bbox']) == tuple(bbox) and
+                       spatial_inputs['grid_size'] == grid_size)
+    zones = spatial_inputs.get('zones') if use_sourced else None
+    assumptions = spatial_assumptions(spatial_inputs if use_sourced else None)
     cells = []
     for row in range(grid_size):
         for col in range(grid_size):
@@ -113,7 +136,8 @@ def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, 
             density = math.exp(-((lat - population['latitude']) ** 2 + (lon - population['longitude']) ** 2) / population['scale_degrees_squared'])
             cells.append({'id': f'cell-{row}-{col}', 'latitude': lat, 'longitude': lon,
                           'bounds': [[a, b], [c, d]], 'pm25': value, 'background': min(background, value),
-                          'population': round(population['base'] + population['core_extra'] * density),
-                          'population_source_type': 'synthetic', 'local_weights': local_weights(lat, lon, timestamp.hour, weather_at(lat, lon) if weather_at else weather),
-                          'source_type': 'modeled', 'assumptions': ASSUMPTIONS})
+                          'population': spatial_inputs['population_counts'][row * grid_size + col] if use_sourced else round(population['base'] + population['core_extra'] * density),
+                          'population_source_type': 'modeled' if use_sourced else 'synthetic',
+                          'local_weights': local_weights(lat, lon, timestamp.hour, weather_at(lat, lon) if weather_at else weather, zones),
+                          'source_type': 'modeled', 'assumptions': assumptions})
     return cells, background

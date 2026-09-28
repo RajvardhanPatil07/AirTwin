@@ -107,6 +107,7 @@ interface Props {
   demo: boolean;
   weather?: Weather;
   zones?: ZoneCollection;
+  zonesSourceType?: "mapped" | "illustrative";
   timeline?: ReactNode;
   forecastLabel?: string | null;
 }
@@ -121,6 +122,7 @@ export function MapView({
   demo,
   weather,
   zones,
+  zonesSourceType,
   region,
   timeline,
   forecastLabel = null,
@@ -378,7 +380,7 @@ export function MapView({
           {region?.grid_size ?? 12} × {region?.grid_size ?? 12} grid
           <br />
           <small>
-            {layers.Zones ? "Illustrative zones shown" : "Zones hidden"}
+            {layers.Zones ? (zonesSourceType === "mapped" ? "Mapped OSM zones shown · activity assumed" : "Illustrative zones shown") : "Zones hidden"}
           </small>
         </span>
       </div>

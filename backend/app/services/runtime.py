@@ -6,7 +6,8 @@ from app.config import RAW
 from fastapi import HTTPException
 from app.services.data_loader import load_all
 from app.services.model import load_or_train, predict, explain_features, metrics
-from app.services.spatial import make_grid, idw, interpolation_anchors, ASSUMPTIONS, CONFIG, ZONES, distance_km
+from app.services.spatial import make_grid, idw, interpolation_anchors, ASSUMPTIONS, CONFIG, ZONES, distance_km, spatial_assumptions
+from app.services.spatial_inputs import load_spatial_inputs
 from app.services.attribution import attribute
 from app.services.scenarios import simulate
 
@@ -14,6 +15,9 @@ from app.services.scenarios import simulate
 class Runtime:
     def __init__(self, force_sample=False):
         self.frame, self.warnings, self.fingerprint, self.exog = load_all(force_sample)
+        self.spatial_inputs = None if force_sample else load_spatial_inputs()
+        self.zones = self.spatial_inputs.get('zones', ZONES) if self.spatial_inputs else ZONES
+        self.spatial_assumptions = spatial_assumptions(self.spatial_inputs)
         self.artifact = load_or_train(self.frame, self.fingerprint, self.warnings, self.exog)
         self.scenarios = {}
         self.timelines = {}
@@ -70,7 +74,8 @@ class Runtime:
                     min(float(station['pm25']) for station in stations),
                 )
         cells, background = make_grid(
-            stations, weather, timestamp, background_override=background_override
+            stations, weather, timestamp, background_override=background_override,
+            spatial_inputs=self.spatial_inputs
         )
         return stations, cells, background, weather, timestamp
 
@@ -81,10 +86,11 @@ class Runtime:
         age = (pd.Timestamp.now(tz=timestamp.tz) - timestamp).total_seconds() / 3600
         if not replay_at and age > 24:
             warnings.append(f'Latest available shared snapshot is {age:.0f} hours old. This is cached historical data, not current live readings.')
-        return {'stations': stations, 'source_type': source, 'assumptions': ASSUMPTIONS,
+        return {'stations': stations, 'source_type': source, 'assumptions': self.spatial_assumptions,
                 'warnings': warnings, 'data_mode': 'historical_replay' if replay_at else 'cached_dataset',
                 'weather': {**weather, 'source_type': str(self.frame.weather_source_type.iloc[-1]),
-                            'timestamp': timestamp.isoformat()}, 'zones': ZONES}
+                            'timestamp': timestamp.isoformat()}, 'zones': self.zones,
+                'zones_source_type': 'mapped' if self.spatial_inputs and self.spatial_inputs.get('zones') else 'illustrative'}
 
     def location(self, location_id, replay_at=None):
         stations, cells, background, weather, timestamp = self.snapshot(replay_at)
@@ -159,11 +165,13 @@ class Runtime:
 
     def attribution(self, location_id, replay_at=None):
         location, _, _, background, weather, timestamp, _ = self.location(location_id, replay_at)
-        return {**attribute(location, background, weather, timestamp), 'config': CONFIG}
+        return {**attribute(location, background, weather, timestamp, self.zones,
+                            self.spatial_assumptions), 'config': CONFIG}
 
     def scenario(self, location_id, cuts, replay_at=None):
         location, _, cells, background, weather, timestamp, _ = self.location(location_id, replay_at)
-        result = simulate(location, cells, background, cuts, weather, timestamp)
+        result = simulate(location, cells, background, cuts, weather, timestamp,
+                          self.zones, self.spatial_assumptions)
         # Bounded in-memory results; no user sessions or persistent scenario storage.
         if len(self.scenarios) >= 100:
             self.scenarios.pop(next(iter(self.scenarios)))

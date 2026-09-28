@@ -38,9 +38,10 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
     add('attribution', 'modeled', attribution)
     add('scenarios', 'modeled', {'cuts': cuts, 'results': [
         {k: v for k, v in item.items() if k not in ['cells', 'assumptions']} for item in scenarios['results']],
-        'population_source_type': 'synthetic', 'units': 'Exposure: person·µg/m³, not people protected.'})
+        'population_source_type': scenarios['results'][0]['population_source_type'], 'units': 'Exposure: person·µg/m³, not people protected.'})
     add('validation', 'modeled', validation)
-    add('population', 'synthetic', {'description': 'Constructed population weights, not measured population. Exposure benefit is person·µg/m³, not people protected.'})
+    population_type = scenarios['results'][0]['population_source_type']
+    add('population', population_type, {'description': ('WorldPop 2020 modeled grid estimates redistributed by area; not a current census.' if population_type == 'modeled' else 'Constructed population weights, not measured population.') + ' Exposure benefit is person·µg/m³, not people protected.'})
     individual = sorted((item for item in scenarios['results'] if item['id'] != 'combined'), key=lambda item: -item['exposure_benefit'])
     best = individual[0] if individual and individual[0]['exposure_benefit'] > 0 else None
     bounds_available = all('exposure_benefit_low' in item and 'exposure_benefit_high' in item for item in individual)

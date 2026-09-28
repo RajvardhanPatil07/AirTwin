@@ -64,7 +64,7 @@ Concentration errors are µg/m³. Band coverage is measured on the holdout; the 
 Proxy source attribution is separate from SHAP feature explanation. No causal or health benefit is validated.
 Archived CAMS values are short-lead provider forecasts; operational CAMS at 48–72 h lead is less accurate, so long-horizon skill here is optimistic.
 Reanalysis covariates at historical issue time are retrospective; provider publication delay is not simulated.
-Sparse stations, gaps, synthetic population and model-target fallback constrain real-world interpretation.
+Sparse stations, gaps, dated modeled PCMC population (synthetic in fallback/statewide views) and model-target fallback constrain real-world interpretation.
 
 ## Cross-validation
 

@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "timestamp": "2026-09-24T22:00:00+05:30",
+  "dataset_fingerprint": "cd3b2dcfa09df604a3150978dd356b81d1af450ab0bbb8f480d53f20727b0600",
+  "target_sources": [
+    "observed"
+  ],
+  "station_count": 10,
+  "method": {
+    "neighbors": 3,
+    "spatial_weights": "three nearest stations, equal row-standardized weights",
+    "permutations": 999,
+    "seed": 42,
+    "p_value": "two-sided absolute deviation from conditional permutation mean, with +1 correction",
+    "multiple_testing": "Benjamini-Hochberg at q <= 0.05"
+  },
+  "limitations": [
+    "Exploratory association among station points, not a citywide hotspot surface or source attribution.",
+    "Sparse and uneven station locations limit geographic interpretation.",
+    "Conditional permutations are descriptive; temporal dependence and sensor selection are not modeled."
+  ],
+  "warnings": [],
+  "stations": [
+    {
+      "id": "12236443",
+      "name": "Mhada Colony, Pune - IITM",
+      "latitude": 18.57304,
+      "longitude": 73.927715,
+      "pm25": 44.8
+    },
+    {
+      "id": "12236449",
+      "name": "Hadapsar, Pune - IITM",
+      "latitude": 18.501793,
+      "longitude": 73.927532,
+      "pm25": 40.0
+    },
+    {
+      "id": "12236463",
+      "name": "Revenue Colony-Shivajinagar, Pune - IITM",
+      "latitude": 18.530085,
+      "longitude": 73.849598,
+      "pm25": 49.0
+    },
+    {
+      "id": "12237987",
+      "name": "Gavalinagar, Pimpri Chinchwad - MPCB",
+      "latitude": 18.63673,
+      "longitude": 73.82487,
+      "pm25": 22.2
+    },
+    {
+      "id": "12238676",
+      "name": "Bhumkar Nagar, Pune - IITM",
+      "latitude": 18.60577,
+      "longitude": 73.749976,
+      "pm25": 23.2
+    },
+    {
+      "id": "12238693",
+      "name": "Panchawati_Pashan, Pune - IITM",
+      "latitude": 18.536457,
+      "longitude": 73.805454,
+      "pm25": 34.8
+    },
+    {
+      "id": "12238710",
+      "name": "Savta Mali Nagar, Pimpri-Chinchwad - IITM",
+      "latitude": 18.614767,
+      "longitude": 73.799516,
+      "pm25": 40.9
+    },
+    {
+      "id": "12238734",
+      "name": "Dhankawadi, Pune - IITM",
+      "latitude": 18.459883,
+      "longitude": 73.852193,
+      "pm25": 30.3
+    },
+    {
+      "id": "12243017",
+      "name": "Thergaon, Pimpri Chinchwad - MPCB",
+      "latitude": 18.616318,
+      "longitude": 73.765797,
+      "pm25": 13.1
+    },
+    {
+      "id": "12304615",
+      "name": "Bhosari, Pune - IITM",
+      "latitude": 18.640051,
+      "longitude": 73.848956,
+      "pm25": 43.9
+    }
+  ],
+  "results": [
+    {
+      "station_id": "12236443",
+      "station_name": "Mhada Colony, Pune - IITM",
+      "pm25": 44.8,
+      "local_moran_i": 0.8671877286964669,
+      "standardized_pm25": 0.9540455927348168,
+      "neighbor_lag": 0.9089583719061395,
+      "quadrant": "high_high",
+      "neighbor_station_ids": [
+        "12236449",
+        "12236463",
+        "12304615"
+      ],
+      "p_raw": 0.024,
+      "q_bh": 0.12,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12236449",
+      "station_name": "Hadapsar, Pune - IITM",
+      "pm25": 40.0,
+      "local_moran_i": 0.33589093909342166,
+      "standardized_pm25": 0.5212082727795125,
+      "neighbor_lag": 0.6444466763778979,
+      "quadrant": "high_high",
+      "neighbor_station_ids": [
+        "12236443",
+        "12236463",
+        "12238734"
+      ],
+      "p_raw": 0.182,
+      "q_bh": 0.364,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12236463",
+      "station_name": "Revenue Colony-Shivajinagar, Pune - IITM",
+      "pm25": 49.0,
+      "local_moran_i": 0.09774846126240998,
+      "standardized_pm25": 1.3327782476957084,
+      "neighbor_lag": 0.07334187921464884,
+      "quadrant": "high_high",
+      "neighbor_station_ids": [
+        "12238693",
+        "12238734",
+        "12236449"
+      ],
+      "p_raw": 0.679,
+      "q_bh": 0.679,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12237987",
+      "station_name": "Gavalinagar, Pimpri Chinchwad - MPCB",
+      "pm25": 22.2,
+      "local_moran_i": 0.15508046320961627,
+      "standardized_pm25": -1.0838967887214082,
+      "neighbor_lag": -0.14307678076300334,
+      "quadrant": "low_low",
+      "neighbor_station_ids": [
+        "12304615",
+        "12238710",
+        "12243017"
+      ],
+      "p_raw": 0.665,
+      "q_bh": 0.679,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12238676",
+      "station_name": "Bhumkar Nagar, Pune - IITM",
+      "pm25": 23.2,
+      "local_moran_i": 0.7903457158748283,
+      "standardized_pm25": -0.9937223470640532,
+      "neighbor_lag": -0.795338575417872,
+      "quadrant": "low_low",
+      "neighbor_station_ids": [
+        "12243017",
+        "12238710",
+        "12237987"
+      ],
+      "p_raw": 0.071,
+      "q_bh": 0.20500000000000002,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12238693",
+      "station_name": "Panchawati_Pashan, Pune - IITM",
+      "pm25": 34.8,
+      "local_moran_i": 0.0164124781671106,
+      "standardized_pm25": 0.052301176161265804,
+      "neighbor_lag": 0.3138070569675958,
+      "quadrant": "high_high",
+      "neighbor_station_ids": [
+        "12236463",
+        "12238710",
+        "12238676"
+      ],
+      "p_raw": 0.538,
+      "q_bh": 0.6725000000000001,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12238710",
+      "station_name": "Savta Mali Nagar, Pimpri-Chinchwad - IITM",
+      "pm25": 40.9,
+      "local_moran_i": -0.7995602522694821,
+      "standardized_pm25": 0.6023652702711321,
+      "neighbor_lag": -1.3273677811962667,
+      "quadrant": "high_low",
+      "neighbor_station_ids": [
+        "12243017",
+        "12237987",
+        "12238676"
+      ],
+      "p_raw": 0.005,
+      "q_bh": 0.05,
+      "flagged_q_0_05": true
+    },
+    {
+      "station_id": "12238734",
+      "station_name": "Dhankawadi, Pune - IITM",
+      "pm25": 30.3,
+      "local_moran_i": -0.2246139468117747,
+      "standardized_pm25": -0.3534838112968318,
+      "neighbor_lag": 0.6354292322121623,
+      "quadrant": "low_high",
+      "neighbor_station_ids": [
+        "12236463",
+        "12236449",
+        "12238693"
+      ],
+      "p_raw": 0.316,
+      "q_bh": 0.45142857142857146,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12243017",
+      "station_name": "Thergaon, Pimpri Chinchwad - MPCB",
+      "pm25": 13.1,
+      "local_moran_i": 0.9365325631242906,
+      "standardized_pm25": -1.9044842078033395,
+      "neighbor_lag": -0.4917512885047764,
+      "quadrant": "low_low",
+      "neighbor_station_ids": [
+        "12238676",
+        "12238710",
+        "12237987"
+      ],
+      "p_raw": 0.082,
+      "q_bh": 0.20500000000000002,
+      "flagged_q_0_05": false
+    },
+    {
+      "station_id": "12304615",
+      "station_name": "Bhosari, Pune - IITM",
+      "pm25": 43.9,
+      "local_moran_i": -0.6942419718392319,
+      "standardized_pm25": 0.8728885952431973,
+      "neighbor_lag": -0.7953385754178718,
+      "quadrant": "high_low",
+      "neighbor_station_ids": [
+        "12237987",
+        "12238710",
+        "12243017"
+      ],
+      "p_raw": 0.223,
+      "q_bh": 0.37166666666666665,
+      "flagged_q_0_05": false
+    }
+  ]
+}

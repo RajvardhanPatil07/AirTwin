@@ -17,7 +17,8 @@ Forecast showed separate observed history, modeled predictions and TreeSHAP
 explanation. This is a bounded recheck, not a new full accessibility audit.
 
 Twenty-four seasonal forecast evaluations and three synthetic population
-profiles were computed from the local dataset. Results and limitations are in
+profiles were computed from the local dataset on 27 September; those are
+historical stress tests, predating the sourced PCMC spatial input. Results and limitations are in
 [validation protocol](validation_protocol.md). Documentation link and tracked-file
 checks passed. New CI steps exercise the connected offline API and validation CLI.
 The original 27 September evidence below is retained as a dated historical record.
@@ -80,7 +81,7 @@ its timestamp as forecast origin. No new environmental observations were invente
   the trained backend connection without refreshing the page.
 
 Screenshots were saved outside the repository to avoid committing transient demo
-images. The post-change design audit is `anti-slop/audit-001-2026-09-27.md`.
+images. The dated frontend QA notes remain in `frontend/design-qa.md`.
 
 ## Limits
 

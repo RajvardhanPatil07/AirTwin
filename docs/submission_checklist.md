@@ -1,7 +1,7 @@
 # Round 1 submission checklist
 
 The official listing requires the provided PPT template without extra slides,
-a maximum 3–4-minute explanatory video, and a GitHub repository reference in a
+a maximum 3-minute explanatory video, and a GitHub repository reference in a
 Drive titled `TeamName_PSno.`. Recheck organizer announcements before submission:
 [HackMatrix listing](https://api.unstop.com/hackathons/hackmatrix-50-pccoes-gfg-student-chapter-1750988).
 
@@ -9,7 +9,7 @@ Drive titled `TeamName_PSno.`. Recheck organizer announcements before submission
 - [ ] Fill the official template; do not add slides.
 - [ ] Use measured forecast results and disclose failed baseline comparisons.
 - [ ] Separate observed readings, modeled forecasts and assumed interventions.
-- [ ] Describe population and zone geometry as synthetic.
+- [ ] Describe PCMC population as WorldPop 2020 modeled and selected zones as OSM mapped; explain synthetic fallback/statewide weights and uncalibrated response.
 - [ ] Record the working decision journey using [demo script](demo.md).
 - [ ] Verify video length and audio clarity; keep credentials off screen.
 - [ ] Place PPT, video and repository reference in the required Drive structure.

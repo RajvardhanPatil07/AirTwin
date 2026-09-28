@@ -75,6 +75,7 @@ export async function loadDashboard(
       warning: stations.warnings?.join(" ") || null,
       weather: stations.weather,
       zones: stations.zones,
+      zones_source_type: stations.zones_source_type,
       region: stations.region,
       coverage: stations.coverage,
     };

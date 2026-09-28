@@ -74,6 +74,7 @@ export interface StationsResponse extends Provenance {
   data_mode?: string;
   weather?: Weather;
   zones?: ZoneCollection;
+  zones_source_type?: "mapped" | "illustrative";
   region?: RegionInfo;
   coverage?: Record<string, string | number | string[]>;
 }
@@ -150,6 +151,7 @@ export interface DashboardData {
   warning: string | null;
   weather?: Weather;
   zones?: ZoneCollection;
+  zones_source_type?: "mapped" | "illustrative";
   region?: RegionInfo;
   coverage?: Record<string, string | number | string[]>;
 }

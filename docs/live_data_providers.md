@@ -55,8 +55,8 @@ India, [metadata](https://www.geoboundaries.org/api/current/gbOpen/IND/ADM1/).
 | OpenWeather Air Pollution | Modeled current, forecast and historical pollutants | Free plan includes Air Pollution API; 60 calls/minute and 1 million/month | Useful secondary provider; not integrated |
 | Google Maps Air Quality | Aggregated/model-derived air quality | Global list: 10,000 monthly free events, then $5/1,000 in first paid tier; billing required | Optional alternative; not integrated |
 | NASA FIRMS | Satellite fire detections, not ground PM2.5 | Free MAP_KEY | Next burning/upwind-fire proxy; not integrated |
-| WorldPop | Modeled population estimates | Open datasets with dataset-specific attribution | Replace synthetic exposure weights; not integrated |
-| OpenStreetMap | Roads and land-use proxies, not measured traffic flow | ODbL open data; respect endpoint usage policy | Existing map tiles; detailed statewide proxies not integrated |
+| WorldPop | Modeled population estimates | Open datasets with dataset-specific attribution | India 2020 1 km counts integrated for PCMC grid; statewide weights remain synthetic |
+| OpenStreetMap | Roads and land-use proxies, not measured traffic flow | ODbL open data; respect endpoint usage policy | Selected PCMC road/land-use geometry integrated; detailed statewide proxies not integrated |
 
 Sources: [CPCB catalog](https://www.data.gov.in/resource/real-time-air-quality-index-various-locations),
 [Open-Meteo pricing](https://open-meteo.com/en/pricing),
