@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app.services.spatial import make_grid, idw, local_weights, bearing
+from app.services.spatial import make_grid, idw, local_weights, bearing, interpolation_anchors
 from app.services.scenarios import simulate
 from app.services.attribution import attribute
 
@@ -57,7 +57,18 @@ def test_exposure_sensitivity_uses_grid_population_not_selected_location():
 
 def test_single_synthetic_target_produces_non_uniform_demo_grid():
     single = [dict(id='demo-centroid', latitude=18.625, longitude=73.84, pm25=63.5, source_type='synthetic')]
+    anchors = interpolation_anchors(single)
+    assert len(anchors) == 7
+    assert anchors[0] == single[0]
+    assert idw(single[0]['latitude'], single[0]['longitude'], anchors) == pytest.approx(single[0]['pm25'])
+    assert single[0]['id'] == 'demo-centroid'
     cells, _ = make_grid(single, WEATHER, TIME, background_override=45)
     values = [cell['pm25'] for cell in cells]
     assert max(values) - min(values) > 10
     assert len({round(value, 1) for value in values}) > 10
+
+
+def test_non_synthetic_and_multi_station_interpolation_points_are_unchanged():
+    observed = [{**STATIONS[0], 'source_type': 'observed'}]
+    assert interpolation_anchors(observed) == observed
+    assert interpolation_anchors(STATIONS) == STATIONS

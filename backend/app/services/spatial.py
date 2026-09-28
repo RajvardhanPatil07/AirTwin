@@ -46,7 +46,7 @@ def interpolation_anchors(stations):
         ('shivajinagar-demo', 18.53, 73.85, 1.00),
         ('hadapsar-demo', 18.50, 73.93, 0.90),
     ]
-    return [
+    return [dict(stations[0])] + [
         {**stations[0], 'id': key, 'latitude': lat, 'longitude': lon,
          'pm25': max(5.0, base * factor), 'source_type': 'synthetic'}
         for key, lat, lon, factor in presets
