@@ -25,6 +25,12 @@ is independent. Null chart points mean absence, not zero.
 fills a missing observation. Replay forecasts use the pre-holdout 24-hour model;
 hours >24 are rejected in replay mode. The UI reloads all data when replay changes.
 
+Timeline hour 0 uses the same grid values as `/hotspots?mode=before`. For the
+one-station SYNTHETIC fixture, future frames use illustrative spatial anchors
+scaled from that station's forecast. These anchors are not extra observations or
+independent forecasts. For real multi-station inputs, future frames continue to
+interpolate per-station forecasts by IDW.
+
 ## Scenario request
 
 ```json
