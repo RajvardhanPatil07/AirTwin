@@ -5,7 +5,7 @@
   <p>An environmental digital twin for Pune and Pimpri-Chinchwad, with a separate Maharashtra forecast view.</p>
   <p>
     <a href="https://github.com/RajvardhanPatil07/AirTwin/actions/workflows/ci.yml"><img src="https://github.com/RajvardhanPatil07/AirTwin/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
-    &nbsp; <a href="#run-it-locally">Run locally</a> · <a href="#what-you-can-explore">Explore the dashboard</a> · <a href="#how-to-read-the-results">Read the evidence</a>
+    &nbsp; <a href="#run-it-locally">Run locally</a> · <a href="#what-you-can-explore">Explore the dashboard</a> · <a href="#how-to-read-the-results">Read the evidence</a> · <a href="#future-directions">Future directions</a>
   </p>
 </div>
 
@@ -102,6 +102,32 @@ flowchart LR
 ```
 
 The forecast model and the scenario engine answer different questions. TreeSHAP describes predictive features; traffic, industry, and dust shares come from configurable spatial assumptions. [Model design](docs/model_card.md) · [Scenario assumptions](docs/assumptions.md)
+
+## Future directions
+
+The next step is to connect four parts of a city decision: **predict, act, measure, and learn**. The ideas below are proposals, not features in this build. Their value would come from testing the whole chain in Pune and PCMC, with the failures visible alongside the successes. [Research notes and source links](docs/research/airtwin-future-directions-2026-09-28.md)
+
+### A policy trial that grades its own prediction
+
+Before a road-dust, traffic, or industrial action begins, a city team could record the planned action, area, dates, cost, and AirTwin's expected change. The system would freeze that prediction, then compare later observations with a suitable untreated area while accounting for weather and trends. The first pilot would need a real action log and enough monitoring on both sides. A simple before-and-after drop would never count as proof of impact; the published result could also say the original scenario was wrong. [EPA's intervention accountability framework](https://assessments.epa.gov/risk/document/%26deid%3D364752)
+
+### A sensor mission planner
+
+Instead of adding sensors wherever installation is easiest, AirTwin could identify locations where a new measurement would most improve a forecast or change an intervention choice. Each suggestion would show the question it answers, expected information gain, and practical siting constraints. A first trial could compare one recommended site with a reference monitor and check whether uncertainty actually fell. Low-cost sensors would require collocation and quality checks before their readings influence decisions. [EPA sensor guidance](https://www.epa.gov/air-sensor-toolbox/how-use-air-sensors-air-sensor-guidebook)
+
+### Cleaner journeys with honest uncertainty
+
+A future route view could compare departure times and walking, cycling, or transit options by estimated exposure, travel time, safe crossings, and accessibility. It should mark which parts of a route have measurements and which rely on a model. The current 12×12 grid is too coarse for street-level advice; this feature would first need a finer, independently tested pollution surface and privacy-conscious route handling. [WHO guidance on personal exposure choices](https://www.who.int/publications/i/item/WHO-EURO-2024-9115-48887-72806)
+
+### An intervention portfolio with a fairness guardrail
+
+City planners could enter a budget and compare packages of dust, traffic, and industrial controls across plausible weather and response assumptions. Results would show estimated gains by neighborhood, cost, and where a citywide average hides a poor outcome for a highly exposed area. An early version could use transparent sensitivity ranges, then replace proxy response factors as local evidence arrives. It would not label modeled concentration reductions as measured health benefits. [WHO on unequal air-pollution exposure](https://www.who.int/teams/environment-climate-change-and-health/air-quality-energy-and-health/sectoral-interventions/ambient-air-pollution/health-equity)
+
+### Independent signals and a forecast flight recorder
+
+For a major intervention, ground readings and wind could be checked against a separate [Sentinel-5P NO₂ product](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/S5PL2.html). Satellite NO₂ is a broad, different measurement; it cannot be converted into street-level PM2.5 or treated as proof of a local source. Alongside that check, each AirTwin forecast could save its input timestamps, model version, missing sensors, fallbacks, assumptions, and eventual error. A first milestone is a replayable answer to: *what did the system know when it made this recommendation?* If inputs are too stale, it should say so and hold back a detailed recommendation.
+
+These directions depend on new data partnerships, validation, and city participation. The [current roadmap](docs/roadmap.md) tracks nearer-term model and operational work; the [research note](docs/research/airtwin-future-directions-2026-09-28.md) records the evidence and limits behind these longer-term proposals.
 
 ## Check the project
 
