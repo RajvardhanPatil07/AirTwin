@@ -30,6 +30,9 @@ def test_state_forecast_and_no_invented_validation(state):
     results = state.scenario(location, {'traffic': 20, 'industry': 30, 'dust': 30})['results']
     combined = next(r for r in results if r['id'] == 'combined')
     assert combined['reduction'] == pytest.approx(sum(r['reduction'] for r in results if r['id'] != 'combined'))
+    attribution = state.attribution(location)
+    assert attribution['source_type'] == 'modeled'
+    assert len(attribution['shares']) == 4
 
 def test_gemini_claim_checks():
     context = {'evidence': {'forecast': {'source_type': 'modeled', 'data': {'pm25': 34.2}}}}

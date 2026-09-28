@@ -116,6 +116,8 @@ class StateRuntime(Runtime):
         self.scenarios = {}
         self.timelines = {}
         self.exog = None
+        self.zones = ZONES
+        self.spatial_assumptions = STATE_ASSUMPTIONS
         rows = []
         self.points = {p['id']: p for p in payload['points']}
         for point in payload['points']:
