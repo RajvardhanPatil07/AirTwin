@@ -53,3 +53,11 @@ def test_exposure_sensitivity_uses_grid_population_not_selected_location():
             assert action['exposure_benefit_high'] == pytest.approx(action['exposure_benefit'] * .8 / .7 * 1.2)
     zero = simulate(STATIONS[0], cells, background, dict(traffic=0, industry=0, dust=0), WEATHER, TIME)
     assert all(r['exposure_benefit_low'] == r['exposure_benefit_high'] == 0 for r in zero['results'])
+
+
+def test_single_synthetic_target_produces_non_uniform_demo_grid():
+    single = [dict(id='demo-centroid', latitude=18.625, longitude=73.84, pm25=63.5, source_type='synthetic')]
+    cells, _ = make_grid(single, WEATHER, TIME, background_override=45)
+    values = [cell['pm25'] for cell in cells]
+    assert max(values) - min(values) > 10
+    assert len({round(value, 1) for value in values}) > 10

@@ -43,6 +43,8 @@ def test_contract_and_provenance(client):
         assert response.status_code == 200, response.text
         assert response.json()['source_type'] == 'modeled'
         assert response.json()['assumptions']
+    hotspots = client.get('/api/hotspots').json()['cells']
+    assert max(cell['pm25'] for cell in hotspots) - min(cell['pm25'] for cell in hotspots) > 10
     forecast = client.get(f'/api/forecast?location_id={location}').json()
     shap = forecast['shap']
     assert shap['base_value'] + sum(shap['groups'].values()) == pytest.approx(shap['prediction'], abs=1e-6)
