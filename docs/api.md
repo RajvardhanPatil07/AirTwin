@@ -47,7 +47,8 @@ traffic 0–50, industry 0–60 and dust 0–70. The response returns `combined`
 
 Each result includes `before`, `after`, positive `reduction`, low/high sensitivity,
 percentage reduction, `exposure_benefit`, `exposure_benefit_low`,
-`exposure_benefit_high`, synthetic population provenance and a
+`exposure_benefit_high`, population provenance (`modeled` for sourced PCMC,
+`synthetic` for fallback/statewide) and a
 full `cells[]` after-grid. One selected result drives every frontend scenario view.
 Scenario IDs are held in a bounded in-memory cache and disappear on restart.
 

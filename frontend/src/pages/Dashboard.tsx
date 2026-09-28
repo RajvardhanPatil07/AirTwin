@@ -369,6 +369,7 @@ export function Dashboard() {
           }
           region={data.region}
           zones={data.zones}
+          zonesSourceType={data.zones_source_type}
         />
         <aside className="insight-panel">
           <div className="location-heading">

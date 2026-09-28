@@ -55,7 +55,7 @@ or the frontend proxy (`http://127.0.0.1:5188/backend`).
 - At desktop and 390px mobile width, select a location and inspect its snapshot.
   Data older than 24 hours is labeled stale; forecasts start at that snapshot.
 - Compare all three actions and the combined package. Confirm the leading
-  individual action, exposure range and overlap warning. Keep synthetic population visible.
+  individual action, exposure range and overlap warning. Keep the current population provenance visible.
 - Change cuts, confirm previous results are marked outdated, then run again.
   Set every cut to zero and confirm no modeled reduction.
 - Open Forecast, Backtest and Sources. Their explanation/provenance must remain separate.

@@ -1,8 +1,8 @@
 from app.services.spatial import local_weights, ASSUMPTIONS
 
 
-def attribute(location, background, weather, timestamp):
-    weights = local_weights(location['latitude'], location['longitude'], timestamp.hour, weather)
+def attribute(location, background, weather, timestamp, zones=None, assumptions=None):
+    weights = local_weights(location['latitude'], location['longitude'], timestamp.hour, weather, zones)
     value = location['pm25']
     background = min(background, value)
     excess = max(value - background, 0)
@@ -12,4 +12,4 @@ def attribute(location, background, weather, timestamp):
               for key, (name, color) in names.items()]
     shares.append({'name': 'Regional background', 'value': background / value if value else 1, 'color': '#9bbdb0'})
     return {'location_id': location['id'], 'background': background, 'shares': shares,
-            'source_type': 'modeled', 'assumptions': ASSUMPTIONS}
+            'source_type': 'modeled', 'assumptions': assumptions or ASSUMPTIONS}

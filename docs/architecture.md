@@ -43,7 +43,7 @@ is no hidden background polling, automatic alert service or public deployment.
 - `services/model.py`: direct LightGBM/quantiles, winter split, purged CV, metrics,
   generated card, serving and exact TreeSHAP groups.
 - `services/spatial.py`: shared snapshot IDW, background, zone/weather proxies and
-  synthetic population; all weights read from one YAML.
+  sourced PCMC or synthetic fallback population; response weights read from YAML.
 - `services/attribution.py`: total concentration shares, distinct from local weights.
 - `services/scenarios.py`: one additive equation for selected location and full grid.
 - `services/runtime.py`: coherent cached snapshot, model/reference selection and replay.

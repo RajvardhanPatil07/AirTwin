@@ -35,5 +35,5 @@ Latest dataset timestamp: 2026-09-24T22:00:00+05:30. Provider delay must be read
 - OpenAQ discovery found 23 PM2.5 sensors at 19 locations; only sensors with returned rows appear above.
 - Two sensors logged partial-download errors; retained rows are usable but coverage is not claimed complete.
 - Snapshot display uses simultaneous recent records; all historical sensors need not appear on the current map.
-- Weather is modeled centroid data. Zone/population proxies remain synthetic.
+- Weather is modeled centroid data. PCMC now uses a separate dated WorldPop/OSM spatial input; this report covers sensor/weather ingestion, not that spatial input.
 - This is a coverage summary, not a raw dataset or a claim of current live observations.

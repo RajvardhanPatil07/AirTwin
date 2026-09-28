@@ -71,6 +71,7 @@ class StationsResponse(Provenance):
     data_mode: str
     weather: dict = {}
     zones: dict = {}
+    zones_source_type: Literal['mapped', 'illustrative'] = 'illustrative'
     region: dict = Field(default_factory=dict)
     coverage: dict = Field(default_factory=dict)
 

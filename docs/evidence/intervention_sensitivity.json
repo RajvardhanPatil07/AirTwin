@@ -1,0 +1,407 @@
+{
+  "dataset_fingerprint": "cd3b2dcfa09df604a3150978dd356b81d1af450ab0bbb8f480d53f20727b0600",
+  "snapshot": "2026-09-24T22:00:00+05:30",
+  "demo_location": {
+    "id": "12304615",
+    "name": "Bhosari, Pune - IITM",
+    "short_name": "Bhosari",
+    "latitude": 18.640051,
+    "longitude": 73.848956,
+    "pm25": 43.9,
+    "timestamp": "2026-09-24T22:00:00+05:30",
+    "source_type": "observed",
+    "assumptions": [
+      "Target provider: OpenAQ.",
+      "Stations are shown at a shared snapshot hour; gaps are not imputed."
+    ]
+  },
+  "target_sources": [
+    "observed"
+  ],
+  "warnings": [],
+  "population_provenance": "modeled",
+  "population_source": {
+    "name": "WorldPop India 2020 1km UN-adjusted",
+    "year": 2020,
+    "source_type": "modeled",
+    "url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/2020/IND/ind_ppp_2020_1km_Aggregated_UNadj.tif",
+    "sha256": "27d08e3eabf59f63a2147901c25c046d584c3295f9ceb4c4cf08a902a5bec911",
+    "license": "CC BY 4.0",
+    "method": "Spherical-area overlap; largest-remainder integer counts"
+  },
+  "zone_source": {
+    "name": "OpenStreetMap via Overpass",
+    "url": "https://www.openstreetmap.org/copyright",
+    "source_type": "mapped",
+    "sha256": "4e3c4df463b33601ebeb3dd62299bfc98ddd3fc881fb4f91d002b6fa2a597b86",
+    "osm_data_timestamp": "2026-06-01T08:52:28Z",
+    "license": "ODbL 1.0",
+    "method": "Mapped industrial/construction landuse and major roads; two longest ways per category and 4x4 tile. Proxy weights remain assumed"
+  },
+  "cases": [
+    {
+      "case": "demo",
+      "scope": "configured_range",
+      "cuts_percent": {
+        "traffic": 20,
+        "industry": 30,
+        "dust": 30
+      },
+      "central_scores": {
+        "traffic": 4640670.779791962,
+        "industry": 12707888.9218435,
+        "dust": 2166372.887474813
+      },
+      "central_leader": "industry",
+      "source_factors": [
+        0.8,
+        1.0,
+        1.2
+      ],
+      "independent_response_factors": [
+        0.6,
+        0.7,
+        0.8
+      ],
+      "scenario_count": 2187,
+      "winner_counts": {
+        "industry": 2142,
+        "traffic": 45
+      },
+      "ranking_changed": true,
+      "minimum_top_two_margin": 164205.4133191891,
+      "examples": {
+        "industry": {
+          "source_multipliers": {
+            "traffic": 0.8,
+            "industry": 0.8,
+            "dust": 0.8
+          },
+          "pass_through": {
+            "traffic": 0.6,
+            "industry": 0.6,
+            "dust": 0.6
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 3977717.811250256,
+            "industry": 10892476.218722997,
+            "dust": 1856891.0464069825
+          }
+        },
+        "traffic": {
+          "source_multipliers": {
+            "traffic": 1.0,
+            "industry": 0.8,
+            "dust": 0.8
+          },
+          "pass_through": {
+            "traffic": 0.8,
+            "industry": 0.6,
+            "dust": 0.6
+          },
+          "population_profile": "inverse_density",
+          "scores": {
+            "traffic": 6009756.852417044,
+            "industry": 5609692.580391515,
+            "dust": 1401966.372790573
+          }
+        }
+      }
+    },
+    {
+      "case": "demo",
+      "scope": "wide_stress",
+      "cuts_percent": {
+        "traffic": 20,
+        "industry": 30,
+        "dust": 30
+      },
+      "central_scores": {
+        "traffic": 4640670.779791962,
+        "industry": 12707888.9218435,
+        "dust": 2166372.887474813
+      },
+      "central_leader": "industry",
+      "source_factors": [
+        0.5,
+        1.0,
+        1.5
+      ],
+      "independent_response_factors": [
+        0.0,
+        0.7,
+        1.0
+      ],
+      "scenario_count": 2187,
+      "winner_counts": {
+        "tie_or_zero": 81,
+        "dust": 204,
+        "industry": 1309,
+        "traffic": 593
+      },
+      "ranking_changed": true,
+      "minimum_top_two_margin": 0.0,
+      "examples": {
+        "tie_or_zero": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 0.0
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 0.0
+          }
+        },
+        "dust": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 0.7
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 2166372.8874748135
+          }
+        },
+        "industry": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.0,
+            "industry": 0.7,
+            "dust": 0.0
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 0.0,
+            "industry": 12707888.9218435,
+            "dust": 0.0
+          }
+        },
+        "traffic": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.7,
+            "industry": 0.0,
+            "dust": 0.0
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 4640670.779791962,
+            "industry": 0.0,
+            "dust": 0.0
+          }
+        }
+      }
+    },
+    {
+      "case": "equal_cuts",
+      "scope": "configured_range",
+      "cuts_percent": {
+        "traffic": 30,
+        "industry": 30,
+        "dust": 30
+      },
+      "central_scores": {
+        "traffic": 6961006.169687951,
+        "industry": 12707888.9218435,
+        "dust": 2166372.887474813
+      },
+      "central_leader": "industry",
+      "source_factors": [
+        0.8,
+        1.0,
+        1.2
+      ],
+      "independent_response_factors": [
+        0.6,
+        0.7,
+        0.8
+      ],
+      "scenario_count": 2187,
+      "winner_counts": {
+        "industry": 1773,
+        "traffic": 414
+      },
+      "ranking_changed": true,
+      "minimum_top_two_margin": 9110.3057648791,
+      "examples": {
+        "industry": {
+          "source_multipliers": {
+            "traffic": 0.8,
+            "industry": 0.8,
+            "dust": 0.8
+          },
+          "pass_through": {
+            "traffic": 0.6,
+            "industry": 0.6,
+            "dust": 0.6
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 5966576.716875383,
+            "industry": 10892476.218722997,
+            "dust": 1856891.0464069825
+          }
+        },
+        "traffic": {
+          "source_multipliers": {
+            "traffic": 0.8,
+            "industry": 0.8,
+            "dust": 0.8
+          },
+          "pass_through": {
+            "traffic": 0.7,
+            "industry": 0.6,
+            "dust": 0.6
+          },
+          "population_profile": "inverse_density",
+          "scores": {
+            "traffic": 7024417.592619419,
+            "industry": 6195433.257709809,
+            "dust": 1556272.7893390977
+          }
+        }
+      }
+    },
+    {
+      "case": "equal_cuts",
+      "scope": "wide_stress",
+      "cuts_percent": {
+        "traffic": 30,
+        "industry": 30,
+        "dust": 30
+      },
+      "central_scores": {
+        "traffic": 6961006.169687951,
+        "industry": 12707888.9218435,
+        "dust": 2166372.887474813
+      },
+      "central_leader": "industry",
+      "source_factors": [
+        0.5,
+        1.0,
+        1.5
+      ],
+      "independent_response_factors": [
+        0.0,
+        0.7,
+        1.0
+      ],
+      "scenario_count": 2187,
+      "winner_counts": {
+        "tie_or_zero": 81,
+        "dust": 175,
+        "industry": 1130,
+        "traffic": 801
+      },
+      "ranking_changed": true,
+      "minimum_top_two_margin": 0.0,
+      "examples": {
+        "tie_or_zero": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 0.0
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 0.0
+          }
+        },
+        "dust": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 0.7
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 0.0,
+            "industry": 0.0,
+            "dust": 2166372.8874748135
+          }
+        },
+        "industry": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.0,
+            "industry": 0.7,
+            "dust": 0.0
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 0.0,
+            "industry": 12707888.9218435,
+            "dust": 0.0
+          }
+        },
+        "traffic": {
+          "source_multipliers": {
+            "traffic": 0.5,
+            "industry": 0.5,
+            "dust": 0.5
+          },
+          "pass_through": {
+            "traffic": 0.7,
+            "industry": 0.0,
+            "dust": 0.0
+          },
+          "population_profile": "configured",
+          "scores": {
+            "traffic": 6961006.169687951,
+            "industry": 0.0,
+            "dust": 0.0
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Ranges are assumed stress tests, not empirically sourced response coefficients or confidence intervals.",
+    "Configured-range testing varies each source and response independently; existing UI bounds use aggregate scaling.",
+    "Winner counts describe an arbitrary finite grid, not probabilities of policy success.",
+    "Scores cover the Pune-PCMC grid; selecting Bhosari does not make them Bhosari-only benefits.",
+    "Geometry, meteorology and background are fixed. Equal cuts do not imply equal cost or feasibility.",
+    "No causal concentration reduction, demographic count or health benefit is validated."
+  ]
+}

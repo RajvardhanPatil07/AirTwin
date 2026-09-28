@@ -1,5 +1,9 @@
 # Synthetic population sensitivity
 
+This dated 27 September stress test used the former synthetic PCMC population.
+The current PCMC dashboard uses WorldPop 2020 modeled counts; this table is
+retained as a historical sensitivity experiment, not current scenario output.
+
 Snapshot: 2026-09-24T22:00:00+05:30.
 Dataset fingerprint: `cd3b2dcfa09df604a3150978dd356b81d1af450ab0bbb8f480d53f20727b0600`.
 Cuts: traffic 20%, industry 30%, dust 30%.

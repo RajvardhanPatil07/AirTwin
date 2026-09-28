@@ -18,12 +18,12 @@
 - [ ] Read actual held-out metrics, including negative improvements.
 - [ ] Demonstrate zero cuts, individual and combined action consistency.
 - [ ] Show forecast explanation separately from source hypotheses.
-- [ ] Keep assumptions and synthetic population labeling in the video.
+- [ ] Keep assumption labels and PCMC WorldPop 2020 modeled population provenance in the video.
 - [ ] Confirm team members and add final video link externally.
 
 Safe presentation: “The system trains on available hourly targets, serves forecasts
 and held-out evidence, and compares transparent proxy interventions. Data
-freshness, model underperformance and synthetic population are explicitly shown.”
+freshness, model underperformance and dated modeled PCMC population are explicitly shown.”
 
 Unsupported claims: measured source percentages; causal policy effect; people
 saved/protected counts; medically validated benefits; guaranteed forecast accuracy.

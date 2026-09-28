@@ -22,7 +22,8 @@ not a footnote.
 
 > **Interpret the evidence honestly.** Model skill differs by station; some
 > stations still lose to persistence at 24 h. Band coverage is measured on the holdout.
-> Population and zones remain synthetic proxies. Provider readings may be delayed,
+> PCMC population uses dated WorldPop 2020 modeled estimates and selected OpenStreetMap
+> geometry; zone activity and intervention responses remain uncalibrated proxies. Provider readings may be delayed,
 > so every view keeps its data timestamp and the app warns about stale snapshots.
 > A forecast begins at its available data origin, not automatically at today's clock.
 
@@ -48,14 +49,14 @@ modeled intervention effects are not measured policy outcomes.*
 | ≥3 source categories | Traffic, industry, dust and background; YAML-configured proxies | Not measured chemical source apportionment |
 | ≥3 interventions | Three individual cuts and an additive combined package | Weather held fixed; pass-through assumptions disclosed |
 | Map plus historical validation | 144 IDW cells and Nov–Jan holdout with persistence/seasonal baselines | Read actual metrics and underperformance warnings |
-| OBSERVED vs MODELED distinction | Dataset fields, API schemas, badges, hatch layers and warnings | Synthetic population/history are labeled independently |
+| OBSERVED vs MODELED distinction | Dataset fields, API schemas, badges, hatch layers and warnings | Modeled 2020 PCMC population and synthetic demo history are labeled independently |
 
 [Acceptance evidence](docs/acceptance.md) · [Generated model card](docs/model_card.md)
 · [Fetched data coverage](docs/data_report.md).
 
 Additional evidence: [seasonal forecast validation](docs/evidence/seasonal_validation.md),
 [prediction-time input protocol](docs/validation_protocol.md), and
-[synthetic population sensitivity](docs/evidence/population_sensitivity.md).
+[population sensitivity](docs/evidence/population_sensitivity.md).
 The delayed pollution-only model loses to persistence in the October 2025
 24-hour test; some seasonal uncertainty bands under-cover. These reports are
 separate evaluation models, not new operational accuracy guarantees.
@@ -63,6 +64,25 @@ separate evaluation models, not new operational accuracy guarantees.
 [User-feedback protocol](docs/user_feedback.md), [team review workflow](docs/team_workflow.md),
 and [submission checklist](docs/submission_checklist.md) track the remaining human work.
 No external user study or endorsement is recorded yet.
+
+Hackathon preparation now includes [independent intervention stress tests](docs/evidence/intervention_sensitivity.md),
+[regional category evidence and parameter status](docs/intervention_evidence.md),
+a [forecast challenger comparison](docs/evidence/forecast_challenger.md), and
+a focused [2:45 Bhosari demo](docs/demo.md). The challenger improved MAE in only
+2 of 24 seasonal comparisons and was not promoted to serving. The
+[feedback session kit](docs/user_feedback.md) is ready; a real participant and
+actual findings remain pending.
+
+[Improvement decisions and remaining evidence](docs/hackathon_readiness.md).
+
+The [paired experiment report](docs/evidence/paired_experiments.md) and
+[protocol](docs/experiments_protocol.md) evaluate three feature
+arms, two input-availability policies, and two calibrated interval methods on identical
+test rows. The [station Local Moran report](docs/evidence/station_local_moran.md) is a
+separate exploratory point-pattern analysis. Neither changes the serving forecast.
+The bundled [sourced PCMC spatial input](data/sample/spatial_inputs.json) contains
+WorldPop 2020 area-allocated counts and a bounded OpenStreetMap extract. See
+[source, license and interpretation details](docs/spatial_sources.md).
 
 ## Start the project
 
@@ -252,8 +272,9 @@ cost or equal feasibility. Combined central benefit equals individual sums befor
 Background-inclusive shares are not multiplied by local excess a second time.
 
 Traffic uses assumed corridor/hour profiles, industry uses proximity/upwind cosine,
-and dust uses construction proximity/dryness. The hand-drawn zones are synthetic
-proxy geometry. Population is synthetic too. Benefit units are **person·µg/m³**,
+and dust uses construction proximity/dryness. PCMC uses selected OSM geometry and
+WorldPop 2020 modeled counts; fallback/demo and statewide population remain synthetic.
+Benefit units are **person·µg/m³**,
 not people protected, avoided deaths, cumulative dose or measured policy effectiveness.
 
 [Assumptions](docs/assumptions.md) · [Methodology](docs/methodology.md).
@@ -336,8 +357,8 @@ AirTwin/
 │   ├── scripts/             # Fetch → build → train
 │   └── tests/               # Pipeline, leakage, split, math and API tests
 ├── config/assumptions.yaml  # Central source/intervention weights
-├── data/sample/             # Small synthetic offline fixture
-├── data/zones.geojson       # Hand-made synthetic proxy geometry
+├── data/sample/             # Synthetic offline fixture and sourced PCMC spatial input
+├── data/zones.geojson       # Hand-made fallback proxy geometry
 ├── docs/                    # Evidence, architecture, API and methodology
 ├── frontend/src/            # Existing screenshot-matched dashboard
 ├── scripts/run_all.sh       # Fetch → build → train → serve

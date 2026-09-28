@@ -16,16 +16,20 @@ def main():
     parser.add_argument('--policies', nargs='+', choices=['retrospective', 'pollution_only'],
                         default=['retrospective', 'pollution_only'])
     parser.add_argument('--latency-hours', type=int, default=1)
+    parser.add_argument('--challenger', action='store_true', help='Compare guarded blends with a disjoint calibration window; does not change serving models')
     parser.add_argument('--output', type=Path, default=ROOT / 'docs/evidence/seasonal_validation.json')
     args = parser.parse_args()
+    if args.challenger and args.output == ROOT / 'docs/evidence/seasonal_validation.json':
+        args.output = ROOT / 'docs/evidence/forecast_challenger.json'
     if args.latency_hours < 0 or any(h <= 0 for h in args.horizons):
         parser.error('Horizons must be positive; latency must be nonnegative')
     frame, warnings, fingerprint, exog = load_all(args.offline)
-    results, skipped = validate(frame, exog, args.horizons, args.policies, args.latency_hours)
+    results, skipped = validate(frame, exog, args.horizons, args.policies, args.latency_hours, args.challenger)
     report = {'dataset_fingerprint': fingerprint, 'dataset_start': frame.timestamp.min().isoformat(),
               'dataset_end': frame.timestamp.max().isoformat(), 'warnings': warnings,
               'latency_hours': args.latency_hours, 'results': results, 'skipped': skipped,
               'limitations': [
+                  'Challenger experiments use previously inspected seasonal windows: this is development evidence, not a new blind test. Serving models are unchanged.',
                   'Retrospective inputs retain archived CAMS and reanalysis availability limitations.',
                   'Pollution-only excludes all weather, CAMS and boundary-layer inputs; sensor publication delay is assumed, not verified.',
                   'These are separately refitted evaluation models, not the serving-model metrics.',
@@ -45,6 +49,22 @@ def main():
         lines.append(f'| {row["policy"]} | {row["season"]} | {row["horizon"]}h | {row["train_rows"]} / {row["test_rows"]} | '
                      f'{row["mae"]:.2f} | {row["rmse"]:.2f} | {row["persistence_mae"]:.2f} | {row["seasonal_mae"]:.2f} | '
                      f'{row["improvement_percent"]:+.1f}% | {row["interval_coverage"]:.1f}% |')
+    if args.challenger:
+        lines += ['', '## Guarded forecast challenger', '',
+                  'Weight selection uses purged folds in the first 80% of available pre-test origins and a recent 80–90% selection block.',
+                  'A blend is eligible only if it does not lose to persistence on any selection fold.',
+                  'The model stays frozen while the final 10% of pre-test origins calibrates residual bands.',
+                  'Fit targets precede selection origins; selection targets precede calibration origins; calibration targets precede test origins.',
+                  'Temporal dependence and distribution shifts prevent a formal coverage guarantee.', '',
+                  '| Inputs | Season | Horizon | Current MAE | Challenger MAE | Persistence MAE | Current coverage | Challenger coverage | Current / challenger width | Weight |',
+                  '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |']
+        for row in results:
+            c = row.get('challenger')
+            if c is None:
+                continue
+            lines.append(f'| {row["policy"]} | {row["season"]} | {row["horizon"]}h | {row["mae"]:.2f} | {c["mae"]:.2f} | '
+                         f'{row["persistence_mae"]:.2f} | {row["interval_coverage"]:.1f}% | {c["interval_coverage"]:.1f}% | '
+                         f'{row["interval_mean_width"]:.2f} / {c["interval_mean_width"]:.2f} | {c["blend_weight"]:.1f} |')
     lines += ['', '## Interpretation and limits', '', *[f'- {item}' for item in report['limitations']],
               *[f'- {item}' for item in warnings], '', '## Skipped evaluations', '',
               *[f'- {r["policy"]}, {r["season"]}, {r["horizon"]}h: {r["reason"]}.' for r in skipped],

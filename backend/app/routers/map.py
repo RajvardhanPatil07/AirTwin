@@ -22,7 +22,7 @@ def hotspots(mode: Literal['before', 'after'] = 'before', scenario_id: str | Non
         cells = next(r['cells'] for r in result['results'] if r['id'] == 'combined')
     else:
         _, cells, _, _, _ = runtime.snapshot(replay_at)
-    return {'cells': cells, 'source_type': 'modeled', 'assumptions': STATE_ASSUMPTIONS if region == 'maharashtra' else ASSUMPTIONS}
+    return {'cells': cells, 'source_type': 'modeled', 'assumptions': STATE_ASSUMPTIONS if region == 'maharashtra' else cells[0]['assumptions'] if cells else ASSUMPTIONS}
 
 
 @router.get('/timeline')
