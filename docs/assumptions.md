@@ -29,6 +29,13 @@ capped at each cell's baseline. Local excess = max(baseline − background, 0).
 IDW uses power 2 and a local distance approximation. A 12×12 grid is an
 interpolation display, not 144 independent monitoring locations.
 
+For the one-station offline SYNTHETIC fixture, the displayed map keeps that
+station as an exact IDW anchor and adds six deterministic illustrative anchors.
+Their values are scaled from the one synthetic target. They are not measured
+locations, additional monitoring stations, training rows, or independent
+forecasts, and they are used only to shape the illustrative non-uniform demo
+surface.
+
 The hand-made `data/zones.geojson` outlines are SYNTHETIC proxy geometry, not
 surveyed industrial boundaries or proof of active construction. Weights use:
 
