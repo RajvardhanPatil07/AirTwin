@@ -9,6 +9,7 @@ CONFIG = yaml.safe_load((ROOT / 'config/assumptions.yaml').read_text())
 ZONES = json.loads((ROOT / 'data/zones.geojson').read_text())
 ASSUMPTIONS = [
     'Grid PM2.5 is IDW interpolation (power 2), not additional station observations.',
+    'When the offline fixture exposes only one SYNTHETIC target, the map uses six illustrative SYNTHETIC spatial anchors to create a non-uniform demo surface; these are not observed stations.',
     'Regional background is the 15th percentile of a simultaneous station snapshot, capped at cell concentration.',
     'When fewer than 3 spatial anchors are available, regional background falls back to the recent 30-day PM2.5 15th percentile; this remains a MODELED assumption.',
     'Source shares use hand-drawn zone proximity, assumed traffic profiles and weather proxies; they are not chemical source apportionment.',
@@ -28,6 +29,28 @@ def idw(lat, lon, stations):
         return float(stations[int(distances.argmin())]['pm25'])
     weights = 1 / distances ** CONFIG['idw_power']
     return float(np.dot(weights, [s['pm25'] for s in stations]) / weights.sum())
+
+
+def interpolation_anchors(stations):
+    """Return explicit synthetic map anchors only for the one-target offline fixture."""
+    if len(stations) != 1 or stations[0].get('source_type') != 'synthetic':
+        return stations
+    base = float(stations[0]['pm25'])
+    # Coordinates are illustrative Pune/PCMC demo anchors. Factors are deterministic
+    # and only shape the synthetic map; they do not create monitoring observations.
+    presets = [
+        ('bhosari-demo', 18.62, 73.85, 1.18),
+        ('pimpri-demo', 18.63, 73.80, 0.94),
+        ('chakan-demo', 18.76, 73.86, 1.28),
+        ('hinjawadi-demo', 18.59, 73.74, 0.82),
+        ('shivajinagar-demo', 18.53, 73.85, 1.00),
+        ('hadapsar-demo', 18.50, 73.93, 0.90),
+    ]
+    return [
+        {**stations[0], 'id': key, 'latitude': lat, 'longitude': lon,
+         'pm25': max(5.0, base * factor), 'source_type': 'synthetic'}
+        for key, lat, lon, factor in presets
+    ]
 
 
 def bearing(lat, lon, other_lat, other_lon):
@@ -77,6 +100,7 @@ def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, 
         else float(np.percentile([s['pm25'] for s in stations], CONFIG['background_percentile']))
     )
     population = CONFIG['population']
+    map_anchors = interpolation_anchors(stations)
     cells = []
     for row in range(grid_size):
         for col in range(grid_size):
@@ -85,7 +109,7 @@ def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, 
             lat, lon = (a + c) / 2, (b + d) / 2
             if mask and not mask(lat, lon):
                 continue
-            value = idw(lat, lon, stations)
+            value = idw(lat, lon, map_anchors)
             density = math.exp(-((lat - population['latitude']) ** 2 + (lon - population['longitude']) ** 2) / population['scale_degrees_squared'])
             cells.append({'id': f'cell-{row}-{col}', 'latitude': lat, 'longitude': lon,
                           'bounds': [[a, b], [c, d]], 'pm25': value, 'background': min(background, value),
