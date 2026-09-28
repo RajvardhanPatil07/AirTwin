@@ -81,7 +81,7 @@ its timestamp as forecast origin. No new environmental observations were invente
   the trained backend connection without refreshing the page.
 
 Screenshots were saved outside the repository to avoid committing transient demo
-images. The post-change design audit is `anti-slop/audit-001-2026-09-27.md`.
+images. The dated frontend QA notes remain in `frontend/design-qa.md`.
 
 ## Limits
 

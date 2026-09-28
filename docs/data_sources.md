@@ -11,11 +11,11 @@ licenses do not grant a license to all repository code.
 | Open-Meteo archive | Centroid weather fetcher | Modeled reanalysis | API data CC BY 4.0; credit Open-Meteo and applicable underlying sources |
 | Open-Meteo air quality / CAMS | Sparse-target fallback | Modeled concentration | Credit Open-Meteo and the relevant Copernicus/CAMS product |
 | OpenStreetMap | Frontend basemap tiles | Map context, not pollution observations | © OpenStreetMap contributors; ODbL data and separate tile-use policy |
-| WorldPop | Planned only | Not currently used | Check the exact product/version license before downloading or redistributing |
+| WorldPop India 2020 1 km UN-adjusted | Area-allocated PCMC estimates in the bundled spatial input; original raster is not committed | Modeled population, not an administrative count | CC BY 4.0; see [spatial provenance](spatial_sources.md) |
 | Synthetic pipeline CSV | Committed offline sample | Synthetic target and weather | Repository-authored fixture, no provider observation claim |
 | Synthetic frontend fixtures | Demo inputs/population | Synthetic | Separate from pipeline CSV, explicitly disclosed in UI |
 | Inter / Fontsource | Locally bundled font | Visual dependency | SIL Open Font License; retain package license notices |
-| Screenshot logo | User-supplied visual reference | Supplied asset | No third-party ownership or trademark clearance is claimed |
+| README mark | Repository-authored SVG in `docs/assets/airtwin-mark.svg` | Project visual | No project-wide software or brand license has been selected |
 
 ## Primary references
 
