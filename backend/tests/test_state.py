@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from app.services.state_data import StateRuntime, SAMPLE, AIR_FIELDS, WEATHER_FIELDS
 from app.services.regions import inside_state
-from app.services.explainer import checked_claims
+from app.services.explainer import build_context, checked_claims
 
 @pytest.fixture(scope='module')
 def state():
@@ -42,3 +42,10 @@ def test_gemini_claim_checks():
         checked_claims({'claims': [{**valid['claims'][0], 'source_type': 'observed'}]}, context)
     with pytest.raises(ValueError):
         checked_claims({'claims': [{**valid['claims'][0], 'text': 'Concentration is 9999.'}]}, context)
+
+
+def test_state_explanation_keeps_selected_evidence_without_full_station_payload(state):
+    context = build_context(state, 'cams-0')
+    assert len(context['evidence']['stations']['data']) == 36
+    assert 'pollutants' in context['evidence']['baseline']['data']
+    assert len(json.dumps(context).encode()) < 50_000
