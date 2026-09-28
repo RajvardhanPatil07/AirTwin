@@ -16,7 +16,7 @@ COPY backend/app backend/app
 COPY backend/scripts backend/scripts
 COPY config config
 COPY data/sample data/sample
-COPY data/zones.geojson data/zones.geojson
+COPY data/*.geojson data/
 
 # Train the bundled, explicitly synthetic baseline at image build time so the
 # service can become healthy without retraining on each restart.
