@@ -46,6 +46,6 @@ def test_gemini_claim_checks():
 
 def test_state_explanation_keeps_selected_evidence_without_full_station_payload(state):
     context = build_context(state, 'cams-0')
-    assert len(context['evidence']['stations']['data']) == 36
+    assert context['evidence']['stations']['data']['count'] == 36
     assert 'pollutants' in context['evidence']['baseline']['data']
-    assert len(json.dumps(context).encode()) < 50_000
+    assert len(json.dumps(context).encode()) < 25_000
