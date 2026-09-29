@@ -3,6 +3,7 @@ numpy==2.4.6
 pandas==2.3.3
 pyarrow==23.0.1
 requests==2.34.2
+psycopg[binary]>=3.2,<4
 python-dotenv==1.2.3
 pytest==9.1.1
 fastapi==0.115.12
