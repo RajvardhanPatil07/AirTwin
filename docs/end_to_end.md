@@ -12,6 +12,7 @@ requires the OpenMP library (`libomp`). Follow the README installation steps.
 | `GEMINI_MODEL` | root `.env` | Provider model identifier; the example value must be available to your account. |
 | `LIVE_REFRESH_ENABLED` | root `.env` | `1` enables hourly Pune–PCMC and Maharashtra provider-cache refresh; `0` selects the historical PCMC dataset for offline verification. Does not retrain the historical model. |
 | `LIVE_REFRESH_SECONDS` | root `.env` | Cache refresh interval, default 3600 seconds. |
+| `DATABASE_URL` | backend environment | Optional PostgreSQL URL. Successful provider payloads are persisted by region as timestamped snapshots for 30 days and loaded after restarts. `/api/health` reports connection and snapshot status. |
 | `CORS_ORIGINS` | root `.env` | Comma-separated deployed frontend origins; loopback origins are allowed automatically. |
 | `VITE_API_BASE_URL` | `frontend/.env` | Defaults to `/backend` through the Vite proxy. Use a public API URL for separate hosting; an empty value explicitly enables frontend-only synthetic mode. |
 | `AIRTWIN_BACKEND_URL` | frontend server environment | Vite proxy target; defaults to `http://127.0.0.1:8000`. Useful for isolated verification on another API port. |

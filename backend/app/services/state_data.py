@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.config import RAW, ROOT, TIMEZONE, BBOX
 from app.services.regions import CITY_POINTS, PUNE_POINTS, STATE_BBOX, inside_state, region_metadata
 from app.services.runtime import Runtime, get_runtime
+from app.services import database
 from app.services.spatial import make_grid, distance_km, CONFIG, ZONES, ASSUMPTIONS, spatial_assumptions
 from app.services.spatial_inputs import load_spatial_inputs
 from app.services.scenarios import simulate
@@ -108,11 +109,15 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
             'source_type': 'modeled', 'provider': 'CAMS / Open-Meteo', 'assumptions': STATE_ASSUMPTIONS}
 
 
-def save_context(payload, path=CACHE):
+def save_context(payload, path=CACHE, region='maharashtra'):
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix('.tmp')
     temp.write_text(json.dumps(payload, allow_nan=False))
     temp.replace(path)
+    try:
+        database.save_snapshot(region, payload)
+    except Exception:
+        LOG.warning('Could not persist %s provider snapshot to PostgreSQL.', region, exc_info=True)
 
 
 class StateRuntime(Runtime):
@@ -287,10 +292,21 @@ def get_pune_runtime():
     global _pune_runtime
     with _pune_lock:
         if _pune_runtime is None:
+            payload = None
             try:
-                _pune_runtime = PuneRuntime(json.loads(PUNE_CACHE.read_text()))
-            except (OSError, ValueError, KeyError, TypeError):
-                return None
+                payload = database.load_latest_snapshot('pcmc')
+            except Exception:
+                LOG.warning('Could not load the PCMC snapshot from PostgreSQL; trying the local cache.', exc_info=True)
+            if payload is not None:
+                try:
+                    _pune_runtime = PuneRuntime(payload)
+                except (ValueError, KeyError, TypeError):
+                    LOG.warning('Stored PCMC snapshot is invalid; trying the local cache.', exc_info=True)
+            if _pune_runtime is None:
+                try:
+                    _pune_runtime = PuneRuntime(json.loads(PUNE_CACHE.read_text()))
+                except (OSError, ValueError, KeyError, TypeError):
+                    return None
         return _pune_runtime
 
 
@@ -309,7 +325,7 @@ def refresh_pune():
     payload = fetch_context(PUNE_POINTS, BBOX, inside_pune, 'Pune + PCMC', 'pune-cams')
     runtime = PuneRuntime(payload)
     runtime.snapshot()
-    save_context(payload, PUNE_CACHE)
+    save_context(payload, PUNE_CACHE, 'pcmc')
     with _pune_lock:
         _pune_runtime = runtime
     LOG.info('Pune refresh: %s modeled reference points; %s observed points',
@@ -319,9 +335,15 @@ def get_state_runtime():
     global _runtime
     with _lock:
         if _runtime is None:
-            for path in [CACHE, SAMPLE]:
+            database_payload = None
+            try:
+                database_payload = database.load_latest_snapshot('maharashtra')
+            except Exception:
+                LOG.warning('Could not load the Maharashtra snapshot from PostgreSQL; trying local caches.', exc_info=True)
+            for path, payload in [(CACHE, database_payload), (CACHE, None), (SAMPLE, None)]:
                 try:
-                    payload = json.loads(path.read_text())
+                    if payload is None:
+                        payload = json.loads(path.read_text())
                     _runtime = StateRuntime(payload, path == SAMPLE)
                     break
                 except (OSError, ValueError, KeyError, TypeError):
@@ -336,7 +358,7 @@ def refresh_state():
     payload = fetch_context()
     runtime = StateRuntime(payload)
     runtime.snapshot()
-    save_context(payload)
+    save_context(payload, region='maharashtra')
     with _lock:
         _runtime = runtime
     LOG.info('State refresh: %s modeled points; %s observed points', len(payload['points']), len(payload['observed']))
