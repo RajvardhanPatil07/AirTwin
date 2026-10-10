@@ -70,20 +70,38 @@ def _exclusive_training():
                     connection.commit()
         return
 
-    # Linux/Mac deployment. Without an external database, models are local
-    # per-instance anyway; flock prevents two workers sharing that disk.
-    import fcntl
+    # Without an external database, models are local per-instance. A small
+    # cross-process file lock works on Windows (msvcrt) and Unix (fcntl).
     MODELS.mkdir(parents=True, exist_ok=True)
-    with (MODELS / ".retrain.lock").open("a+") as handle:
-        try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            yield False
-            return
-        try:
-            yield True
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+    with (MODELS / ".retrain.lock").open("a+b") as handle:
+        if os.name == "nt":
+            import msvcrt
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\\0")
+                handle.flush()
+            handle.seek(0)
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                yield False
+                return
+            try:
+                yield True
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                yield False
+                return
+            try:
+                yield True
+            finally:
+                fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def _existing_live_artifact():
