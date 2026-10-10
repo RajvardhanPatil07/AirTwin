@@ -425,3 +425,9 @@ button.fv-card:hover { transform: translateY(-2px); box-shadow: 0 13px 30px #164
 
 /* Weather graphics are interpretive and only shown when forecast weather is available. */
 .fm-atmosphere.fm-cloudy { background: radial-gradient(ellipse at 66% 32%, rgba(114,137,156,.55), transparent 65%), linear-gradient(130deg, rgba(73,91,112,.26), rgba(115,126,145,.32)); mix-blend-mode: normal; }
+
+/* The basemap uses openly available OSM raster tiles; only tiles are tinted,
+   keeping concentration overlays, markers, controls, and source labels faithful. */
+.fm-shell:not(.fm-night) .leaflet-tile-pane { filter: saturate(.88) contrast(.97) brightness(1.025); }
+.fm-night .leaflet-tile-pane { filter: invert(.93) hue-rotate(180deg) saturate(.63) brightness(.75) contrast(1.13); }
+.fm-night .leaflet-control-attribution { color: #2e516d; background: #f4f7f9e8; }
