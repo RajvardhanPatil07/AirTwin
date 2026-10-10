@@ -234,3 +234,19 @@ def test_refresh_pune_backfills_candidates_not_just_live_stations(monkeypatch):
     assert calls["sensors"] == [candidate]
     assert calls["saved"]["observed"] == []
     assert calls["saved"]["history_ingestion"]["rows"] == 3
+
+
+def test_postgres_schema_initialization_uses_transaction_advisory_lock():
+    """Concurrent workers must serialize first-use DDL across PG connections."""
+    class RecordingConnection:
+        def __init__(self):
+            self.commands = []
+
+        def execute(self, sql):
+            self.commands.append(sql)
+
+    connection = RecordingConnection()
+    observations._ensure_postgres(connection)
+    assert "pg_advisory_xact_lock" in connection.commands[0]
+    assert connection.commands[1] == "CREATE SCHEMA IF NOT EXISTS airtwin"
+    assert "CREATE TABLE IF NOT EXISTS airtwin.station_observations" in connection.commands[2]

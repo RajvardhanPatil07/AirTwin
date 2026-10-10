@@ -385,8 +385,8 @@ def refresh_pune():
         history_status = ingest_pune_history(payload.get('history_sensor_candidates', []), get_payload)
         payload['history_ingestion'] = history_status
         if history_status['failures']:
-            message = (f"{history_status['failures']} OpenAQ hourly-history lookups failed; "
-                       "live LightGBM may use CAMS fallback.")
+            message = (f"{history_status['failures']} OpenAQ hourly-history operations failed "
+                       "(request or database persistence); live LightGBM may use CAMS fallback.")
             payload['warnings'].append(message)
             runtime.warnings.append(message)
         LOG.info('OpenAQ hourly history: %s sensors, %s accepted hours, %s errors',

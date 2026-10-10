@@ -48,6 +48,7 @@ Inspect forecast_provider, model_id, fallback_reason, history_source_type, issue
 
 ## Notes on data freshness, cost and reliability
 
+- The first-use PostgreSQL schema/table creation is guarded by a transaction-scoped advisory lock so simultaneous history workers or backend processes cannot race to create the same schema. Failed history operations may be request failures or persistence failures; inspect backend traces before attributing them to OpenAQ.
 - OpenAQ data may be delayed, incomplete, absent, or rate-limited. A historical backfill does not make a stale station live. The 49-hour no-gap requirement and live freshness gate remain strict in this first version.
 - Hourly historical measurements are different from the latest unaggregated observation.
 - Current CAMS context is modeled, not 25 independent local monitors.

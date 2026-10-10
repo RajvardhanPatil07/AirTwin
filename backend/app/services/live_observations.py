@@ -80,6 +80,11 @@ def _sqlite():
 
 
 def _ensure_postgres(conn):
+    # CREATE SCHEMA/TABLE IF NOT EXISTS can race when separate workers
+    # initialize a fresh database simultaneously. Serialize first-use DDL
+    # across threads and backend processes using a transaction-scoped PG lock.
+    # The connection context manager releases it on commit/rollback.
+    conn.execute("SELECT pg_advisory_xact_lock(20261010, 1)")
     conn.execute("CREATE SCHEMA IF NOT EXISTS airtwin")
     conn.execute(SCHEMA_POSTGRES)
     # No grants to anon/authenticated; backend connects using DATABASE_URL.
