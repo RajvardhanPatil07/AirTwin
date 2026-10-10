@@ -431,3 +431,19 @@ button.fv-card:hover { transform: translateY(-2px); box-shadow: 0 13px 30px #164
 .fm-shell:not(.fm-night) .leaflet-tile-pane { filter: saturate(.88) contrast(.97) brightness(1.025); }
 .fm-night .leaflet-tile-pane { filter: invert(.93) hue-rotate(180deg) saturate(.63) brightness(.75) contrast(1.13); }
 .fm-night .leaflet-control-attribution { color: #2e516d; background: #f4f7f9e8; }
+
+/* Compact layered controls: no always-open settings box over a phone map. */
+.fm-layerhead { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.fm-layerhead > svg:last-child { margin-left: auto; }
+.fm-layerbox:not(.is-open) .fm-layerhead { border-bottom: 0; padding-bottom: 0; }
+@media (max-width: 640px) {
+  .fv-forecast .fv-forecast-overlay { display: none; }
+  .fm-layerbox:not(.is-open) { min-width: 0; padding: 11px 12px; border-radius: 11px; }
+  .fm-layerbox:not(.is-open) .fm-layerhead { font-size: 10px; }
+  .fm-shell .fm-recenter, .fv-overview .fm-recenter { top: 132px; }
+  .fm-legend { width: min(195px, 59vw); bottom: 14px; padding: 9px 11px; border-radius: 12px; }
+  .fm-legend .fm-legend-foot { display: none; }
+  .fm-legend-top small { display: none; }
+  .fm-legend-scale { font-size: 8px; }
+  .fm-legend .fm-demo { font-size: 9px; line-height: 1.3; }
+}
