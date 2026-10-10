@@ -210,7 +210,7 @@ def run_retraining_check():
         candidate = train(frame, fingerprint, [*warnings,
             "Scheduled training combines measured archive and retained OpenAQ hours; "
             "missing historical weather is not filled with future weather."],
-            exog=exog, persist=False)
+            exog=exog, persist=False, prefer_recent_holdout=True)
         failure = _validate(candidate)
         if failure:
             return _record("rejected", failure, observed_rows=len(frame),
