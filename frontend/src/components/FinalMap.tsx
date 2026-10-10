@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LeafletEvent } from "leaflet";
 import { CircleMarker, GeoJSON, MapContainer, Rectangle, ScaleControl, TileLayer, Tooltip, useMap, ZoomControl } from "react-leaflet";
-import { Layers3, LocateFixed, MapPin, Search, X } from "lucide-react";
+import { ChevronDown, Layers3, LocateFixed, MapPin, Search, X } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
 import type { Cell, DashboardData, Station } from "../types";
 import { concentrationColor, METRICS, readingFor, type MetricId } from "../lib/finalMetrics";
@@ -60,6 +60,7 @@ export function FinalMap({
   spatialTimestamp?: string | null;
 }) {
   const [layers, setLayers] = useState({ modeled: true, observed: true, boundaries: false });
+  const [layersOpen, setLayersOpen] = useState(() => typeof window === "undefined" || window.innerWidth > 700);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [tileError, setTileError] = useState(false);
@@ -150,11 +151,13 @@ export function FinalMap({
         </button>) : <p>No mapped location matches that name.</p>}
       </div>}
     </div>
-    <div className="fm-layerbox">
-      <div className="fm-layerhead"><Layers3 size={15}/> Map layers</div>
-      <label><input type="checkbox" checked={layers.modeled} disabled={metric !== "pm25"} onChange={(event) => setLayers((v) => ({...v, modeled: event.target.checked}))}/> Modeled PM2.5 grid</label>
-      <label><input type="checkbox" checked={layers.observed} onChange={(event) => setLayers((v) => ({...v, observed: event.target.checked}))}/> Observed monitors</label>
-      <label><input type="checkbox" checked={layers.boundaries} disabled={!data.zones} onChange={(event) => setLayers((v) => ({...v, boundaries: event.target.checked}))}/> Mapped boundaries</label>
+    <div className={"fm-layerbox" + (layersOpen ? " is-open" : "")}>
+      <button type="button" className="fm-layerhead" aria-expanded={layersOpen} onClick={() => setLayersOpen((open) => !open)}><Layers3 size={15}/> Map layers <ChevronDown size={13}/></button>
+      {layersOpen && <>
+        <label><input type="checkbox" checked={layers.modeled} disabled={metric !== "pm25"} onChange={(event) => setLayers((v) => ({...v, modeled: event.target.checked}))}/> Modeled PM2.5 grid</label>
+        <label><input type="checkbox" checked={layers.observed} onChange={(event) => setLayers((v) => ({...v, observed: event.target.checked}))}/> Observed monitors</label>
+        <label><input type="checkbox" checked={layers.boundaries} disabled={!data.zones} onChange={(event) => setLayers((v) => ({...v, boundaries: event.target.checked}))}/> Mapped boundaries</label>
+      </>}
     </div>
     {focus && <button className="fm-back-city" type="button" onClick={onClearFocus}>← Back to city</button>}
     <div className="fm-legend">
