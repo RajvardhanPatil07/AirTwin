@@ -12,7 +12,21 @@ jobs:
   pipeline:
     name: Python pipeline and offline fallback
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: airtwin
+          POSTGRES_PASSWORD: airtwin_ci_only
+          POSTGRES_DB: airtwin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U airtwin -d airtwin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -22,6 +36,10 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: python -m pip install -r backend/requirements.txt
       - run: python -m pytest backend/tests -q
+      - name: PostgreSQL decision-store integration
+        env:
+          DATABASE_URL: postgresql://airtwin:airtwin_ci_only@localhost:5432/airtwin
+        run: PYTHONPATH=backend python backend/scripts/verify_decision_store.py
       - run: bash scripts/pipeline.sh --offline
       - run: python backend/scripts/train_model.py --offline
       - run: python scripts/check_repository.py

@@ -13,6 +13,7 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/app backend/app
+COPY backend/migrations backend/migrations
 COPY backend/scripts backend/scripts
 COPY config config
 COPY data/sample data/sample

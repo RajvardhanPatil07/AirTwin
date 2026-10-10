@@ -193,3 +193,21 @@ export interface ExplainResponse extends Provenance {
   model: string;
   claims: { text: string; source_type: SourceType; evidence_ids: string[] }[];
 }
+
+
+export interface DecisionRunResponse extends Provenance {
+  scenario: ScenarioResponse;
+  run_id: string | null;
+  persisted: boolean;
+  storage_warning: string | null;
+}
+export interface DataHealthResponse extends Provenance {
+  region: RegionId;
+  database: {
+    configured: boolean;
+    connected: boolean;
+    samples?: number;
+    runs: number;
+    samples_by_source?: Record<SourceType, number>;
+  };
+}

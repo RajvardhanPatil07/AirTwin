@@ -9,9 +9,26 @@
   </p>
 </div>
 
-![AirTwin glass dashboard showing a pollution map, forecast timeline, and evidence-based assistant](frontend/ai-preview.png)
+## Decision Studio development branch
 
-*Capture of the current interface. The snapshot in the image is historical; check timestamps and source labels in the running app.*
+**dev/parth-overhaul** is the redesigned Pune–PCMC experience: an integrated map, forward PM2.5 estimates, proxy attribution, individual/combined interventions, and separate historical model evaluation. The original screenshot has been removed because it no longer represents the new interface.
+
+The v2 backend adds a normalized PostgreSQL decision store. Provider readings and CAMS references retain separate source types and original timestamps. Explicitly calculated scenario runs can be saved and retrieved; without PostgreSQL the UI labels results **not saved**. These are modeled policy experiments, not observed post-policy improvements.
+
+[Architecture and evidence contract](docs/overhaul-architecture.md)
+
+### Run the overhaul with PostgreSQL
+
+```sh
+git switch dev/parth-overhaul
+docker compose -f compose.dev.yml up --build
+# In a second terminal:
+cd frontend
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173. API reference is at http://localhost:8000/docs; database evidence status is at http://localhost:8000/api/v2/data-health. This development configuration uses an offline model baseline until live providers are explicitly enabled. Credentials and production database URLs belong only in backend environment variables.
 
 AirTwin brings station readings, a 72-hour PM2.5 outlook, model explanations, and intervention comparisons into one place. It helps you ask where pollution is high, what the forecast suggests, and how assumed traffic, industry, or dust controls compare. It does **not** measure the effect of a real policy.
 
