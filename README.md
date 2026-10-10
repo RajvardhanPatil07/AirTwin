@@ -203,3 +203,56 @@ The guided integration passed 15 frontend tests and 25 targeted backend API/stat
 | [`docs`](docs) | Evidence, architecture, data provenance, and demo notes |
 
 Contributions are welcome through [CONTRIBUTING.md](CONTRIBUTING.md); report security issues through [SECURITY.md](SECURITY.md). Data and map attribution are documented in [data sources](docs/data_sources.md). No project-wide software license has been selected.
+
+
+### Automatic LightGBM retraining (observed targets only)
+
+The backend runs a **separate unattended retraining check** while it is up
+(default: first check 15 minutes after startup, then every 24 hours). Provider
+ingestion continues on its own 15-minute cycle. Retraining is **not** triggered
+by every snapshot: it requires at least 48 newly stored *observed station-hours*
+since the previous promotion (or latest historical observed target), at least
+720 total observed training rows spanning 14 distinct days, and at least seven
+days since the last successful promotion. Missing/stale OpenAQ data means the
+check safely skips. Changing these thresholds is possible through the
+environment variables below.
+
+The candidate combines the historical **observed** training set (when
+available) with retained OpenAQ station-hours in PostgreSQL/Supabase or local
+SQLite. It never treats CAMS-modeled or synthetic PM2.5 as observed targets.
+Missing historical weather is left missing, not imputed using future conditions.
+It uses a recent chronological 20% holdout with purged training boundaries;
+promotion requires an adequate holdout and 24-hour MAE no worse than the
+persistence baseline. Failed training/validation leaves the previously served
+model unchanged. No fixed improvement in live forecast accuracy is claimed.
+
+Approved candidates are atomically installed as
+`backend/models/forecast_live.joblib`, separate from the historical
+`forecast.joblib`. The live observed-station forecast dispatcher prefers this
+artifact and falls back to the previous observed-only historical artifact if
+needed. Historical replay stays unchanged. **On `dev/raj`, the existing
+station-specific selector still has first priority for eligible 24-hour
+forecasts**; the persisted live model serves eligible requests that reach the
+dispatcher, including other horizons. The new artifact is local to the backend
+instance; for deployment persistence across restarts, attach a persistent disk
+for `backend/models` or implement shared artifact storage. Database history
+continues to persist separately when `DATABASE_URL` is set.
+
+Check `GET /api/health` for the new `retraining` object; it reports
+`pending`, `skipped`, `rejected`, `promoted`, or `error`, with a reason.
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `RETRAIN_ENABLED` | `1` | Start the unattended trainer thread |
+| `RETRAIN_INITIAL_DELAY_SECONDS` | `900` | Allow provider history ingestion before the first check |
+| `RETRAIN_CHECK_HOURS` | `24` | Interval between checks |
+| `RETRAIN_MIN_GAP_HOURS` | `168` | Minimum interval between successful model promotions |
+| `RETRAIN_MIN_NEW_ROWS` | `48` | Minimum newly collected observed station-hours |
+| `RETRAIN_MIN_OBSERVED_ROWS` | `720` | Minimum total observed target rows |
+| `RETRAIN_MIN_TEST_ROWS` | `48` | Minimum recent 24h holdout targets |
+
+These safeguards prevent blind retraining on every frontend refresh. A
+promotion checks the holdout against persistence, **not** live A/B performance
+or causal effects. Multiple hosted instances must share database storage for
+history; PostgreSQL advisory locking prevents simultaneous retraining, but
+model files remain instance-local without shared artifact storage.
