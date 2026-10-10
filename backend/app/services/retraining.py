@@ -211,7 +211,12 @@ def run_retraining_check():
         LOG.info("Training measured-only candidate: %s rows, %s new", len(frame), new_rows)
         # Training uses only valid observed targets; missing historical weather
         # remains missing rather than inventing issue-time weather.
-        candidate = train(frame, fingerprint, [*warnings,
+        source_warnings = [warning for warning in warnings if not warning.startswith(
+            ("SYNTHETIC targets:", "CAMS MODELED targets:"))]
+        if not base.source_type.eq("observed").all():
+            source_warnings.append(
+                "Non-observed baseline targets were excluded from candidate training.")
+        candidate = train(frame, fingerprint, [*source_warnings,
             "Scheduled training combines measured archive and retained OpenAQ hours; "
             "missing historical weather is not filled with future weather."],
             exog=exog, persist=False, prefer_recent_holdout=True)
