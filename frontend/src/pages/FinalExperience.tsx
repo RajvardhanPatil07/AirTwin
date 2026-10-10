@@ -1,8 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, CloudMoon,
+  ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, CloudMoon,
   CloudSun, Compass, Info, Layers, Leaf, LockKeyhole, MapPin, Moon, RefreshCw,
-  Search, ShieldCheck, Sparkles, Sun, TrendingDown, Wind, X,
+  ShieldCheck, Sparkles, Sun, TrendingDown, Wind, X,
 } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DashboardData, ForecastResponse, Station } from "../types";
@@ -10,7 +10,7 @@ import { api, loadDashboard } from "../lib/api";
 import { DEFAULT_CUTS } from "../mocks/engine";
 import { dateLabel, number, timeLabel } from "../lib/format";
 import {
-  concentrationColor, concentrationLabel, interpretChange, isStale, METRICS,
+  concentrationLabel, interpretChange, isStale, METRICS,
   orderedPlaces, provenanceLabel, readingFor, supportsMetric,
   type MetricId,
 } from "../lib/finalMetrics";
