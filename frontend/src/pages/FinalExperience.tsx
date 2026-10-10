@@ -177,6 +177,7 @@ export function FinalExperience() {
     return () => { active = false; };
   }, [selected?.id, data?.demo, hours]);
   useEffect(() => {
+    if (page !== "forecast") return;
     if (!data || data.demo) {setTimeline(null); return;}
     let active = true;
     setTimelineError("");
@@ -186,7 +187,7 @@ export function FinalExperience() {
       if (active) {setTimeline(null);setTimelineError(error instanceof Error ? error.message : "Spatial forecast unavailable");}
     });
     return () => {active = false;};
-  }, [data?.demo, refresh]);
+  }, [page, data?.demo, refresh]);
   useEffect(() => {setTimeIndex(Math.min(hours - 1, 23));}, [hours]);
   useEffect(() => {setAnswer("");setAnswerMeta("");}, [selected?.id]);
 
