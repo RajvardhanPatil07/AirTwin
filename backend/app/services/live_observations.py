@@ -203,7 +203,14 @@ def ingest_pune_history(stations, fetch_payload, *, max_sensors=None):
         if not sid.isdigit():
             return 0
         previous = read_observations(station["id"], hours=96)
-        from_time = now - timedelta(hours=720 if not previous else 8)
+        # After an outage or delayed publication, the last eight hours alone
+        # can silently skip the missing history. Resume from the newest
+        # persisted measurement with a two-hour overlap for corrections.
+        if previous:
+            latest = pd.Timestamp(previous[-1]["timestamp"]).to_pydatetime()
+            from_time = max(now - timedelta(hours=720), latest - timedelta(hours=2))
+        else:
+            from_time = now - timedelta(hours=720)
         payload = fetch_payload(
             f"https://api.openaq.org/v3/sensors/{sid}/hours",
             {"datetime_from": from_time.isoformat(), "datetime_to": now.isoformat(),
