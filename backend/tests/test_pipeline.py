@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import pandas as pd
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build_dataset import clean_air, merge
@@ -32,13 +33,17 @@ def test_sample_size_and_honest_labels():
     assert set(frame.weather_source_type) == {"synthetic"}
     assert frame.timestamp.diff().dropna().eq(pd.Timedelta(hours=1)).all()
 
-def test_openaq_missing_key_falls_back(monkeypatch, tmp_path):
+def test_openaq_missing_key_preserves_prior_observations(monkeypatch, tmp_path):
     import fetch_openaq
     monkeypatch.delenv("OPENAQ_API_KEY", raising=False)
     monkeypatch.setattr(fetch_openaq, "RAW", tmp_path)
     monkeypatch.setattr(sys, "argv", ["fetch_openaq.py"])
-    fetch_openaq.main()
-    assert set(pd.read_csv(tmp_path / "air_quality.csv").source_type) == {"synthetic"}
+    existing = tmp_path / "air_quality.csv"
+    existing.write_text("source_type,pm25\nobserved,42\n")
+    before = existing.read_bytes()
+    with pytest.raises(SystemExit):
+        fetch_openaq.main()
+    assert existing.read_bytes() == before
 
 
 def test_weather_api_failure_falls_back(monkeypatch, tmp_path):

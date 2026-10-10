@@ -40,6 +40,7 @@ def provider(t):
 
 def artifact():
     return {
+        "version": 3,
         "models": {24: {
             "features": ["current_pm25", "lag_48", "rolling_mean_24",
                          "cams_target", "boundary_layer_height"]
