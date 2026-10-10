@@ -49,3 +49,62 @@ On a provider refresh, only past/present CAMS hourly fields (not forecast future
 ## Deployment constraints
 
 Existing hosting is Vercel frontend + Railway API. PostgreSQL is opt-in through \`DATABASE_URL\`; the repo contains no credentials. Live OpenAQ requires a provider key. Synthetic offline mode must never be labeled as live observations.
+
+
+## Performance architecture (dev/parth-overhaul only)
+
+The previous dashboard fan-out fetched stations, hotspots, forecast, backtest,
+attribution, scenarios, and timeline during initial navigation; this could
+trigger repeated spatial interpolation and multiple slow model evaluations.
+The optimized path is:
+
+```text
+React shell → GET /api/v2/bootstrap → shared Runtime.cached_snapshot()
+      │               │
+      │               └── station metadata + cells + source evidence
+      ├── active panel only → forecast OR source analysis OR validation
+      ├── overview → forecast and policy overview (independent requests)
+      └── click "Load modeled forecast playback" → timeline interpolation
+```
+
+- **Single initial spatial request:** `GET /api/v2/bootstrap` combines
+  station/context and modeled hotspot cells. Older backends remain supported
+  through the two existing `/api/stations` and `/api/hotspots` routes.
+- **Per-runtime grid snapshot reuse:** a bounded eight-key, 30-second cache
+  serves concurrent read endpoints. Provider refresh creates a new runtime
+  instance and therefore a fresh cache. Scenario outputs allocate new cells,
+  so baseline map cells are never rewritten by an intervention.
+- **Browser query deduplication:** reads use a bounded 64-entry in-memory
+  cache with expiry; in-flight identical queries share one Promise. Failed
+  responses are not cached. Explicit refresh bypasses the dashboard cache.
+  Decision writes and AI explanations are never cached.
+- **Demand-based analysis:** the map and shell can display while unrelated
+  model calculations are deferred until the user opens their specific panel.
+  Timeline replay is opt-in because it can interpolate thousands of values.
+- **Independent visual chunks:** Leaflet map and Recharts chart modules
+  load separately via React.lazy/Suspense. The core UI can render before
+  the map or plotting libraries load. The map maintains its own stable
+  placeholder height.
+- **Smooth map gestures:** a resized map no longer forces zoom to level 11
+  or repeatedly refits the viewport. Resize invalidation is coalesced per
+  animation frame. Each grid cell uses one vector layer rather than two.
+
+### Performance acceptance checks
+
+1. On a cold page visit with an available upgraded API, the frontend should
+   request one bootstrap payload instead of two station/grid payloads.
+2. Before choosing playback, `/api/timeline` must not be requested.
+3. Attribution and validation requests should occur only when the relevant
+   inspector tab is opened.
+4. Zoom and pan should persist when the viewport layout resizes.
+5. Fast repeated reads should reuse cached data; a manual refresh should fetch
+   a fresh city bootstrap; failed requests must not become cached success.
+6. Run `pytest backend/tests` and `npm run lint && npm test && npm run build`
+   in CI. Validate actual startup TTFB, transfer bytes, p95 API latency,
+   and interaction frame timings before claiming measured speedups.
+
+**Limitations:** No quantified latency reduction or guaranteed frame rate has
+been measured by this change alone. Model loading on cold API instances and
+provider/network delays remain deployment-level risks. Source labeling,
+historical validation, and all existing `/api/*` response contracts remain
+part of the acceptance gate.
