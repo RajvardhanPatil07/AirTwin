@@ -400,3 +400,34 @@ body { background: #f5f7ff !important; -webkit-font-smoothing: antialiased; }
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Performance states: keep the map footprint stable while its heavy Leaflet
+   chunk downloads, and give users control over costly forecast playback. */
+.tw-map-loading {
+  min-height: 515px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #edf6f7, #f5faf9);
+  color: #39626d;
+  font-size: 13px;
+  font-weight: 650;
+}
+.tw-timeline-load {
+  width: 100%;
+  min-height: 45px;
+  border: 1px solid rgba(20, 129, 122, .38);
+  background: rgba(235, 251, 247, .93);
+  color: #176c68;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tw-timeline-load:hover,
+.tw-timeline-load:focus-visible {
+  background: #d5f3ec;
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .tw-map-loading { min-height: 490px; }
+}
