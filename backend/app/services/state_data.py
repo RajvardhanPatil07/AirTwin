@@ -193,7 +193,7 @@ class StateRuntime(Runtime):
         return stations + observed, cells, background, weather, self.origin
 
     def stations(self, replay_at=None):
-        stations, _, _, weather, _ = self.snapshot(replay_at)
+        stations, _, _, weather, _ = self.cached_snapshot(replay_at)
         age = max(0, (pd.Timestamp.now(tz=TIMEZONE) - self.origin).total_seconds() / 3600)
         warnings = [*self.warnings]
         if age > 6:
@@ -207,7 +207,7 @@ class StateRuntime(Runtime):
                          'updated_at': self.payload['updated_at'], 'variables': AIR_FIELDS + WEATHER_FIELDS}}
 
     def location(self, location_id, replay_at=None):
-        stations, cells, background, _, timestamp = self.snapshot(replay_at)
+        stations, cells, background, _, timestamp = self.cached_snapshot(replay_at)
         found = next((p for p in stations if p['id'] == location_id), None)
         if found is None:
             cell = next((c for c in cells if c['id'] == location_id), None)
