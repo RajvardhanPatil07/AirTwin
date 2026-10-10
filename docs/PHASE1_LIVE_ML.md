@@ -70,7 +70,7 @@ python backend/scripts/backfill_openaq_history.py --days 45 --max-sensors 23
 python backend/scripts/export_observed_history.py --days 90 --min-station-hours 720
 python backend/scripts/fetch_weather.py
 python backend/scripts/build_dataset.py
-python backend/scripts/train_model.py
+python backend/scripts/train_observed_model.py
 ```
 
 The first command requests paged genuine OpenAQ `/hours` records, keeps
@@ -108,3 +108,14 @@ These historical observations never enter the live stations endpoint,
 current hotspot colors, live coverage counts, scenarios or operational model
 inference. If Supabase is temporarily unreachable the overlay disappears
 without breaking the modeled main dashboard.
+
+### Fail-closed observed model training
+
+The observed-specific training entrypoint refuses to overwrite a working model
+if the processed targets are not **exclusively OBSERVED OpenAQ PM2.5**, if
+there are fewer than 720 distinct measurement hours for the best-covered
+station, or if its weather inputs are synthetic/missing entirely.
+It uses the existing chronological held-out validation from `model.train`,
+and prints its measured-versus-persistence error after training.
+The general `train_model.py --offline` remains available solely for
+separately labeled offline synthetic demonstration testing.
