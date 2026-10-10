@@ -10,6 +10,8 @@ on:
       - 'backend/app/services/forecast_dispatcher.py'
       - 'backend/app/main.py'
       - 'backend/tests/test_retraining.py'
+      - 'backend/tests/test_live_phase1.py'
+      - 'backend/tests/test_live_feed.py'
       - '.github/workflows/retraining-tests.yml'
   workflow_dispatch:
 
