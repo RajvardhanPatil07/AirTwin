@@ -5,6 +5,8 @@ import { Layers3, LocateFixed, MapPin, Search, X } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
 import type { DashboardData, Station } from "../types";
 import { concentrationColor, METRICS, readingFor, type MetricId } from "../lib/finalMetrics";
+import { localityMatches } from "../lib/finalPlaces";
+import { SmoothHeatLayer } from "./SmoothHeatLayer";
 import { number, timeLabel, dateLabel } from "../lib/format";
 
 function accessibleTarget(event: LeafletEvent, label: string, retries = 1) {
@@ -64,8 +66,11 @@ export function FinalMap({
   const markers = useMemo(() =>
     data.stations.filter((station) => readingFor(station, metric, data.demo) && (layers.observed || station.source_type !== "observed")),
     [data.stations, metric, data.demo, layers.observed]);
-  const matches = useMemo(() => data.stations.filter((station) =>
-    station.name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6), [search, data.stations]);
+  const matches = useMemo(() => [
+    ...data.stations.filter((station) =>
+      station.name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6),
+    ...localityMatches(data, search),
+  ].slice(0, 9), [search, data]);
   const tile = night
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -78,8 +83,14 @@ export function FinalMap({
       <ScaleControl position="bottomleft" imperial={false}/>
       <FollowSelected selected={selected} focus={focus}/>
       <RecenterControl/>
+      {showGrid && <SmoothHeatLayer cells={data.cells} opacity={selected && focus ? 0.66 : 1}/>}
       {showGrid && data.cells.map((cell) => <Rectangle key={cell.id} bounds={cell.bounds}
-        pathOptions={{ color: concentrationColor(cell.pm25), weight: 0.3, fillColor: concentrationColor(cell.pm25), fillOpacity: selected && focus ? 0.14 : 0.36 }}
+        pathOptions={{
+          color: selected?.id === cell.id ? "#194e85" : "transparent",
+          weight: selected?.id === cell.id ? 2.7 : 0,
+          fillColor: concentrationColor(cell.pm25),
+          fillOpacity: selected?.id === cell.id ? 0.075 : 0.005,
+        }}
         eventHandlers={{ add: (event) => accessibleTarget(event, "Select modeled grid cell " + cell.id), click: () => onSelect({
           id: cell.id, name: "Modeled grid · " + cell.id, short_name: "Grid cell",
           latitude: cell.latitude, longitude: cell.longitude, pm25: cell.pm25,
@@ -103,7 +114,7 @@ export function FinalMap({
             dashArray: station.source_type !== "observed" ? "4 3" : undefined,
           }}
           eventHandlers={{ add: (event) => accessibleTarget(event, "Select location " + station.name), click: () => onSelect(station) }}>
-          <Tooltip direction="top" offset={[0, -8]}>
+          <Tooltip direction="top" offset={[0, -8]} permanent={active || station.id === data.stations[0]?.id}>
             <strong>{station.short_name || station.name}</strong><br/>
             {number(reading.value)} {reading.unit} · {reading.source.toUpperCase()}<br/>
             {dateLabel(reading.timestamp)} {timeLabel(reading.timestamp)} IST
@@ -137,9 +148,9 @@ export function FinalMap({
       <div className="fm-legend-top"><span className="fm-legend-dot"/><strong>{metricInfo.label}</strong><small>{metric === "pm25" ? "Interpolated · MODELED" : "Reference readings"}</small></div>
       {metric === "pm25" ? <>
         <div className="fm-gradient"/><div className="fm-legend-scale"><span>0</span><span>30</span><span>60</span><span>90</span><span>120+</span></div>
-        <div className="fm-legend-foot">µg/m³ · illustrative concentration ramp, not AQI</div>
+        <div className="fm-legend-foot">µg/m³ · smooth display of a coarse 12×12 modeled grid, not extra measurements or AQI</div>
       </> : <div className="fm-legend-foot">No modeled heat surface for {metricInfo.label}. Only supported reference readings.</div>}
-      {forecast && <div className="fm-legend-foot">Map shows latest baseline, not a future spatial forecast.</div>}
+      {forecast && <div className="fm-legend-foot">Spatial baseline only. Forecast timeline is location-specific.</div>}
       {data.demo && <div className="fm-demo">SYNTHETIC DEMO · not measured air</div>}
     </div>
     {tileError && <div className="fm-tile-error" role="status">Basemap tiles are temporarily unavailable; geographic data labels remain.</div>}
