@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, BarChart3, CheckCircle2,
   ChevronRight, CircleHelp, CloudSun, Database, Gauge, GitCompareArrows,
@@ -51,6 +51,7 @@ export function DecisionStudio() {
   const [attribution, setAttribution] = useState<AttributionResponse | null>(null);
   const [scenario, setScenario] = useState<ScenarioResponse | null>(null);
   const [timeline, setTimeline] = useState<TimelineResponse | null>(null);
+  const [timelineRequested, setTimelineRequested] = useState(false);
   const [frameIndex, setFrameIndex] = useState(0);
   const [hours, setHours] = useState(24);
   const [cuts, setCuts] = useState<Cuts>({ ...DEFAULT_CUTS });
@@ -71,14 +72,22 @@ export function DecisionStudio() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    loadDashboard(replayAt, "pcmc").then((next) => {
+    loadDashboard(replayAt, "pcmc", reload > 0).then((next) => {
       if (!active) return;
-      setData(next);
+      // Keep the last valid city reading during transient provider failures.
+      setData((old) => next.demo && old && !old.demo
+        ? { ...old, warning: next.warning }
+        : next);
       setSelectedId((old) => next.stations.some((item) => item.id === old) ? old : (next.stations[0]?.id ?? ""));
       setSelectedGrid(null);
       setError(null);
       setLoading(false);
-    }).catch(() => active && setError("Unable to load the AirTwin data workspace."));
+    }).catch(() => {
+      if (active) {
+        setError("Unable to refresh the AirTwin data workspace.");
+        setLoading(false);
+      }
+    });
     return () => { active = false; };
   }, [replayAt, reload]);
 
@@ -88,48 +97,82 @@ export function DecisionStudio() {
     return () => window.clearInterval(timer);
   }, [replayAt]);
 
+  // Only request analyses the active panel can show. Slow validation and
+  // attribution work never block the initial city overview or map.
   useEffect(() => {
-    let active = true;
-    if (!data || !location) return;
-    setAnalysisLoading(true);
     setForecast(null);
     setBacktest(null);
     setAttribution(null);
     setScenario(null);
     setSaveState("none");
-    Promise.allSettled([
-      api.forecast(location, data.demo, hours, replayAt, "pcmc"),
-      api.backtest(location, data.demo, replayAt, "pcmc"),
-      api.attribution(location, data.demo, replayAt, "pcmc"),
-      api.scenarios(location, appliedCuts, data.demo, replayAt, "pcmc"),
-    ]).then((results) => {
+  }, [location?.id, replayAt, data?.demo]);
+
+  useEffect(() => {
+    if (!data || !location) return;
+    let active = true;
+    setAnalysisLoading(true);
+    const jobs: Promise<unknown>[] = [];
+    if (view === "overview" || view === "forecast") {
+      jobs.push(api.forecast(location, data.demo, hours, replayAt, "pcmc")
+        .then((value) => { if (active) setForecast(value); }));
+    }
+    if (view === "validation") {
+      jobs.push(api.backtest(location, data.demo, replayAt, "pcmc")
+        .then((value) => { if (active) setBacktest(value); }));
+    }
+    if (view === "sources") {
+      jobs.push(api.attribution(location, data.demo, replayAt, "pcmc")
+        .then((value) => { if (active) setAttribution(value); }));
+    }
+    if (view === "overview" || view === "scenarios") {
+      jobs.push(api.scenarios(location, appliedCuts, data.demo, replayAt, "pcmc")
+        .then((value) => { if (active) setScenario(value); }));
+    }
+    Promise.allSettled(jobs).then((results) => {
       if (!active) return;
-      if (results[0].status === "fulfilled") setForecast(results[0].value as ForecastResponse);
-      if (results[1].status === "fulfilled") setBacktest(results[1].value as BacktestResponse);
-      if (results[2].status === "fulfilled") setAttribution(results[2].value as AttributionResponse);
-      if (results[3].status === "fulfilled") setScenario(results[3].value as ScenarioResponse);
-      setError(results.every((r) => r.status === "rejected")
-        ? "Location analysis is unavailable. Select another location or retry."
-        : null);
+      if (results.length > 0 && results.every((result) => result.status === "rejected")) {
+        setError("Selected analysis is unavailable. Try another location or retry.");
+      } else {
+        setError(null);
+      }
       setAnalysisLoading(false);
     });
     return () => { active = false; };
-  }, [data, location?.id, hours, replayAt, reload]);
+    // Do not depend on appliedCuts: saving a user-run decision should not
+    // trigger a competing speculative request that overwrites its result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, location?.id, view, hours, replayAt, reload]);
 
   useEffect(() => {
     if (!data || data.demo) {
-      setTimeline(null);
       setStorage(null);
       return;
     }
     let active = true;
-    setFrameIndex(0);
-    api.timeline(replayAt, "pcmc").then((result) => active && setTimeline(result))
-      .catch(() => active && setTimeline(null));
     api.dataHealth("pcmc").then((result) => active && setStorage(result.database))
       .catch(() => active && setStorage(null));
     return () => { active = false; };
-  }, [data?.stations[0]?.timestamp, data?.demo, replayAt]);
+  }, [data?.stations[0]?.timestamp, data?.demo]);
+
+  useEffect(() => {
+    // Hour-by-hour interpolation is costly. Do not generate it until someone
+    // chooses to explore the playback timeline.
+    if (!timelineRequested || !data || data.demo) return;
+    let active = true;
+    setFrameIndex(0);
+    setTimeline(null);
+    api.timeline(replayAt, "pcmc").then((result) => active && setTimeline(result))
+      .catch(() => active && setTimeline(null));
+    return () => { active = false; };
+  }, [timelineRequested, data?.stations[0]?.timestamp, data?.demo, replayAt]);
+
+  const timelineControl = useMemo(() => data?.demo
+    ? <div className="timeline-bar timeline-unavailable">Forecast replay requires the backend · SYNTHETIC demo shown</div>
+    : !timelineRequested
+      ? <button type="button" className="timeline-bar tw-timeline-load" onClick={() => setTimelineRequested(true)}>Load modeled forecast playback</button>
+      : <TimelineBar timeline={timeline} index={frameIndex} onIndex={(n) => { setFrameIndex(n); setAfter(false); }} loading={!timeline}/>,
+    [data?.demo, timelineRequested, timeline, frameIndex],
+  );
 
   const selected = useMemo(() =>
     scenario?.results.find((item) => item.id === action) ?? scenario?.results[0] ?? null,
@@ -174,7 +217,7 @@ export function DecisionStudio() {
     }
   }
 
-  function chooseLocation(next: Station) {
+  const chooseLocation = useCallback((next: Station) => {
     if (running) return;
     setSelectedId(next.id);
     const original = data?.cells.find((cell) => cell.id === next.id);
@@ -182,7 +225,12 @@ export function DecisionStudio() {
     setFrameIndex(0);
     setAfter(false);
     setAction("combined");
-  }
+  }, [running, data?.cells]);
+
+  const toggleAfter = useCallback(() => {
+    setFrameIndex(0);
+    setAfter((last) => !last);
+  }, []);
 
   async function toggleReplay() {
     if (loading || data?.demo) return;
@@ -354,7 +402,7 @@ export function DecisionStudio() {
                   selected={location}
                   onSelect={chooseLocation}
                   after={!frame && after && Boolean(selected)}
-                  onAfter={() => { setFrameIndex(0); setAfter((last) => !last); }}
+                  onAfter={toggleAfter}
                   dark={false}
                   demo={data.demo}
                   weather={location.weather?.source_type ? location.weather : data.weather}
@@ -362,9 +410,7 @@ export function DecisionStudio() {
                   zonesSourceType={data.zones_source_type}
                   region={data.region}
                   forecastLabel={frame ? "+" + frame.hour + "h modeled forecast" : null}
-                  timeline={data.demo
-                    ? <div className="timeline-bar timeline-unavailable">Forecast replay requires the backend · SYNTHETIC demo shown</div>
-                    : <TimelineBar timeline={timeline} index={frameIndex} onIndex={(n) => { setFrameIndex(n); setAfter(false); }} loading={!timeline}/>}
+                  timeline={timelineControl}
                 />
                 <div className="tw-map-caption">
                   <span><CheckCircle2 size={14}/> Each station retains its source type and timestamp</span>
