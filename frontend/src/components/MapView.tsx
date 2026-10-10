@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import {
   CircleMarker,
   GeoJSON,
@@ -54,11 +54,15 @@ const BANDS = [
 function MapRuntime({ region }: { region?: RegionInfo }) {
   const map = useMap();
   useEffect(() => {
+    // A container resize must not reset the user's zoom or pan. Coalesce
+    // resize notifications into one frame to avoid repeated Leaflet layouts.
+    let resizeFrame = 0;
     const observer = new ResizeObserver(() => {
-      map.invalidateSize();
-      if (region?.id === "maharashtra")
-        map.fitBounds(region.bounds, { padding: [30, 30] });
-      else map.setZoom(11);
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        map.invalidateSize({ pan: false });
+      });
     });
     observer.observe(map.getContainer());
     // This SVG pattern encodes modeled grid provenance; geography is rendered by Leaflet.
@@ -89,6 +93,7 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
     if (region) map.fitBounds(region.bounds, { padding: [30, 30] });
     return () => {
       observer.disconnect();
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
       map.off("layeradd", injectHatch);
     };
   }, [map, region]);
@@ -111,7 +116,7 @@ interface Props {
   timeline?: ReactNode;
   forecastLabel?: string | null;
 }
-export function MapView({
+export const MapView = memo(function MapView({
   stations,
   cells,
   selected,
@@ -201,13 +206,8 @@ export function MapView({
               }}
             ></Rectangle>
           ))}
-        {layers.Hotspots && cells.map((cell) => {
-          const [[, west], [north, east]] = cell.bounds;
-          const rise = Math.min(Math.max(cell.pm25, 0), 250) / 250 * 0.004;
-          return <Polygon key={`depth-${cell.id}`} interactive={false}
-            positions={[[north, west], [north + rise, west], [north + rise, east], [north, east]]}
-            pathOptions={{ color: "#ffffff", weight: 0.5, fillColor: colorFor(cell.pm25), fillOpacity: 0.65 }} />;
-        })}
+        {/* One interactive rectangle per cell: the former decorative extrusion
+            doubled all grid layers and slowed pan/zoom without adding evidence. */}
         {layers.Zones && zones && (
           <GeoJSON
             data={zones as unknown as GeoJsonObject}
@@ -449,4 +449,4 @@ export function MapView({
       </div>
     </section>
   );
-}
+});
