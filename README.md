@@ -5,26 +5,32 @@
   <p>An environmental digital twin for Pune and Pimpri-Chinchwad.</p>
   <p>
     <a href="https://github.com/RajvardhanPatil07/AirTwin/actions/workflows/ci.yml"><img src="https://github.com/RajvardhanPatil07/AirTwin/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
-    &nbsp; <a href="#run-it-locally">Run locally</a> · <a href="#what-you-can-explore">Explore the dashboard</a> · <a href="#how-to-read-the-results">Read the evidence</a> · <a href="#future-directions">Future directions</a>
+    &nbsp; <a href="#run-it-locally">Run locally</a> · <a href="#what-you-can-explore">Explore the guide</a> · <a href="#how-to-read-the-results">Read the evidence</a> · <a href="#future-directions">Future directions</a>
   </p>
 </div>
 
-![AirTwin glass dashboard showing a pollution map, forecast timeline, and evidence-based assistant](frontend/ai-preview.png)
+![AirTwin guided experience with backend source estimates and a Gemini answer with evidence citations](frontend/docs/guided-evidence/connected-chat.png)
 
-*Capture of the current interface. The snapshot in the image is historical; check timestamps and source labels in the running app.*
+*Verified interface capture from 10 October 2026. Values belong to that snapshot; check timestamps and source labels in the running app.*
 
-AirTwin brings station readings, a 72-hour PM2.5 outlook, model explanations, and intervention comparisons into one place. It helps you ask where pollution is high, what the forecast suggests, and how assumed traffic, industry, or dust controls compare. It does **not** measure the effect of a real policy.
+AirTwin helps you explore air quality in Pune and Pimpri-Chinchwad, understand a forecast, and compare assumed pollution controls. The default interface walks through eight steps, with backend results and an evidence-based assistant. **Advanced view** opens the full map, replay, feed, and sensor-resilience dashboard.
 
 ## What you can explore
 
-| View | What it shows | Read it as |
+| Step | What you can do | Where the result comes from |
 | --- | --- | --- |
-| Map and timeline | Station points, a 12×12 interpolated grid, and forecast playback | Stations may be observed; grid cells and future frames are modeled |
-| Forecast and backtest | PM2.5 predictions, uncertainty bands, held-out errors, and baseline comparisons | Forecasts begin at the latest available data timestamp |
-| Sources | Estimated traffic, industry, dust, and background shares | Assumption-based proxies, not measured source apportionment |
-| Scenarios | Three individual cuts and a combined package, ranked by population-weighted reduction | Comparative estimates, not people protected or avoided illness |
-| Historical replay and backtest | A dated held-out snapshot; measured station backtests use chronological 24-hour holdouts when OpenAQ hourly history is sufficient | Historical station backtests are local monitor benchmarks and do not validate CAMS; unavailable history stays unavailable |
-| Ask AirTwin | Explanations grounded in computed outputs and cited evidence IDs | Generated answers are checked for supported values; a labeled summary works without Gemini |
+| 1. Place | Search for a supported area and choose a reference point | Backend locations and geographic coordinates |
+| 2. Air today | See PM2.5, weather, nearby points, and the concentration grid | Timestamped provider data with observed or modeled labels |
+| 3. Forecast | Compare 24-, 48-, and 72-hour PM2.5 outlooks | Backend forecast, model identity, input cutoff, and disclosed fallbacks |
+| 4. Understand | Explore source proxies and ask AirTwin questions | Backend attribution and Gemini answers with evidence citations |
+| 5. Try actions | Adjust traffic, industry, and dust reductions; calculate a before/after comparison | Backend scenario engine with assumed intervention responses |
+| 6. Plan | Set an INR budget, target reduction, and unavailable actions | Forecast-based package optimizer with feasibility checks |
+| 7. Evidence | Compare historical predictions with measurements and persistence | Chronological backtest, metrics, and validation limitations |
+| 8. Review | Inspect the comparison and download a JSON review | Selected backend location, scenario results, plan, and provenance |
+
+The guide supports light and dark themes and adapts to mobile screens. It uses the installed Vengeance UI navigation and animated buttons, alongside Leaflet maps and Recharts charts. [Frontend design and verification](frontend/design-qa.md) · [Component attribution](frontend/src/components/ui/ATTRIBUTION.md)
+
+Advanced view adds map layers, forecast playback, an observed AQI feed, historical replay, and planning under simulated sensor loss. AQI and PM2.5 use different units and are shown separately. Intervention comparisons are simulations, not measured policy effects or health outcomes.
 
 The current Pune–PCMC view refreshes CAMS/Open-Meteo air-quality and weather forecasts at 25 named area reference points while the backend runs, plus OpenAQ PM2.5 station readings when they pass a 24-hour freshness check. These reference points are modeled samples, not neighborhood monitors. When there are no fresh observations, the interface says so and identifies the displayed values as modeled. Historical replay uses the separate LightGBM model blended with persistence. Historical model backtests do not validate current provider forecasts. [Architecture](docs/architecture.md) · [API](docs/api.md) · [Data sources](docs/data_sources.md)
 
@@ -33,22 +39,43 @@ The current Pune–PCMC view refreshes CAMS/Open-Meteo air-quality and weather f
 You need Python 3.11, Node.js 22, and npm. On macOS, LightGBM may also need the OpenMP runtime (`libomp`).
 
 ```sh
-git clone https://github.com/RajvardhanPatil07/AirTwin.git
+git clone --branch dev/raj https://github.com/RajvardhanPatil07/AirTwin.git
 cd AirTwin
 python3.11 -m venv .venv311
 source .venv311/bin/activate
 python -m pip install -r backend/requirements.txt
 npm --prefix frontend ci
+cp .env.example .env
+# Add optional provider keys to .env before starting.
 python scripts/dev.py
 ```
 
-Open **http://127.0.0.1:5188/**. The API docs are at **http://127.0.0.1:8000/docs**. First startup can take several minutes because the backend trains a model if no matching artifact exists. With no downloaded dataset, it trains on the committed **synthetic sample**. That exercises the workflow but does not reproduce the observed-data results below.
+Open [AirTwin](http://127.0.0.1:5188/). [API documentation](http://127.0.0.1:8000/docs) and [API health](http://127.0.0.1:8000/api/health) are available on the backend. `scripts/dev.py` starts both services; set `AIRTWIN_FRONTEND_PORT` to use a different frontend port. First startup can take several minutes because the backend trains a model if no matching artifact exists. With no downloaded dataset, it trains on the committed **synthetic sample**. That exercises the workflow but does not reproduce the observed-data results below.
 
-To run the full synthetic pipeline, use `bash scripts/run_all.sh --offline`. The running backend fetches current Pune–PCMC provider context every 15 minutes when `LIVE_REFRESH_ENABLED=1`. An OpenAQ key enables observed-station discovery; CAMS/Open-Meteo model context does not require that key. Historical PCMC model training remains a separate operation: copy `.env.example` to `.env`, set credentials locally, and run `bash scripts/run_all.sh --live` when you want to rebuild it. The root `.env` is ignored by Git. [Setup and failure cases](docs/troubleshooting.md) · [Pipeline](docs/data_pipeline.md)
+To run the full synthetic pipeline, use `bash scripts/run_all.sh --offline`. The running backend fetches current Pune–PCMC provider context every 15 minutes when `LIVE_REFRESH_ENABLED=1`. An OpenAQ key enables observed-station discovery; CAMS/Open-Meteo model context does not require that key. Historical PCMC model training remains a separate operation: set provider credentials in the root `.env` and run `bash scripts/run_all.sh --live` when you want to rebuild it. The root `.env` is ignored by Git. [Setup and failure cases](docs/troubleshooting.md) · [Pipeline](docs/data_pipeline.md)
 
-For persistent provider history in a hosted backend, provision PostgreSQL and set `DATABASE_URL` on the backend service. Each successful Pune–PCMC refresh is stored as a timestamped JSONB snapshot, with 30-day retention; the latest database snapshot is used after a restart. Without `DATABASE_URL`, the existing local JSON cache continues to work. `/api/health` reports database connectivity and stored snapshot timestamps. Provider refresh cadence remains controlled by `LIVE_REFRESH_SECONDS` (default 15 minutes); the frontend checks for updated data every 30 seconds, but source freshness still depends on the provider.
+For persistent provider history in a hosted backend, provision PostgreSQL and set `DATABASE_URL` on the backend service. Each successful Pune–PCMC refresh is stored as a timestamped JSONB snapshot, with 30-day retention; the latest database snapshot is used after a restart. Without `DATABASE_URL`, the existing local JSON cache continues to work. `/api/health` reports database connectivity and stored snapshot timestamps. Provider refresh cadence is controlled by `LIVE_REFRESH_SECONDS` (default 15 minutes). The guide checks for updated data every 15 minutes and offers **Refresh connection**; Advanced view checks every 30 seconds. Source freshness still depends on the provider.
 
 The frontend uses the local API through Vite's `/backend` proxy. If the API is unavailable at initial load, it switches to a labeled, illustrative frontend demo. For a hosted frontend, set `VITE_API_BASE_URL` to a public backend URL and allow the frontend origin in `CORS_ORIGINS`. An explicitly empty API URL selects demo mode. [Deployment details](frontend/README.md)
+
+## Ask AirTwin and configuration
+
+Set these variables in the root `.env` or backend service environment:
+
+| Variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Enables Gemini answers in Ask AirTwin |
+| `GEMINI_MODEL` | Gemini model ID; `.env.example` currently sets `gemini-3.5-flash-lite` |
+| `OPENAQ_API_KEY` | Enables observed PM2.5 station discovery and historical data access |
+| `DATABASE_URL` | Optional PostgreSQL persistence for provider snapshots |
+| `LIVE_REFRESH_ENABLED` / `LIVE_REFRESH_SECONDS` | Provider refresh switch and interval; example defaults are `1` / `900` |
+| `CORS_ORIGINS` | Allowed frontend origins for a hosted backend |
+
+Ask AirTwin receives the selected location, forecast horizon, calculated action cuts, and recent conversation. The backend builds context from its computed outputs, calls Gemini, and checks returned claims against evidence IDs, numeric values, and provenance. The interface identifies the model and cites the evidence.
+
+If the key is absent or Gemini fails, the backend returns a labeled **evidence summary**. That summary is not a Gemini answer. Evidence checks do not prove semantic or causal correctness. Gemini was verified through the API and guided chat during the 10 October integration. [Verified response capture](frontend/docs/guided-evidence/connected-chat.png)
+
+Keep provider keys and database credentials on the backend. For a hosted frontend, `VITE_API_BASE_URL` contains only the public backend URL. An empty value explicitly selects the illustrative frontend demo. For local development, leave it unset to use the same-origin `/backend` proxy. [Frontend setup](frontend/README.md)
 
 ## How to read the results
 
@@ -85,20 +112,33 @@ used as a covariate, not as the forecast. Values describe this recorded run, not
 
 These figures belong to one retrospective dataset and its generated [model card](docs/model_card.md). Rebuilding with synthetic data will change the metrics. Some stations lose to persistence even when the pooled result improves. Provider publication delays and fully operational 48/72-hour inputs still need independent evaluation. [Validation protocol](docs/validation_protocol.md) · [Seasonal stress test](docs/evidence/seasonal_validation.md)
 
+During the 10 October integration check, the Bhosari monitor-specific 24-hour benchmark had MAE **16.89 µg/m³**, compared with persistence MAE **11.10 µg/m³**: it underperformed persistence by **52.2%** on that holdout. The Evidence screen displays this warning. This station benchmark is separate from the pooled historical results above and the current CAMS forecast. [Observed benchmark capture](frontend/docs/guided-evidence/connected-evidence.png)
+
 Intervention benefit is expressed in **person·µg/m³**, a population-weighted concentration reduction proxy. It is an assumption-based scenario estimate, not causal evidence that an intervention will reduce pollution. Scenario bounds come from assumption sensitivity; forecast bands come from model residuals. Neither is a measured health outcome. The UI shows the absolute scenario delta at extra precision so small modeled changes remain visible. [Methodology](docs/methodology.md) · [Intervention sensitivity](docs/evidence/intervention_sensitivity.md)
 
 ## How it works
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS v4, Base UI/shadcn components, Vengeance UI, Framer Motion |
+| Maps and charts | Leaflet / React Leaflet, OpenStreetMap tiles, Recharts |
+| Backend | FastAPI, Python 3.11, LightGBM, scikit-learn, TreeSHAP |
+| Assistant | Gemini with backend evidence and claim checks |
+| Storage | Local provider cache; optional PostgreSQL snapshots |
 
 ```mermaid
 flowchart LR
   A[OpenAQ readings and weather] --> B[Hourly data with provenance]
   C[CAMS and spatial inputs] --> B
+  C -->|Provider forecast and weather| G[FastAPI]
   B --> D[Features and LightGBM forecast]
   D --> E[Holdout metrics and TreeSHAP]
   B --> F[Interpolated grid and scenario engine]
-  E --> G[FastAPI]
+  E --> G
   F --> G
-  G --> H[React dashboard]
+  F --> P[Budget and feasibility optimizer]
+  P --> G
+  G --> H[React guided flow and Advanced view]
   G --> I[Evidence-checked explanation]
   I --> H
 ```
@@ -137,8 +177,10 @@ These directions depend on new data partnerships, validation, and city participa
 
 ## Check the project
 
+With the Python virtual environment activated:
+
 ```sh
-python -m pytest backend/tests -q
+PYTHONPATH=backend python -m pytest backend/tests -q
 npm --prefix frontend test
 npm --prefix frontend run lint
 npm --prefix frontend run build
@@ -147,7 +189,7 @@ python scripts/check_repository.py
 python scripts/check_documentation.py
 ```
 
-CI also runs the offline pipeline without provider keys. [Testing guide](docs/testing.md) · [Recorded verification](docs/verification.md)
+The guided integration passed 15 frontend tests and 25 targeted backend API/state/planning tests, plus lint, production build, and four Sites packaging checks. These are integration checks, not a model-accuracy claim. CI also runs the offline pipeline without provider keys. [Testing guide](docs/testing.md) · [Recorded verification](docs/verification.md)
 
 ## Find your way around
 
@@ -155,7 +197,7 @@ CI also runs the offline pipeline without provider keys. [Testing guide](docs/te
 | --- | --- |
 | [`backend/app`](backend/app) | FastAPI routes, forecasting, explanations, and scenarios |
 | [`backend/scripts`](backend/scripts) | Fetch, build, train, and validation commands |
-| [`frontend/src`](frontend/src) | React dashboard and labeled demo engine |
+| [`frontend/src`](frontend/src) | Guided flow, Advanced view, and labeled demo engine |
 | [`config/assumptions.yaml`](config/assumptions.yaml) | Scenario assumptions |
 | [`data/sample`](data/sample) | Offline sample and sourced spatial inputs |
 | [`docs`](docs) | Evidence, architecture, data provenance, and demo notes |
