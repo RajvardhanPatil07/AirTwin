@@ -422,3 +422,6 @@ button.fv-card:hover { transform: translateY(-2px); box-shadow: 0 13px 30px #164
   .fv-overview .fv-overview-cards .fv-card-primary { min-height: 185px; }
   .fv-research-header { align-items: flex-start; }
 }
+
+/* Weather graphics are interpretive and only shown when forecast weather is available. */
+.fm-atmosphere.fm-cloudy { background: radial-gradient(ellipse at 66% 32%, rgba(114,137,156,.55), transparent 65%), linear-gradient(130deg, rgba(73,91,112,.26), rgba(115,126,145,.32)); mix-blend-mode: normal; }
