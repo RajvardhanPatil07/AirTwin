@@ -1,49 +1,49 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { LandingPage } from "./pages/LandingPage";
-import type { WorkspaceView } from "./pages/routes";
 
-const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((module) => ({ default: module.DecisionStudio })));
+const DecisionStudio = lazy(() =>
+  import("./pages/DecisionStudio").then((module) => ({ default: module.DecisionStudio })),
+);
 
-type Route = "home" | WorkspaceView;
-const routes: Record<Route, string> = {
-  home: "/",
-  overview: "/map",
-  forecast: "/forecast",
-  sources: "/sources",
-  scenarios: "/interventions",
-  validation: "/validation",
-};
+type Page = "home" | "map" | "forecast" | "sources" | "scenarios" | "validation";
+const pages: Page[] = ["home", "map", "forecast", "sources", "scenarios", "validation"];
 
-function currentRoute(): Route {
-  const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  if (path === "/dashboard" || path === "/overview") return "overview";
-  return (Object.entries(routes).find(([, url]) => url === path)?.[0] as Route | undefined) ?? "home";
+function readRoute(): Page {
+  const path = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+  if (path === "overview" || path === "dashboard") return "map";
+  return pages.includes(path as Page) ? (path as Page) : "home";
 }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(currentRoute);
+  const [page, setPage] = useState<Page>(readRoute);
 
   useEffect(() => {
-    const sync = () => setRoute(currentRoute());
-    window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
+    const onRoute = () => {
+      setPage(readRoute());
+      window.scrollTo({ top: 0, behavior: "instant" });
+    };
+    window.addEventListener("hashchange", onRoute);
+    return () => window.removeEventListener("hashchange", onRoute);
   }, []);
 
-  function navigate(next: Route) {
-    if (next !== route) {
-      window.history.pushState({}, "", routes[next]);
-      setRoute(next);
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    }
-  }
+  const navigate = (next: Exclude<Page, "home">) => {
+    const target = "#/" + next;
+    if (window.location.hash !== target) window.location.hash = target;
+    else window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  useEffect(() => {
-    document.title = route === "home" ? "AirTwin — Read the air" :
-      `${route === "overview" ? "Pollution map" : route === "scenarios" ? "Interventions" : route[0].toUpperCase() + route.slice(1)} | AirTwin`;
-  }, [route]);
-
-  if (route === "home") return <LandingPage onNavigate={navigate} />;
-  return <Suspense fallback={<main className="at-route-loading" role="status">Opening AirTwin workspace…</main>}>
-    <DecisionStudio view={route} onNavigate={navigate} />
-  </Suspense>;
+  if (page === "home") return <LandingPage />;
+  return (
+    <Suspense fallback={
+      <main className="air-route-loading" role="status">
+        <span>AirTwin / ENR–01</span>
+        <p>Opening the {page} workspace…</p>
+      </main>
+    }>
+      <DecisionStudio
+        view={page === "map" ? "overview" : page}
+        onNavigate={(next) => navigate(next === "overview" ? "map" : next)}
+      />
+    </Suspense>
+  );
 }
