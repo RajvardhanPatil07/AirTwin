@@ -44,6 +44,7 @@ try {
   await page.screenshot({path:"screenshots/forecast-desktop.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(700);
+  assert.equal(await page.getByRole("button",{name:/Map layers/i}).getAttribute("aria-expanded"), "false", "Map layer controls collapse on mobile");
   await page.screenshot({path:"screenshots/forecast-mobile.png",fullPage:true});
   const overflow = await page.evaluate(() => globalThis.document.documentElement.scrollWidth - globalThis.document.documentElement.clientWidth);
   assert.ok(overflow <= 2, "Mobile layout must not cause horizontal document overflow: " + overflow);
