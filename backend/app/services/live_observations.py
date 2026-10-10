@@ -123,6 +123,8 @@ def read_observations(station_id, hours=96):
     columns = "station_id, observed_at, pm25, latitude, longitude, station_name"
     if database.configured():
         with database._connect() as conn:
+            # First read also initializes a newly provisioned Supabase database.
+            _ensure_postgres(conn)
             records = conn.execute(f"""
                 SELECT {columns} FROM airtwin.station_observations
                 WHERE station_id=%s AND observed_at >= %s::timestamptz
