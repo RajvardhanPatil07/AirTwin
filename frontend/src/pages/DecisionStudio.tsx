@@ -25,6 +25,7 @@ import { AskAirTwin } from "../components/AskAirTwin";
 import { DataBadge } from "../components/DataBadge";
 import "./decision-studio.css";
 import "./decision-studio-vivid.css";
+import "./framevitals-theme.css";
 
 type View = "overview" | "forecast" | "sources" | "scenarios" | "validation";
 type SaveState = "none" | "saved" | "unsaved";
@@ -70,7 +71,6 @@ export function DecisionStudio() {
   const [saveState, setSaveState] = useState<SaveState>("none");
   const [saveMessage, setSaveMessage] = useState("");
   const [storage, setStorage] = useState<{ configured: boolean; connected: boolean; runs: number } | null>(null);
-  const [mobileNav, setMobileNav] = useState(false);
   const location = selectedGrid ?? data?.stations.find((s) => s.id === selectedId) ?? data?.stations[0];
 
   useEffect(() => {
@@ -220,7 +220,6 @@ export function DecisionStudio() {
 
   function navigateTo(next: View) {
     setView(next);
-    setMobileNav(false);
     if (window.matchMedia("(max-width: 1100px)").matches) {
       window.requestAnimationFrame(() => document.getElementById("analysis-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
@@ -308,55 +307,43 @@ export function DecisionStudio() {
   return (
     <main className="tw-shell">
       <a className="tw-skip-link" href="#tw-content">Skip to city dashboard</a>
-      <aside className={"tw-rail" + (mobileNav ? " tw-rail-open" : "")}>
-        <a className="tw-logo" href="/" aria-label="AirTwin homepage">
-          <span className="tw-logo-symbol"><Leaf size={23} /></span>
-          <span><b>AirTwin</b><small>ENVIRONMENTAL INTELLIGENCE</small></span>
-        </a>
-        <div className="tw-rail-caption">WORKSPACE</div>
-        <nav aria-label="Main workspace navigation">
-          {NAV.map(({ id, label, description, icon: Icon }) => (
-            <button key={id} className={"tw-nav-item" + (view === id ? " is-active" : "")}
-              aria-current={view === id ? "page" : undefined}
-              onClick={() => navigateTo(id)}>
-              <Icon size={18} strokeWidth={1.8} />
-              <span><strong>{label}</strong><small>{description}</small></span>
-              {view === id && <ChevronRight size={14} className="tw-nav-arrow" />}
-            </button>
-          ))}
-        </nav>
-        <div className="tw-rail-bottom">
-          <div className="tw-rail-pill"><span className="tw-status-dot" /> Pune–PCMC study area</div>
-          <p>Air-quality decisions with transparent uncertainty, not claims of measured policy impact.</p>
-          <a href="https://github.com/RajvardhanPatil07/AirTwin/tree/dev/parth-overhaul" target="_blank" rel="noreferrer">Project source <ArrowRight size={13} /></a>
-        </div>
-      </aside>
-      {mobileNav && <button type="button" className="tw-mobile-backdrop" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
-
       <div className="tw-main" id="tw-content">
-        <header className="tw-header">
-          <div className="tw-breadcrumb">
-            <button className="tw-mobile-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Toggle navigation"><Layers3 size={19}/></button>
-            <span>City intelligence</span><ChevronRight size={14}/><strong>{NAV.find((tab) => tab.id === view)?.label}</strong>
-          </div>
-          <div className="tw-header-actions">
-            <span className="tw-region"><MapPin size={14}/> Pune & Pimpri-Chinchwad</span>
-            <span className="tw-header-date">As of {dateLabel(location.timestamp)}</span>
-            <button className="tw-icon-button" title="Refresh dataset" aria-label="Refresh dataset" onClick={() => setReload((n) => n + 1)}><RefreshCw size={17} className={loading ? "tw-spin" : ""}/></button>
-            <AskAirTwin location={location} demo={data.demo} replayAt={replayAt} region="pcmc" cuts={appliedCuts} hours={hours}/>
+        <header className="fv-topbar">
+          <div className="fv-topbar-inner">
+            <a className="fv-brand" href="#tw-content" aria-label="AirTwin city overview" onClick={() => navigateTo("overview")}>
+              <span className="fv-brand-symbol"><Leaf size={18} strokeWidth={1.8}/></span>
+              <span className="fv-brand-name">AirTwin</span>
+              <span className="fv-build-label">ENR / 01</span>
+            </a>
+            <nav className="fv-nav" aria-label="AirTwin workspace views">
+              {NAV.map(({ id, label }) => (
+                <button type="button" key={id} className={"fv-nav-link" + (view === id ? " is-active" : "")}
+                  aria-current={view === id ? "page" : undefined} onClick={() => navigateTo(id)}>
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <div className="fv-top-actions">
+              <span className="fv-region-tag"><span className="tw-status-dot"/>Pune / PCMC</span>
+              <button type="button" className="tw-icon-button" title="Refresh dataset" aria-label="Refresh dataset"
+                onClick={() => setReload((n) => n + 1)}>
+                <RefreshCw size={16} className={loading ? "tw-spin" : ""}/>
+              </button>
+              <AskAirTwin location={location} demo={data.demo} replayAt={replayAt} region="pcmc" cuts={appliedCuts} hours={hours}/>
+            </div>
           </div>
         </header>
-
         <div className="tw-body">
           <div className="tw-introduction">
-            <div><div className="tw-overline"><span className="tw-live-dot"/> URBAN ENVIRONMENTAL DIGITAL TWIN / ENR–01</div>
-              <h1>See the air. <span>Shape what happens next.</span></h1>
-              <p>Explore PM2.5 hotspots, forecast exposure and compare three pollution-control strategies across Pune–PCMC.</p>
+            <div className="fv-hero-copy">
+              <div className="tw-overline"><span className="tw-live-dot"/> URBAN ENVIRONMENTAL INTELLIGENCE · PUNE / PCMC</div>
+              <h1>Read the air.<span> Shape what happens next.</span></h1>
+              <p>From pollution observations to modeled forecasts and intervention comparisons. Every prediction keeps its evidence, timestamp and limitations visible.</p>
               <div className="tw-hero-actions">
                 <button type="button" className="tw-primary-action" onClick={() => navigateTo("scenarios")}>Compare interventions <ArrowRight size={16}/></button>
                 <button type="button" className="tw-secondary-action" onClick={() => navigateTo("forecast")}>Explore forecast <Activity size={16}/></button>
               </div></div>
-            <div className="tw-provenance-key" aria-label="Evidence provenance legend">
+            <div className="tw-provenance-key" aria-label="Evidence provenance legend"><span className="fv-key-label">EVIDENCE KEY</span>
               <DataBadge source="observed"/><DataBadge source="modeled"/><DataBadge source="synthetic"/>
             </div>
           </div>
@@ -371,6 +358,7 @@ export function DecisionStudio() {
             {data.demo && <button onClick={() => setReload((n) => n + 1)}>Retry API</button>}
           </div>}
 
+          <div className="fv-section-divider"><span>01 / CITY READOUT</span><span>Reference values · {dateLabel(location.timestamp)}</span></div>
           <section className="tw-kpis" aria-label="City workspace metrics">
             <div className="tw-kpi tw-kpi-main">
               <span><Wind size={16}/> SELECTED PM2.5 <DataBadge source={location.source_type}/></span>
@@ -394,6 +382,7 @@ export function DecisionStudio() {
             </div>
           </section>
 
+          <div className="fv-section-divider"><span>02 / SPATIAL WORKSPACE</span><span>Observed inputs · modeled output</span></div>
           <div className="tw-workspace">
             <div className="tw-map-column">
               <section className="tw-map-panel" id="pollution-map" aria-label="PM2.5 hotspot exploration">
@@ -461,7 +450,7 @@ export function DecisionStudio() {
 
             <aside className="tw-inspector" id="analysis-panel" aria-label="Selected location analysis">
               <div className="tw-inspector-header">
-                <div className="tw-eyebrow">LOCAL DECISION STUDIO</div>
+                <div className="tw-eyebrow">03 / LOCAL DECISION STUDIO</div>
                 <h2>{location.short_name}</h2>
                 <div className="tw-selection-caption"><DataBadge source={location.source_type} detail="BASELINE"/> · {dateLabel(location.timestamp)} {timeLabel(location.timestamp)} IST</div>
                 <label className="tw-location-search"><Search size={16}/>
