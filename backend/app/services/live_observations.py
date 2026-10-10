@@ -147,6 +147,41 @@ def read_observations(station_id, hours=96):
     ]
 
 
+
+def read_training_observations(*, hours=2160, limit=50000):
+    """Read retained *measured* station-hours for candidate model training.
+
+    Never mixes in CAMS or demo values. Kept separate from the 96-hour
+    inference window to avoid training only on a tiny recent slice.
+    """
+    if hours <= 0 or limit <= 0:
+        raise ValueError("hours and limit must be positive")
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    columns = "station_id, observed_at, pm25, latitude, longitude, station_name"
+    if database.configured():
+        with database._connect() as conn:
+            _ensure_postgres(conn)
+            records = conn.execute(f"""
+                SELECT {columns} FROM airtwin.station_observations
+                WHERE observed_at >= %s::timestamptz
+                ORDER BY observed_at DESC, station_id LIMIT %s
+                """, (cutoff, limit)).fetchall()
+    else:
+        with closing(_sqlite()) as conn:
+            records = conn.execute(f"""
+                SELECT {columns} FROM station_observations
+                WHERE observed_at >= ?
+                ORDER BY observed_at DESC, station_id LIMIT ?
+                """, (cutoff, limit)).fetchall()
+    return [
+        {"station_id": r[0], "timestamp": pd.Timestamp(r[1]).isoformat(),
+         "pm25": float(r[2]), "latitude": float(r[3]), "longitude": float(r[4]),
+         "station_name": r[5], "source_type": "observed",
+         "target_provider": "OpenAQ observed"}
+        for r in reversed(records)
+    ]
+
+
 def ingest_pune_history(stations, fetch_payload, *, max_sensors=None):
     """Fetch OpenAQ /hours for visible real sensors, independently of UI requests.
 
