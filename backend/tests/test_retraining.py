@@ -115,6 +115,24 @@ def test_retraining_rejects_zero_weight_production_bundle(monkeypatch):
     assert calls == []
 
 
+def test_invalid_legacy_promotion_does_not_block_replacement(monkeypatch):
+    calls = _stub_check(monkeypatch)
+    previous = {
+        "models": {24: {"weight": 0.0}}, "version": rt.VERSION,
+        "report": {"target_source_types": ["observed"], "test_rows": 50,
+                   "metrics": {"mae": 10.0, "persistence_mae": 10.0}},
+        "retraining": {
+            "trained_at": pd.Timestamp.now(tz="UTC").isoformat(),
+            "latest_observed_at": "2026-08-18T00:00:00+00:00",
+        },
+    }
+    monkeypatch.setattr(rt, "_existing_live_artifact", lambda: previous)
+    result = rt.run_retraining_check()
+    assert result["status"] == "promoted"
+    assert len(calls) == 1
+    assert calls[0]["retraining"]["new_rows"] == 60
+
+
 def test_retraining_waits_for_new_readings(monkeypatch):
     calls = _stub_check(monkeypatch)
     monkeypatch.setattr(rt, "MIN_NEW_ROWS", 61)
