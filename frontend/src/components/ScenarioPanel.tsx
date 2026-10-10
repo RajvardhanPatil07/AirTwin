@@ -7,7 +7,7 @@ import type {
   SourceType,
 } from "../types";
 import { ACTIONS } from "../mocks/engine";
-import { compact, number } from "../lib/format";
+import { compact, number, scenarioNumber } from "../lib/format";
 import { compareInterventions } from "../lib/interventions";
 import { AssumptionsPanel } from "./AssumptionsPanel";
 
@@ -43,7 +43,7 @@ export function ScenarioPanel({
         >
           <div className="comparison-heading">
             <div>
-              <h2>Clean-air scenario</h2>
+              <h2>Modeled intervention estimate</h2>
               <p>{selected.name}</p>
             </div>
             <span className="rank-badge">
@@ -61,7 +61,7 @@ export function ScenarioPanel({
               </div>
               <span>Selected location baseline</span>
               <strong>
-                {number(selected.before)} <small>µg/m³</small>
+                {scenarioNumber(selected.before)} <small>µg/m³</small>
               </strong>
             </div>
             <ArrowRight size={18} className="comparison-arrow" />
@@ -69,20 +69,31 @@ export function ScenarioPanel({
               <div className="mini-badge">MODELED SCENARIO</div>
               <span>After intervention</span>
               <strong>
-                {number(selected.after)} <small>µg/m³</small>
+                {scenarioNumber(selected.after)} <small>µg/m³</small>
               </strong>
             </div>
           </div>
           <div className="reduction-strip" aria-live="polite">
-            <strong>Estimated reduction {number(selected.reduction_percent)}%</strong>
-            <span>{outdated ? "Run to update" : "Modeled estimate"}</span>
+            {response?.location_status === "no_resolvable_local_excess" ? (
+              <strong>Impact unavailable · no resolvable local excess in this snapshot</strong>
+            ) : (
+              <strong>Estimated change −{scenarioNumber(selected.reduction)} µg/m³ ({scenarioNumber(selected.reduction_percent)}%)</strong>
+            )}
+            <span>{outdated ? "Previous estimate · run to update" : response?.location_status === "no_resolvable_local_excess" ? response.status_reason : "Assumption-based estimate · not a measured outcome"}</span>
           </div>
+        </section>
+      )}
+      {response?.location_status === "no_resolvable_local_excess" && (
+        <section className="intervention-evidence" role="status">
+          <h3>Selected-location impact unavailable</h3>
+          <p>{response.status_reason}</p>
+          <p>Region-wide grid comparisons below are still modeled estimates and depend on the disclosed source and population assumptions.</p>
         </section>
       )}
       {response && (
         <section className="intervention-evidence" aria-label="Individual action comparison" aria-live="polite">
           <h3>{outdated ? "Previous action comparison" : "Which individual action helps most?"}</h3>
-          <p>{comparison.best ? <><strong>{comparison.best.name}</strong> leads for the applied cuts, ranked across this region by population-weighted exposure reduction.</> : "No modeled exposure reduction at these cuts. Try increasing an intervention."}</p>
+          <p>{comparison.best ? <><strong>{comparison.best.name}</strong> has the highest modeled population-weighted exposure change for these chosen cuts. This ranks assumed scenarios; it does not establish policy effectiveness.</> : "No modeled exposure reduction at these cuts. Try increasing an intervention."}</p>
           <p>{comparison.status === "separated" ? "Its benefit range stays above the other individual actions within the tested sensitivity envelope." : comparison.status === "overlap" ? "Exposure-benefit ranges overlap. These bounds alone do not establish a robust winner; overlap does not prove the ranking reverses." : comparison.status === "unavailable" ? "This backend does not supply exposure sensitivity bounds. Ranking robustness is unavailable." : "The combined package adds the three individual effects; it is not a fourth independent policy."}</p>
           <small>Same snapshot and weather; cuts can differ by action. Sensitivity varies pass-through 0.6–0.8 and source scaling ±20%. These are assumption bounds, not confidence intervals. {selected?.population_source_type === "modeled" ? "Population uses WorldPop 2020 modeled counts." : "Population is synthetic."}</small>
         </section>

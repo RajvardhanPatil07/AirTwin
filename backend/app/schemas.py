@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 SourceType = Literal['observed', 'modeled', 'synthetic']
-Region = Literal['pcmc', 'maharashtra']
+Region = Literal['pcmc']
 
 
 class Provenance(BaseModel):
@@ -62,12 +62,14 @@ class ScenarioResult(Provenance):
 class ScenarioResponse(Provenance):
     scenario_id: str
     location_id: str
+    location_status: str = 'estimated'
+    status_reason: str | None = None
     results: list[ScenarioResult]
 
 
 class StationsResponse(Provenance):
     stations: list[Station]
-    warnings: list[str] = []
+    warnings: list[str] = Field(default_factory=list)
     data_mode: str
     weather: dict = {}
     zones: dict = {}
@@ -96,6 +98,12 @@ class ForecastResponse(Provenance):
     series: list[SeriesPoint]
     shap: dict | None = None
     weather_forecast: list[dict] = []
+    forecast_provider: str | None = None
+    model_id: str | None = None
+    model_version: str | None = None
+    issued_at: str | None = None
+    input_cutoff: str | None = None
+    fallback_reason: str | None = None
 
 
 class Metrics(BaseModel):
@@ -104,7 +112,7 @@ class Metrics(BaseModel):
     r2: float
     persistence_mae: float
     improvement_percent: float
-    interval_coverage: float
+    interval_coverage: float | None = None
 
 
 class BacktestResponse(Provenance):
@@ -130,6 +138,8 @@ class AttributionResponse(Provenance):
     location_id: str
     background: float
     shares: list[Share]
+    status: str = 'estimated'
+    status_reason: str | None = None
     config: dict
 
 

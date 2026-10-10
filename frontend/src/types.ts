@@ -1,5 +1,5 @@
 export type SourceType = "observed" | "modeled" | "synthetic";
-export type RegionId = "pcmc" | "maharashtra";
+export type RegionId = "pcmc";
 export interface RegionInfo {
   id: RegionId;
   name: string;
@@ -66,6 +66,8 @@ export interface ScenarioResult extends Provenance {
 export interface ScenarioResponse extends Provenance {
   scenario_id: string;
   location_id: string;
+  location_status?: "estimated" | "no_resolvable_local_excess";
+  status_reason?: string | null;
   results: ScenarioResult[];
 }
 export interface StationsResponse extends Provenance {
@@ -90,6 +92,12 @@ export interface SeriesPoint {
   p90: number | null;
 }
 export interface ForecastResponse extends Provenance {
+  forecast_provider?: string | null;
+  model_id?: string | null;
+  model_version?: string | null;
+  issued_at?: string | null;
+  input_cutoff?: string | null;
+  fallback_reason?: string | null;
   location_id: string;
   history_source_type: SourceType;
   history_reference?: string;
@@ -103,7 +111,7 @@ export interface Metrics {
   r2: number;
   persistence_mae: number;
   improvement_percent: number;
-  interval_coverage: number;
+  interval_coverage: number | null;
 }
 export interface BacktestResponse extends Provenance {
   location_id: string;
@@ -142,6 +150,8 @@ export interface TimelineResponse extends Provenance {
 export interface AttributionResponse extends Provenance {
   location_id: string;
   background: number;
+  status?: "estimated" | "unresolved";
+  status_reason?: string | null;
   shares: { name: string; value: number; color: string }[];
 }
 export interface DashboardData {

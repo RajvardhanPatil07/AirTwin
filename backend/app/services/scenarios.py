@@ -36,5 +36,9 @@ def simulate(location, cells, background, cuts, weather, timestamp, zones=None, 
     for rank, item in enumerate(results, 1):
         item['rank'] = rank
     identity = json.dumps([location['id'], timestamp.isoformat(), cuts], sort_keys=True)
+    local_excess = max(location['pm25'] - background, 0)
+    resolvable = local_excess > max(0.05, location['pm25'] * 0.005)
     return {'scenario_id': hashlib.sha256(identity.encode()).hexdigest()[:16],
+            'location_status': 'estimated' if resolvable else 'no_resolvable_local_excess',
+            'status_reason': None if resolvable else 'The selected location is at the modeled regional background for this snapshot, so its point-level intervention change cannot be resolved. Region-wide grid estimates are shown separately below.',
             'location_id': location['id'], 'results': results, 'source_type': 'modeled', 'assumptions': assumptions}

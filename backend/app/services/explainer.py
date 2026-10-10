@@ -32,13 +32,7 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
     evidence = {}
     def add(key, source, data):
         evidence[key] = {'source_type': source, 'data': compact(data)}
-    is_state = getattr(runtime, 'region_name', '') == 'Maharashtra'
     forecast_evidence = forecast
-    if is_state:
-        forecast_evidence = {key: value for key, value in forecast.items()
-                             if key not in ('series', 'weather_forecast', 'assumptions')}
-        forecast_evidence['series'] = [point for point in forecast['series'] if point.get('predicted') is not None]
-        forecast_evidence['weather_forecast'] = forecast.get('weather_forecast', [])[::6]
     add('baseline', location['source_type'], location)
     add('weather', stations.get('weather', {}).get('source_type', 'modeled'), weather)
     add('forecast', 'modeled', forecast_evidence)
@@ -58,7 +52,7 @@ def build_context(runtime, location_id, replay_at=None, cuts=None, hours=24):
         'sensitivity_status': 'separated' if separated else 'overlap' if best and bounds_available else 'unavailable' if best else 'no benefit',
         'limitation': 'Sensitivity is an assumption envelope, not a confidence interval or causal validation.'})
     add('stations', stations['source_type'],
-        {'count': len(stations['stations']), 'selected_location_id': location_id} if is_state else stations['stations'])
+        {'count': len(stations['stations']), 'selected_location_id': location_id})
     history = series[series.timestamp >= timestamp - pd.Timedelta(hours=48)]
     add('history_summary', 'modeled', {'input_source_types': sorted(history.source_type.unique()),
         'available_hours': len(history), 'mean_pm25': float(history.pm25.mean()),

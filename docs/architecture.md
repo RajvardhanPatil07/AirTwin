@@ -32,9 +32,8 @@ data. Raw CSV, processed Parquet and joblib artifacts are ignored. The generated
 model card is committed evidence; the sample stays under 1 MB.
 
 The historical LightGBM dataset is refreshed deliberately by rerunning the pipeline
-and restarting the backend. Separate current provider caches for Pune–PCMC and
-Maharashtra refresh hourly while the backend runs; the browser checks for updated
-snapshots each minute. The UI labels source and timestamp and warns about stale
+and restarting the backend. The current Pune–PCMC provider cache refreshes every 15 minutes while the backend runs; the browser checks for updated
+snapshots every 30 seconds. The UI labels source and timestamp and warns about stale
 data. There is no automatic alert service.
 
 ## Module responsibilities

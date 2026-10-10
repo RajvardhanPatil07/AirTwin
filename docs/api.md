@@ -97,10 +97,11 @@ the backend machine. CORS permits the local Vite origins on port 5173.
 
 ## Regional queries
 
-Stations, hotspots, forecast, backtest and attribution accept `region=pcmc|maharashtra`
+Stations, hotspots, forecast, backtest and attribution accept `region=pcmc`
 (default pcmc for backward compatibility). Scenario and explain bodies accept `region`.
-Explain also accepts `cuts`, `hours` and bounded `history`. State forecasts have null
-SHAP/p10/p90; state backtests return `available=false`, `metrics=null`, `series=[]`.
+Explain also accepts `cuts`, `hours` and bounded `history`. Provider forecasts have unavailable SHAP and uncertainty when no eligible local model exists; unavailable monitor backtests remain explicitly unavailable.
 Stations include regional bounds/boundary, coverage, pollutant units and weather.
 Gemini configuration, network or verification failures return 200 with `method=grounded_summary`
 and the reason in `assumptions`; the summary is built only from computed outputs.
+
+Only Pune–PCMC is supported. Other region values are rejected with HTTP 422. `/api/health` lists only `pcmc`; the identifier includes Pune and Pimpri-Chinchwad urban coverage.

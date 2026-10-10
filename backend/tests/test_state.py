@@ -1,24 +1,24 @@
 import json
 from pathlib import Path
 import pytest
-from app.services.state_data import StateRuntime, PuneRuntime, SAMPLE, AIR_FIELDS, WEATHER_FIELDS
-from app.services.regions import inside_state
+from app.services.state_data import ProviderRuntime, PuneRuntime, SAMPLE, AIR_FIELDS, WEATHER_FIELDS
+from app.services.regions import inside_pune
 from app.services.explainer import build_context, checked_claims
 
 @pytest.fixture(scope='module')
 def state():
-    return StateRuntime(json.loads(SAMPLE.read_text()), sample=True)
+    return ProviderRuntime(json.loads(SAMPLE.read_text()), sample=True)
 
 def test_state_sample_and_boundary(state):
     assert SAMPLE.stat().st_size < 1_000_000
     response = state.stations()
-    assert len(response['stations']) == 36
+    assert len(response['stations']) == 2
     assert all(p['source_type'] == 'modeled' for p in response['stations'])
     assert len(AIR_FIELDS + WEATHER_FIELDS) == 15
-    assert inside_state(18.52, 73.86)
-    assert not inside_state(28.61, 77.21)
+    assert inside_pune(18.52, 73.86)
+    assert not inside_pune(28.61, 77.21)
     _, cells, _, _, _ = state.snapshot()
-    assert cells and all(inside_state(c['latitude'], c['longitude']) for c in cells)
+    assert cells and all(inside_pune(c['latitude'], c['longitude']) for c in cells)
 
 def test_state_forecast_and_no_invented_validation(state):
     location = state.stations()['stations'][0]['id']
@@ -37,7 +37,7 @@ def test_state_forecast_and_no_invented_validation(state):
 
 def test_pune_live_runtime_labels_provider_data_and_keeps_validation_separate():
     payload = json.loads(SAMPLE.read_text())
-    payload['points'] = payload['points'][1:3]
+    payload['points'] = payload['points']
     live = PuneRuntime(payload)
     response = live.stations()
     assert response['region']['id'] == 'pcmc'
@@ -60,7 +60,7 @@ def test_gemini_claim_checks():
 
 
 def test_state_explanation_keeps_selected_evidence_without_full_station_payload(state):
-    context = build_context(state, 'cams-0')
-    assert context['evidence']['stations']['data']['count'] == 36
+    context = build_context(state, state.stations()['stations'][0]['id'])
+    assert context['evidence']['stations']['data']['count'] == 2
     assert 'pollutants' in context['evidence']['baseline']['data']
     assert len(json.dumps(context).encode()) < 25_000

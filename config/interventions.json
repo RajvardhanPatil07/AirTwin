@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "currency": "INR",
+  "duration_hours": 24,
+  "assumption_source_type": "synthetic",
+  "limits": {"traffic": 2, "dust": 2, "industry": 1},
+  "actions": [
+    {"id":"bhosari-traffic","name":"Bhosari traffic restriction","category":"traffic","cost":105000,"latitude":18.6212,"longitude":73.8487,"radius_km":6,"cut_percent":30},
+    {"id":"shivajinagar-traffic","name":"Shivajinagar traffic management","category":"traffic","cost":95000,"latitude":18.5308,"longitude":73.8475,"radius_km":5,"cut_percent":25},
+    {"id":"wakad-dust","name":"Wakad dust treatment","category":"dust","cost":57000,"latitude":18.5978,"longitude":73.7607,"radius_km":5,"cut_percent":40},
+    {"id":"pimpri-dust","name":"Pimpri street sweeping","category":"dust","cost":68000,"latitude":18.6186,"longitude":73.8020,"radius_km":5,"cut_percent":35},
+    {"id":"bhosari-industry","name":"Bhosari industrial compliance","category":"industry","cost":165000,"latitude":18.6212,"longitude":73.8487,"radius_km":7,"cut_percent":35},
+    {"id":"hadapsar-traffic","name":"Hadapsar traffic management","category":"traffic","cost":115000,"latitude":18.5089,"longitude":73.9259,"radius_km":6,"cut_percent":25},
+    {"id":"katraj-dust","name":"Katraj dust suppression","category":"dust","cost":44000,"latitude":18.4575,"longitude":73.8373,"radius_km":5,"cut_percent":30},
+    {"id":"chinchwad-industry","name":"Chinchwad industrial inspection","category":"industry","cost":150000,"latitude":18.6298,"longitude":73.7997,"radius_km":6,"cut_percent":30}
+  ]
+}

@@ -16,3 +16,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 Current visual authority: user selected the light glass AirTwin mockup on 2026-09-27 (exec-75bae9d5-79ee-42c3-bc56-95c3d1516fcf.png). Use pale blue atmosphere, translucent pearl panels, teal actions, and subtle raised concentration grids. Preserve accurate source labels and functional geographic data.
 
 User feedback: keep Ask AirTwin visible in offline mode with honest availability messaging; put compact selected-location and concentration context in the intro space; retain the forecast playback timeline and use a teal leaf logo suited to the glass theme.
+
+User scope decision (2026-10-10): Pune and PCMC are the sole supported urban region. Keep all forecast, attribution, hotspot, intervention and historical validation features focused on this bounded area; do not restore a statewide selector.

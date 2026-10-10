@@ -271,6 +271,36 @@ svg {
 .grid-hatch {
   fill: url(#model-hatch);
 }
+
+.live-feed { margin: 18px 0; padding: 18px; border: 1px solid var(--border, #d5e5e5); border-radius: 18px; background: var(--panel, rgba(255,255,255,.72)); }
+.live-feed h2 { font-size: 16px; margin: 0; }
+.feed-records { display: flex; gap: 10px; overflow-x: auto; padding: 6px 0; }
+.feed-record { flex: 0 0 175px; display: flex; gap: 6px; flex-direction: column; padding: 12px; border: 1px solid #bddbd7; border-radius: 12px; font-size: 11px; animation: feed-arrival .65s ease-out; }
+.feed-record strong { font-size: 12px; }
+.feed-value { font-size: 24px; color: #087f78; font-weight: 650; }
+.feed-value small { font-size: 11px; }
+.feed-state { font-size: 9px; letter-spacing: .04em; }
+.feed-state.fresh { color: #08756a; }
+.feed-state.delayed { color: #98631c; }
+.feed-record a { color: #087f78; }
+.planning-control { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0; font-size: 12px; }
+.planning-control input[type=range] { flex-basis: 100%; accent-color: #0b8f86; }
+.action-availability { display: flex; align-items: center; gap: 8px; font-size: 11px; margin: 8px 0; }
+.planning-panel fieldset { border: 1px solid #bddbd7; border-radius: 10px; margin: 16px 0; }
+.planning-panel legend { font-size: 12px; }
+.resilience-replay { font-size: 12px; display: grid; gap: 10px; padding: 12px; background: rgba(14,155,140,.07); border-radius: 10px; }
+.planning-metrics { display: flex; flex-wrap: wrap; gap: 14px; }
+.planning-metrics div { display: grid; gap: 4px; }
+.planning-metrics span { font-size: 10px; }
+.planning-metrics strong { font-size: 15px; }
+.planning-table { overflow-x: auto; margin: 16px 0; }
+.planning-table table { font-size: 11px; width: 100%; border-collapse: collapse; }
+.planning-table th, .planning-table td { padding: 8px 5px; text-align: left; border-bottom: 1px solid #d5e5e5; }
+.planning-table caption { text-align: left; font-weight: 600; padding-bottom: 8px; }
+.planning-panel details { font-size: 12px; margin: 14px 0; }
+.tabs { overflow-x: auto; }
+@keyframes feed-arrival { from { background: rgba(12,175,148,.2); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .feed-record { animation: none; } }
 .map-banner {
   position: absolute;
   top: 16px;
@@ -1815,4 +1845,16 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 999px;
   background: var(--soft);
   font-size: 11px;
+}
+
+/* Provider feed can grow; the map workspace must not shrink into the remaining viewport. */
+@media (min-width: 1101px) {
+  .dashboard { height: auto; min-height: 100dvh; }
+  .dashboard .workspace { flex: none; height: clamp(600px, 75dvh, 850px); min-height: 600px; }
+  .dashboard .map-shell { min-height: 600px; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .dashboard { height: auto; min-height: 100dvh; }
+  .dashboard .workspace { flex: none; height: auto; }
+  .dashboard .map-shell { height: 600px; min-height: 600px; }
 }

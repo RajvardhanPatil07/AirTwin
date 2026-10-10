@@ -1,4 +1,4 @@
-"""Hourly state coverage from CAMS; measured stations retain independent timestamps."""
+"""Pune–PCMC coverage from CAMS; measured stations retain independent timestamps."""
 import json
 import logging
 import os
@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 from fastapi import HTTPException
 from app.config import RAW, ROOT, TIMEZONE, BBOX
-from app.services.regions import CITY_POINTS, PUNE_POINTS, STATE_BBOX, inside_state, region_metadata
+from app.services.regions import PUNE_POINTS, inside_pune, region_metadata
 from app.services.runtime import Runtime, get_runtime
 from app.services import database
 from app.services.spatial import make_grid, distance_km, CONFIG, ZONES, ASSUMPTIONS, spatial_assumptions
@@ -15,17 +15,10 @@ from app.services.spatial_inputs import load_spatial_inputs
 from app.services.scenarios import simulate
 
 LOG = logging.getLogger('airtwin.live')
-CACHE = RAW / 'maharashtra_context.json'
-SAMPLE = ROOT / 'data/sample/maharashtra_context.json'
+SAMPLE = ROOT / 'data/sample/pune_provider_context.json'
 PUNE_CACHE = RAW / 'pune_context.json'
 AIR_FIELDS = ['pm2_5', 'pm10', 'nitrogen_dioxide', 'sulphur_dioxide', 'ozone', 'carbon_monoxide', 'dust', 'aerosol_optical_depth']
 WEATHER_FIELDS = ['temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'wind_direction_10m', 'precipitation', 'surface_pressure', 'cloud_cover']
-STATE_ASSUMPTIONS = [*ASSUMPTIONS,
-    'Statewide coverage uses CAMS global atmospheric forecasts (~45 km), not new sensors or statewide LightGBM validation.',
-    'City sampling coordinates are approximate. Grid cells are retained when their centre lies inside the state boundary.',
-    'Source/activity zones are only mapped around Pune. Outside that area, shares use generic assumed weights, not local inventories.',
-    'Statewide population weights remain an illustrative synthetic grid, not Maharashtra census or WorldPop data.',
-]
 PUNE_ASSUMPTIONS = [
     'Named Pune and PCMC points are CAMS model samples, not monitors at those locations; CAMS global resolution is approximately 45 km.',
     'Fresh OpenAQ PM2.5 station measurements, when available, have their own locations and timestamps.',
@@ -35,21 +28,21 @@ PUNE_ASSUMPTIONS = [
 ]
 
 
-def get_payload(url, params=None, headers=None):
-    response = requests.get(url, params=params, headers=headers, timeout=30)
+def get_payload(url, params=None, headers=None, timeout=30):
+    response = requests.get(url, params=params, headers=headers, timeout=timeout)
     response.raise_for_status()
     return response.json()
 
 
-def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_state,
-                  region_name='Maharashtra', prefix='cams'):
+def fetch_context(reference_points=PUNE_POINTS, bbox=BBOX, inside=inside_pune,
+                  region_name='Pune + PCMC', prefix='pune-cams'):
     coordinates = {'latitude': ','.join(str(p[1]) for p in reference_points),
                    'longitude': ','.join(str(p[2]) for p in reference_points),
                    'timezone': TIMEZONE, 'past_days': 2, 'forecast_days': 4}
     air = get_payload('https://air-quality-api.open-meteo.com/v1/air-quality',
                       {**coordinates, 'hourly': ','.join(AIR_FIELDS), 'domains': 'cams_global'})
     weather = get_payload('https://api.open-meteo.com/v1/forecast',
-                          {**coordinates, 'hourly': ','.join(WEATHER_FIELDS), 'wind_speed_unit': 'ms'})
+                          {**coordinates, 'hourly': ','.join(WEATHER_FIELDS + ['boundary_layer_height']), 'wind_speed_unit': 'ms'})
     if not isinstance(air, list) or len(air) != len(reference_points) or len(weather) != len(reference_points):
         raise ValueError('Incomplete multi-location provider response')
     points = []
@@ -57,7 +50,7 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
         points.append({'id': f'{prefix}-{index}', 'name': name, 'latitude': lat, 'longitude': lon,
                        'air': air[index]['hourly'], 'air_units': air[index]['hourly_units'],
                        'weather': weather[index]['hourly'], 'weather_units': weather[index]['hourly_units']})
-    observed, warnings, discovered = [], [], 0
+    observed, warnings, discovered, observed_sensors, history_sensor_candidates = [], [], 0, [], []
     key = os.getenv('OPENAQ_API_KEY')
     if key:
         try:
@@ -75,7 +68,35 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
                                                    (p.get('coordinates') or {}).get('longitude', 0))]
             discovered = sum(s.get('parameter', {}).get('name') == 'pm25' for p in valid for s in p.get('sensors', []))
             latest_dates = [pd.Timestamp(p['datetimeLast']['utc']) for p in valid if (p.get('datetimeLast') or {}).get('utc')]
+            # Discover historical sensors independently of the 24-hour live-reading
+            # gate. Stale sensor metadata is not itself an observed measurement.
+            if prefix == 'pune-cams':
+                seen = set()
+                for location in valid:
+                    coords = location['coordinates']
+                    last = (location.get('datetimeLast') or {}).get('utc')
+                    for sensor in location.get('sensors', []):
+                        parameter = sensor.get('parameter') or {}
+                        sid = str(sensor.get('id', ''))
+                        if (parameter.get('name') != 'pm25'
+                                or parameter.get('units') not in ('µg/m³', 'μg/m³', 'ug/m3')
+                                or not sid.isdigit() or sid in seen):
+                            continue
+                        seen.add(sid)
+                        history_sensor_candidates.append({
+                            'id': f'openaq-{sid}', 'name': location.get('name') or f'OpenAQ sensor {sid}',
+                            'latitude': coords['latitude'], 'longitude': coords['longitude'],
+                            'timestamp': last or '',
+                        })
             for location in valid:
+                coords = location.get('coordinates') or {}
+                for sensor in location.get('sensors', []):
+                    parameter = sensor.get('parameter', {})
+                    if parameter.get('name') == 'pm25' and parameter.get('units') in ['µg/m³', 'μg/m³', 'ug/m3']:
+                        observed_sensors.append({'id': sensor['id'], 'location_id': location['id'],
+                            'name': location.get('name', f"OpenAQ sensor {sensor['id']}"),
+                            'latitude': coords.get('latitude'), 'longitude': coords.get('longitude'),
+                            'source_type': 'observed'})
                 last = (location.get('datetimeLast') or {}).get('utc')
                 if not last or now - pd.Timestamp(last) > pd.Timedelta(hours=24):
                     continue
@@ -92,7 +113,6 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
                         continue
                     if now - pd.Timestamp(time) > pd.Timedelta(hours=24):
                         continue
-                    coords = location['coordinates']
                     observed.append({'id': f"openaq-{sensor['id']}", 'name': location['name'],
                         'short_name': location['name'].split(',')[0], 'latitude': coords['latitude'],
                         'longitude': coords['longitude'], 'pm25': value, 'timestamp': pd.Timestamp(time).tz_convert(TIMEZONE).isoformat(),
@@ -106,10 +126,11 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
         warnings.append('OpenAQ key absent: current coverage is entirely CAMS MODELED data.')
     return {'updated_at': pd.Timestamp.now(tz='UTC').isoformat(), 'points': points,
             'observed': observed, 'discovered_pm25_sensors': discovered, 'warnings': warnings,
-            'source_type': 'modeled', 'provider': 'CAMS / Open-Meteo', 'assumptions': STATE_ASSUMPTIONS}
+            'observed_sensors': observed_sensors, 'history_sensor_candidates': history_sensor_candidates,
+            'source_type': 'modeled', 'provider': 'CAMS / Open-Meteo', 'assumptions': PUNE_ASSUMPTIONS}
 
 
-def save_context(payload, path=CACHE, region='maharashtra'):
+def save_context(payload, path=PUNE_CACHE, region='pcmc'):
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix('.tmp')
     temp.write_text(json.dumps(payload, allow_nan=False))
@@ -120,13 +141,13 @@ def save_context(payload, path=CACHE, region='maharashtra'):
         LOG.warning('Could not persist %s provider snapshot to PostgreSQL.', region, exc_info=True)
 
 
-class StateRuntime(Runtime):
-    region_name = 'Maharashtra'
-    region_id = 'maharashtra'
-    bbox = STATE_BBOX
-    grid_size = 24
-    mask = staticmethod(inside_state)
-    assumptions = STATE_ASSUMPTIONS
+class ProviderRuntime(Runtime):
+    region_name = 'Pune + PCMC'
+    region_id = 'pcmc'
+    bbox = BBOX
+    grid_size = 12
+    mask = None
+    assumptions = PUNE_ASSUMPTIONS
     def __init__(self, payload, sample=False):
         self.payload = payload
         self.sample = sample
@@ -196,13 +217,15 @@ class StateRuntime(Runtime):
         warnings = [*self.warnings]
         if age > 6:
             warnings.append(f'CAMS context is {age:.0f} hours old. Provider updates do not guarantee real-time measurements.')
+        modeled_values = {round(point['pm25'], 2) for point in stations if point['source_type'] == 'modeled'}
         return {'stations': stations, 'source_type': 'modeled', 'assumptions': self.assumptions,
             'warnings': warnings, 'data_mode': 'dated_cams_sample' if self.sample else 'refreshed_provider_cache',
             'weather': weather, 'zones': self.zones, 'zones_source_type': 'mapped' if self.spatial_inputs else 'illustrative',
             'region': {**region_metadata(self.region_id), 'forecast_provider': 'CAMS via Open-Meteo'},
             'coverage': {'modeled_points': len(self.points), 'observed_points': sum(p['source_type'] == 'observed' for p in stations),
+                         'distinct_modeled_pm25_levels': len(modeled_values),
                          'discovered_pm25_sensors': self.payload.get('discovered_pm25_sensors', 0),
-                         'updated_at': self.payload['updated_at'], 'variables': AIR_FIELDS + WEATHER_FIELDS}}
+                         'updated_at': self.payload['updated_at'], 'refresh_interval_seconds': max(900, int(os.getenv('LIVE_REFRESH_SECONDS', '900'))), 'variables': AIR_FIELDS + WEATHER_FIELDS}}
 
     def location(self, location_id, replay_at=None):
         stations, cells, background, _, timestamp = self.snapshot(replay_at)
@@ -212,7 +235,7 @@ class StateRuntime(Runtime):
             if cell:
                 found = {**cell, 'name': f'{self.region_name} grid {location_id}', 'short_name': 'Selected grid cell', 'timestamp': timestamp.isoformat()}
         if found is None:
-            raise HTTPException(404, 'Unknown Maharashtra location')
+            raise HTTPException(404, 'Unknown Pune–PCMC location')
         references = [p for p in stations if p['id'] in self.points]
         nearest = min(references, key=lambda p: distance_km(found['latitude'], found['longitude'], p['latitude'], p['longitude']))
         series = self.frame[self.frame.station_id == nearest['id']]
@@ -238,10 +261,123 @@ class StateRuntime(Runtime):
                             'This is a CAMS provider forecast, not the locally validated LightGBM model. No calibrated p10/p90 bands or TreeSHAP are claimed.']}
 
     def backtest(self, location_id, replay_at=None):
-        self.location(location_id, replay_at)
-        return {'location_id': location_id, 'source_type': 'modeled', 'target_source_type': 'modeled',
-                'series': [], 'metrics': None, 'available': False, 'method': 'Live CAMS provider forecast has no held-out local validation',
-                'assumptions': ['Historical AirTwin backtests do not validate current CAMS provider forecasts.']}
+        if self.sample or (self.payload.get('sample_origin') and 'observed_sensors' not in self.payload):
+            return self._backtest_unavailable(location_id, 'Dated sample context has no associated measured station benchmark. Use historical replay.')
+        location = self.location(location_id, replay_at)[0]
+        key = os.getenv('OPENAQ_API_KEY')
+        catalog = self.payload.get('observed_sensors', [])
+        if not catalog and key:
+            try:
+                locations = []
+                page = 1
+                while page <= 5:
+                    result = get_payload('https://api.openaq.org/v3/locations',
+                        {'bbox': ','.join(map(str, self.bbox)), 'limit': 1000, 'page': page},
+                        {'X-API-Key': key}, timeout=10)['results']
+                    locations.extend(result)
+                    if len(result) < 1000:
+                        break
+                    page += 1
+                catalog = []
+                for item in locations:
+                    coords = item.get('coordinates') or {}
+                    lat, lon = coords.get('latitude'), coords.get('longitude')
+                    if lat is None or lon is None or (self.mask is not None and not self.mask(lat, lon)):
+                        continue
+                    for sensor in item.get('sensors', []):
+                        parameter = sensor.get('parameter', {})
+                        if parameter.get('name') == 'pm25' and parameter.get('units') in ['µg/m³', 'μg/m³', 'ug/m3']:
+                            catalog.append({'id': sensor['id'], 'name': item.get('name', 'OpenAQ monitor'),
+                                'latitude': lat, 'longitude': lon, 'source_type': 'observed'})
+            except (requests.RequestException, ValueError, KeyError, TypeError):
+                catalog = []
+        if not key:
+            return self._backtest_unavailable(location_id, 'OPENAQ_API_KEY is not configured, so hourly measured history cannot be retrieved.')
+        candidates = sorted((sensor for sensor in catalog if sensor.get('latitude') is not None and sensor.get('longitude') is not None),
+            key=lambda sensor: distance_km(location['latitude'], location['longitude'], sensor['latitude'], sensor['longitude']))[:3]
+        if not candidates:
+            return self._backtest_unavailable(location_id, 'No PM2.5 monitor locations with coordinates are available in this region.')
+        now = pd.Timestamp.now(tz='UTC')
+        start = now - pd.Timedelta(days=30)
+        chosen, observations = None, None
+        for sensor in candidates:
+            try:
+                payload = get_payload(f"https://api.openaq.org/v3/sensors/{sensor['id']}/hours",
+                    {'datetime_from': start.isoformat(), 'datetime_to': now.isoformat(), 'limit': 1000, 'page': 1},
+                    {'X-API-Key': key}, timeout=12)
+                series = {}
+                for row in payload.get('results', []):
+                    timestamp = (row.get('period') or {}).get('datetimeFrom', {}).get('utc')
+                    value = row.get('value')
+                    if timestamp and isinstance(value, (int, float)) and 0 <= value <= 1000:
+                        series[pd.Timestamp(timestamp).floor('h')] = float(value)
+                if len(series) >= 240:
+                    chosen, observations = sensor, series
+                    break
+            except (requests.RequestException, ValueError, KeyError, TypeError):
+                continue
+        if observations is None:
+            return self._backtest_unavailable(location_id, 'No nearby OpenAQ PM2.5 monitor has at least 240 valid hourly values in the last 30 days; a chronological holdout would be too small.')
+
+        ordered_times = sorted(observations)
+        samples = []
+        lag_hours = (1, 3, 6, 12, 24, 48)
+        for target_time in ordered_times:
+            issue_time = target_time - pd.Timedelta(hours=24)
+            required = [issue_time - pd.Timedelta(hours=lag) for lag in lag_hours]
+            if issue_time not in observations or any(timestamp not in observations for timestamp in required):
+                continue
+            features = [observations[timestamp] for timestamp in required]
+            features.extend([float(issue_time.hour), float(issue_time.dayofweek)])
+            samples.append((target_time, features, observations[target_time], observations[issue_time]))
+        if len(samples) < 160:
+            return self._backtest_unavailable(location_id, f"{chosen['name']} has {len(samples)} complete 24-hour forecast/target pairs after missing-hour checks; at least 160 are required.")
+        split = int(len(samples) * 0.7)
+        if split < 100 or len(samples) - split < 40:
+            return self._backtest_unavailable(location_id, f"{chosen['name']} does not have enough complete pairs for a 70/30 chronological train/holdout split.")
+        try:
+            from lightgbm import LGBMRegressor
+            model = LGBMRegressor(objective='regression_l1', n_estimators=120, learning_rate=0.04,
+                num_leaves=7, max_depth=3, min_child_samples=12, reg_lambda=5,
+                verbosity=-1, n_jobs=1, random_state=42)
+            model.fit([sample[1] for sample in samples[:split]], [sample[2] for sample in samples[:split]])
+            heldout = samples[split:]
+            predicted = model.predict([sample[1] for sample in heldout])
+        except Exception as error:
+            LOG.warning('Could not train the observed station backtest for %s.', location_id, exc_info=True)
+            return self._backtest_unavailable(location_id, f"Station-specific backtest could not train: {type(error).__name__}.")
+        actual = [sample[2] for sample in heldout]
+        persistence = [sample[3] for sample in heldout]
+        errors = [prediction - target for prediction, target in zip(predicted, actual)]
+        mae = sum(abs(error) for error in errors) / len(errors)
+        rmse = (sum(error * error for error in errors) / len(errors)) ** 0.5
+        baseline_mae = sum(abs(prediction - target) for prediction, target in zip(persistence, actual)) / len(actual)
+        mean_actual = sum(actual) / len(actual)
+        total = sum((target - mean_actual) ** 2 for target in actual)
+        residual = sum(error * error for error in errors)
+        metrics = {'mae': mae, 'rmse': rmse, 'r2': 1 - residual / total if total else 0,
+            'persistence_mae': baseline_mae,
+            'improvement_percent': 100 * (1 - mae / baseline_mae) if baseline_mae else 0,
+            'interval_coverage': None}
+        points = [{'timestamp': sample[0].tz_convert(TIMEZONE).isoformat(), 'actual': sample[2],
+            'predicted': float(prediction), 'persistence': sample[3], 'p10': None, 'p90': None}
+            for sample, prediction in zip(heldout, predicted)]
+        return {'location_id': location_id, 'source_type': 'modeled', 'target_source_type': 'observed',
+            'series': points, 'metrics': metrics, 'available': True,
+            'method': '24-hour station-specific LightGBM · chronological 70/30 holdout',
+            'model': 'openaq_station_lightgbm_24h',
+            'assumptions': [f"Observed PM2.5 monitor: {chosen['name']} (sensor {chosen['id']}), {distance_km(location['latitude'], location['longitude'], chosen['latitude'], chosen['longitude']):.1f} km from the selected map location; {len(observations)} hourly values requested over the preceding 30 days.",
+                'Samples require an exact 24-hour issue-to-target pair and complete 1, 3, 6, 12, 24 and 48-hour observed lags.',
+                f'Trained on the first {split} chronological samples and evaluated on the final {len(heldout)} samples; no random shuffle.',
+                'This station-specific model benchmark does not validate the CAMS provider forecast or the separate Pune + PCMC production model.',
+                'No prediction interval is reported because this short station holdout has no separately calibrated interval.']}
+
+    @staticmethod
+    def _backtest_unavailable(location_id, reason):
+        return {'location_id': location_id, 'source_type': 'modeled', 'target_source_type': 'observed',
+            'series': [], 'metrics': None, 'available': False,
+            'method': 'Observed hourly monitor history is required for a chronological 24-hour backtest',
+            'assumptions': [reason, 'No modeled CAMS history is presented as an observed validation target.']}
 
     def scenario(self, location_id, cuts, replay_at=None):
         location, _, cells, background, weather, timestamp, _ = self.location(location_id, replay_at)
@@ -262,7 +398,7 @@ class StateRuntime(Runtime):
         return result
 
 
-class PuneRuntime(StateRuntime):
+class PuneRuntime(ProviderRuntime):
     region_name = 'Pune + PCMC'
     region_id = 'pcmc'
     bbox = BBOX
@@ -276,14 +412,44 @@ class PuneRuntime(StateRuntime):
         self.zones = self.spatial_inputs.get('zones', ZONES) if self.spatial_inputs else ZONES
         self.spatial_assumptions = [*spatial_assumptions(self.spatial_inputs), *PUNE_ASSUMPTIONS]
 
+    def forecast(self, location_id, hours=24, replay_at=None):
+        # Historical backtests are routed to the original Runtime, not live ML.
+        if replay_at:
+            return super().forecast(location_id, hours, replay_at)
+        from app.services.forecast_dispatcher import (
+            nearest_provider_frame, run_observed_station_forecast,
+        )
+        sensor = next((item for item in self.payload.get('observed', [])
+                       if item.get('id') == location_id and item.get('source_type') == 'observed'), None)
+        reason = 'location_has_no_observed_sensor'
+        if sensor is not None:
+            try:
+                context = nearest_provider_frame(sensor, self.points, self.all_frame)
+                result, reason = run_observed_station_forecast(sensor, context, hours)
+                if result is not None:
+                    return result
+            except Exception:
+                LOG.warning('Live ML dispatch failed; preserving CAMS fallback.', exc_info=True)
+                reason = 'live_ml_dispatch_error'
+        fallback = super().forecast(location_id, hours, replay_at)
+        fallback.update(
+            forecast_provider='CAMS via Open-Meteo',
+            model_id='cams-global-provider',
+            model_version=None,
+            issued_at=self.payload.get('updated_at', self.origin.isoformat()),
+            input_cutoff=self.origin.isoformat(),
+            fallback_reason=reason,
+        )
+        fallback['assumptions'].append(
+            f'Live LightGBM unavailable ({reason}); CAMS provider forecast shown instead.')
+        return fallback
+
     def backtest(self, location_id, replay_at=None):
         result = super().backtest(location_id, replay_at)
-        result['assumptions'].append('Use historical replay for the separate AirTwin model validation.')
+        result['assumptions'].append('The Pune + PCMC historical replay validates the production AirTwin model separately from this observed-station benchmark.')
         return result
 
 
-_runtime = None
-_lock = threading.Lock()
 _pune_runtime = None
 _pune_lock = threading.Lock()
 
@@ -311,8 +477,8 @@ def get_pune_runtime():
 
 
 def get_region_runtime(region, replay_at=None):
-    if region == 'maharashtra':
-        return get_state_runtime()
+    if region != 'pcmc':
+        raise HTTPException(422, 'Only Pune + PCMC is supported')
     if replay_at or os.getenv('LIVE_REFRESH_ENABLED', '1') != '1':
         return get_runtime()
     return get_pune_runtime() or get_runtime()
@@ -325,48 +491,38 @@ def refresh_pune():
     payload = fetch_context(PUNE_POINTS, BBOX, inside_pune, 'Pune + PCMC', 'pune-cams')
     runtime = PuneRuntime(payload)
     runtime.snapshot()
+    # Only actual OpenAQ hourly readings are stored as station observations.
+    # Failure must not block CAMS provider coverage.
+    try:
+        from app.services.live_observations import ingest_pune_history
+        history_status = ingest_pune_history(payload.get('history_sensor_candidates', []), get_payload)
+        payload['history_ingestion'] = history_status
+        if history_status['failures']:
+            message = (f"{history_status['failures']} OpenAQ hourly-history lookups failed; "
+                       "live LightGBM may use CAMS fallback.")
+            payload['warnings'].append(message)
+            runtime.warnings.append(message)
+        LOG.info('OpenAQ hourly history: %s sensors, %s accepted hours, %s errors',
+                 history_status['sensors'], history_status['rows'], history_status['failures'])
+    except Exception:
+        message = 'OpenAQ history persistence unavailable; keeping CAMS fallback.'
+        payload['warnings'].append(message)
+        runtime.warnings.append(message)
+        LOG.warning('OpenAQ hourly history refresh failed.', exc_info=True)
     save_context(payload, PUNE_CACHE, 'pcmc')
     with _pune_lock:
         _pune_runtime = runtime
     LOG.info('Pune refresh: %s modeled reference points; %s observed points',
              len(payload['points']), len(payload['observed']))
 
-def get_state_runtime():
-    global _runtime
-    with _lock:
-        if _runtime is None:
-            database_payload = None
-            try:
-                database_payload = database.load_latest_snapshot('maharashtra')
-            except Exception:
-                LOG.warning('Could not load the Maharashtra snapshot from PostgreSQL; trying local caches.', exc_info=True)
-            for path, payload in [(CACHE, database_payload), (CACHE, None), (SAMPLE, None)]:
-                try:
-                    if payload is None:
-                        payload = json.loads(path.read_text())
-                    _runtime = StateRuntime(payload, path == SAMPLE)
-                    break
-                except (OSError, ValueError, KeyError, TypeError):
-                    continue
-            if _runtime is None:
-                raise HTTPException(503, 'Maharashtra cache and sample are unavailable. Run backend/scripts/fetch_state.py.')
-        return _runtime
-
-
-def refresh_state():
-    global _runtime
-    payload = fetch_context()
-    runtime = StateRuntime(payload)
-    runtime.snapshot()
-    save_context(payload, region='maharashtra')
-    with _lock:
-        _runtime = runtime
-    LOG.info('State refresh: %s modeled points; %s observed points', len(payload['points']), len(payload['observed']))
-
-
 def live_loop(stop):
-    interval = max(900, int(os.getenv('LIVE_REFRESH_SECONDS', '3600')))
+    interval = max(900, int(os.getenv('LIVE_REFRESH_SECONDS', '900')))
     while not stop.is_set():
+        try:
+            from app.services.live_feed import refresh_indices
+            refresh_indices()
+        except (requests.RequestException, ValueError, OSError):
+            LOG.warning('IITM AQI refresh failed; original measurement timestamps retained.', exc_info=True)
         try:
             refresh_pune()
         except (requests.RequestException, ValueError, KeyError, TypeError, HTTPException):
@@ -376,15 +532,4 @@ def live_loop(stop):
                 warning = 'Latest Pune provider refresh failed; showing the last cache with its original timestamp.'
                 if warning not in runtime.warnings:
                     runtime.warnings.append(warning)
-        try:
-            refresh_state()
-        except (requests.RequestException, ValueError, KeyError, TypeError, HTTPException):
-            LOG.warning('State provider refresh failed; retaining the last labeled cache.')
-            try:
-                runtime = get_state_runtime()
-                warning = 'Latest provider refresh failed; showing the last available cache with its original timestamp.'
-                if warning not in runtime.warnings:
-                    runtime.warnings.append(warning)
-            except HTTPException:
-                pass
         stop.wait(interval)

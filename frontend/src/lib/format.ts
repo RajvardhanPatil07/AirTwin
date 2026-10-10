@@ -3,6 +3,13 @@ export const number = (value: number, digits = 1) =>
     maximumFractionDigits: digits,
     minimumFractionDigits: digits,
   });
+export const scenarioNumber = (value: number) => {
+  const digits = Math.abs(value) >= 1 ? 2 : Math.abs(value) >= 0.1 ? 3 : 4;
+  return value.toLocaleString("en-IN", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+};
 export const compact = (value: number) =>
   Intl.NumberFormat("en", {
     notation: "compact",

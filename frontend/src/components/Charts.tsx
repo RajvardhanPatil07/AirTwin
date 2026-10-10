@@ -198,6 +198,9 @@ export function ForecastChart({
         targetSource={data.history_source_type}
         demo={demo}
       />
+      {data.forecast_provider && <p className="helper">Forecast provider: {data.forecast_provider} · model {data.model_id ?? "unavailable"}.</p>}
+      {data.issued_at && <p className="helper">Issued {dateLabel(data.issued_at)} · {timeLabel(data.issued_at)} IST. Input cutoff {data.input_cutoff ? `${dateLabel(data.input_cutoff)} ${timeLabel(data.input_cutoff)} IST` : "unavailable"}.</p>}
+      {data.fallback_reason && <p className="api-warning">Local model fallback: {data.fallback_reason}. Provider forecast remains MODELED.</p>}
       {data.history_reference && (
         <p className="helper">
           History reference: {data.history_reference}. Forecast origin is the
@@ -206,7 +209,7 @@ export function ForecastChart({
       )}
       {!demo && data.history_reference?.startsWith("cams-") && (
         <p className="api-warning">
-          CAMS provider forecast (~45 km). Statewide LightGBM validation and
+          CAMS provider forecast (~45 km). Historical Pune–PCMC model evaluation does not validate this provider forecast;
           calibrated uncertainty bands are unavailable.
         </p>
       )}
@@ -265,11 +268,10 @@ export function BacktestChart({
     return (
       <section className="tab-content">
         <DataBadge source="modeled" detail="VALIDATION UNAVAILABLE" />
-        <h2>Statewide validation is not yet available</h2>
+        <h2>No measured backtest is available for this selection</h2>
         <p className="helper">
-          This region uses CAMS provider forecasts. Switch to Pune + PCMC for
-          the measured LightGBM winter backtest; those metrics do not establish
-          Maharashtra accuracy.
+          {data.assumptions[0] ?? data.method}. A modeled provider series is not
+          treated as an observed validation target.
         </p>
         <AssumptionsPanel
           assumptions={data.assumptions}
@@ -281,7 +283,9 @@ export function BacktestChart({
     <section className="tab-content">
       <div className="eyebrow">CHRONOLOGICAL VALIDATION</div>
       <h2>
-        {demo
+        {data.model === "openaq_station_lightgbm_24h"
+          ? "Observed station backtest"
+          : demo
           ? "Synthetic backtest demonstration"
           : "Historical forecast backtest"}
       </h2>
@@ -298,7 +302,9 @@ export function BacktestChart({
           ["MAE", `${number(m.mae, 2)} µg/m³`],
           ["RMSE", `${number(m.rmse, 2)} µg/m³`],
           ["vs persistence", `${number(m.improvement_percent)}%`],
-          ["Interval coverage", `${number(m.interval_coverage)}%`],
+          ...(m.interval_coverage === null
+            ? []
+            : [["Interval coverage", `${number(m.interval_coverage)}%`]]),
         ].map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -312,7 +318,7 @@ export function BacktestChart({
           negative.
         </p>
       )}
-      {!demo && m.interval_coverage < 70 && (
+      {!demo && m.interval_coverage !== null && m.interval_coverage < 70 && (
         <p className="validation-warning">
           p10–p90 coverage is low on this holdout; uncertainty is not well
           calibrated.
@@ -328,6 +334,7 @@ export function BacktestChart({
         R² {number(m.r2, 3)} · Persistence MAE {number(m.persistence_mae, 2)}{" "}
         µg/m³.{" "}
         {demo && "The demo predictor equals persistence, so improvement is 0%."}
+        {data.model === "openaq_station_lightgbm_24h" && "This evaluates a monitor-specific model against an observed 24-hour holdout; it does not validate the CAMS provider forecast."}
       </p>
       {data.skill && <SkillChart skill={data.skill} />}
       {data.seasonal_baseline && (
@@ -401,20 +408,30 @@ export function SkillChart({ skill }: { skill: SkillRow[] }) {
 }
 
 export function AttributionChart({ data }: { data: AttributionResponse }) {
+  const unresolved = data.status === "unresolved" || (
+    data.status === undefined &&
+    data.shares.slice(0, 3).every((share) => share.value === 0) &&
+    (data.shares.at(-1)?.value ?? 0) >= 0.995
+  );
   return (
     <section className="tab-content">
       <div className="section-heading">
         <div>
-          <div className="eyebrow">SOURCE CONTRIBUTIONS</div>
-          <h2>Where might it come from?</h2>
+          <div className="eyebrow">MODELED SOURCE PROXY</div>
+          <h2>Estimated source split</h2>
         </div>
         <DataBadge source={data.source_type} detail="PROXY" />
       </div>
       <p className="helper">
-        Concentration shares, including regional background. These are assumed
-        sources, not SHAP explanations.
+        Concentration shares are assumption-based proxies, not measured emissions
+        or SHAP explanations.
       </p>
-      <div className="donut-layout">
+      {unresolved ? (
+        <div className="summary-note" role="status">
+          Local source contributions are not resolvable from this snapshot. A
+          zero proxy share does not mean the source is absent. {data.status_reason}
+        </div>
+      ) : <div className="donut-layout">
         <div
           className="donut"
           role="img"
@@ -460,10 +477,10 @@ export function AttributionChart({ data }: { data: AttributionResponse }) {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
       <div className="summary-note">
-        Regional background: <b>{number(data.background)} µg/m³</b>.
-        Interventions act only on local excess.
+        Estimated regional background: <b>{number(data.background)} µg/m³</b>.
+        Scenario impacts apply only to modeled concentration above this estimate.
       </div>
       <AssumptionsPanel
         title="Source attribution assumptions"

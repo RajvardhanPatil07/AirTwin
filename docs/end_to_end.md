@@ -10,7 +10,7 @@ requires the OpenMP library (`libomp`). Follow the README installation steps.
 | `OPENAQ_API_KEY` | root `.env` | Live observed ingestion. Missing/unusable data falls back to modeled CAMS or labeled synthetic targets. |
 | `GEMINI_API_KEY` | root `.env` | Generated explanation. Missing key, provider outage or rejected claims returns a labeled deterministic evidence summary. |
 | `GEMINI_MODEL` | root `.env` | Provider model identifier; the example value must be available to your account. |
-| `LIVE_REFRESH_ENABLED` | root `.env` | `1` enables hourly Pune–PCMC and Maharashtra provider-cache refresh; `0` selects the historical PCMC dataset for offline verification. Does not retrain the historical model. |
+| `LIVE_REFRESH_ENABLED` | root `.env` | `1` enables hourly Pune–PCMC provider-cache refresh; `0` selects the historical PCMC dataset for offline verification. Does not retrain the historical model. |
 | `LIVE_REFRESH_SECONDS` | root `.env` | Cache refresh interval, default 3600 seconds. |
 | `DATABASE_URL` | backend environment | Optional PostgreSQL URL. Successful provider payloads are persisted by region as timestamped snapshots for 30 days and loaded after restarts. `/api/health` reports connection and snapshot status. |
 | `CORS_ORIGINS` | root `.env` | Comma-separated deployed frontend origins; loopback origins are allowed automatically. |

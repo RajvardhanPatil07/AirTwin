@@ -56,8 +56,7 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       map.invalidateSize();
-      if (region?.id === "maharashtra")
-        map.fitBounds(region.bounds, { padding: [30, 30] });
+      if (region) map.fitBounds(region.bounds, { paddingTopLeft: [30, 85], paddingBottomRight: [30, 155] });
       else map.setZoom(11);
     });
     observer.observe(map.getContainer());
@@ -86,7 +85,7 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
     };
     injectHatch();
     map.on("layeradd", injectHatch);
-    if (region) map.fitBounds(region.bounds, { padding: [30, 30] });
+    if (region) map.fitBounds(region.bounds, { paddingTopLeft: [30, 85], paddingBottomRight: [30, 155] });
     return () => {
       observer.disconnect();
       map.off("layeradd", injectHatch);
@@ -428,12 +427,6 @@ export function MapView({
           <DataBadge source="synthetic" />
         </div>
         <p>Reference markers stay at baseline in after view.</p>
-        {region?.id === "maharashtra" && (
-          <p>
-            CAMS via Open-Meteo · ~45 km model resolution. Boundary:
-            geoBoundaries / DataMeet, CC BY 2.5 IN.
-          </p>
-        )}
         {!demo &&
           stations.some((station) => station.source_type === "observed") && (
             <p>

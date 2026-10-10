@@ -39,8 +39,7 @@ surface.
 For PCMC, the bundled OpenStreetMap extract supplies selected mapped industrial
 landuse, construction landuse and major-road geometry. It is dated and incomplete;
 mapped geometry does not prove current activity or emissions. The hand-made
-`data/zones.geojson` remains a fallback and the Maharashtra extension still uses
-illustrative Pune-only proxies. Weights use:
+`data/zones.geojson` remains a fallback for illustrative Pune-only proxies. Weights use:
 
 - Traffic: assumed corridor proximity and a peak-hour multiplier at 8–10 and 18–20.
 - Industry: approximate zone-center proximity with a 5 km decay scale and upwind
@@ -70,7 +69,7 @@ report has established the numeric pass-through coefficients used here.
 
 For PCMC, population uses WorldPop India 2020 1 km UN-adjusted MODELED counts,
 allocated by area overlap to the 12×12 map cells. They are dated estimates, not
-a current census. The offline synthetic demo and Maharashtra extension retain
+a current census. The offline synthetic demo retains
 SYNTHETIC population. Details are in [spatial sources](spatial_sources.md).
 Exposure benefit = Σ(cell reduction × cell population), in person·µg/m³. It is not
 a count of people protected, cumulative dose, avoided deaths or demonstrated policy
@@ -86,9 +85,3 @@ The Backtest tab contains actual held-out predictions from the pre-holdout model
 Current serving models refit on all available data. Forecast horizons 1–24, 48
 and 72 are direct; gaps from 25–71 hours are interpolated. Quantile bounds must be
 interpreted alongside measured coverage and underperformance in the model card.
-
-## Maharashtra extension
-
-See [regional coverage and provider assumptions](live_data_providers.md). CAMS points
-are modeled, source resolution is about 45 km, statewide validation is unavailable,
-industrial zones remain Pune-only proxies and population remains synthetic.

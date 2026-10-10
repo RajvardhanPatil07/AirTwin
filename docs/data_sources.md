@@ -7,7 +7,7 @@ licenses do not grant a license to all repository code.
 
 | Source | Current use | Provenance | Attribution/terms |
 | --- | --- | --- | --- |
-| OpenAQ v3 | Fetched 15 sensors with usable hourly data; see data_report.md for dates and gaps | Observed target when returned by provider | Preserve underlying provider attribution and review dataset terms |
+| OpenAQ v3 | Current readings support observed map points; hourly history supports station-specific chronological backtests when enough data are available | Observed target when returned by provider | Preserve underlying provider attribution and review dataset terms |
 | Open-Meteo archive | Centroid weather fetcher | Modeled reanalysis | API data CC BY 4.0; credit Open-Meteo and applicable underlying sources |
 | Open-Meteo air quality / CAMS | Sparse-target fallback | Modeled concentration | Credit Open-Meteo and the relevant Copernicus/CAMS product |
 | OpenStreetMap | Frontend basemap tiles | Map context, not pollution observations | © OpenStreetMap contributors; ODbL data and separate tile-use policy |
@@ -47,3 +47,7 @@ provides forecasts at fixed lead-time offsets. The ingestion aligns valid time
 back to issue time for 24/48/72-hour covariates. The same modeled-data attribution
 rules apply. This is different from shifting future realized reanalysis into a
 forecast feature.
+
+## Public station AQI feed
+
+The [IITM Pune public page](https://ews.tropmet.res.in/pune/index.php) supplies provider-published station AQI indices. These remain observed indices with original timestamps, separate from PM2.5 concentrations. Zero placeholders are excluded. See the [live workflow](final_round_workflow.md) for freshness, HTML-adapter limitations and redistribution considerations.

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Moon, Sun, RefreshCw, MapPin, Leaf } from "lucide-react";
 import type {
-  RegionId,
   ActionId,
   AttributionResponse,
   BacktestResponse,
@@ -27,6 +26,9 @@ import { AssumptionsPanel } from "../components/AssumptionsPanel";
 import { AskAirTwin } from "../components/AskAirTwin";
 import { HealthCard } from "../components/HealthCard";
 import { TimelineBar } from "../components/TimelineBar";
+import { LiveFeed } from "../components/LiveFeed";
+import { PlanningPanel } from "../components/PlanningPanel";
+import type { Plan } from "../lib/operations";
 
 const TABS = [
   "Overview",
@@ -34,11 +36,12 @@ const TABS = [
   "Backtest",
   "Sources",
   "Scenarios",
+  "Planner",
 ] as const;
 type Tab = (typeof TABS)[number];
 
 export function Dashboard() {
-  const [region, setRegion] = useState<RegionId>("pcmc");
+  const region = "pcmc" as const;
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -59,6 +62,11 @@ export function Dashboard() {
   const [attribution, setAttribution] = useState<AttributionResponse | null>(
     null,
   );
+  const [planCurrent, setPlanCurrent] = useState(false);
+  const [storedPlan, setPlan] = useState<Plan | null>(null);
+  const snapshotAt = data?.stations[0]?.timestamp;
+  const plan = region === "pcmc" && storedPlan && storedPlan.replay_at === replayAt &&
+    Date.parse(storedPlan.snapshot_at) === Date.parse(snapshotAt ?? "") ? storedPlan : null;
   const [hours, setHours] = useState(24);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -76,10 +84,10 @@ export function Dashboard() {
       if (active) {
         setData(result);
         if (!replayAt)
-          setLocationId(
+          setLocationId(current => result.stations.some(station => station.id === current) ? current :
             result.stations.find((station) =>
               station.name.includes(
-                region === "maharashtra" ? "Pune" : "Bhosari",
+                "Bhosari",
               ),
             )?.id ?? result.stations[0].id,
           );
@@ -97,14 +105,14 @@ export function Dashboard() {
     const timer = window.setInterval(() => {
       loadDashboard(null, region).then((next) => {
         if (active)
-          setData((previous) =>
+          setData((previous) => next.demo && previous && !previous.demo ? { ...previous, warning: next.warning } :
             previous?.coverage?.updated_at === next.coverage?.updated_at &&
             previous?.stations[0]?.timestamp === next.stations[0]?.timestamp
               ? previous
               : next,
           );
       });
-    }, 60000);
+    }, 30000);
     return () => {
       active = false;
       window.clearInterval(timer);
@@ -137,14 +145,12 @@ export function Dashboard() {
     Promise.all([
       api.scenarios(location, appliedCuts, data.demo, replayAt, region),
       api.forecast(location, data.demo, hours, replayAt, region),
-      api.backtest(location, data.demo, replayAt, region),
       api.attribution(location, data.demo, replayAt, region),
     ])
-      .then(([nextScenario, nextForecast, nextBacktest, nextAttribution]) => {
+      .then(([nextScenario, nextForecast, nextAttribution]) => {
         if (!active) return;
         setScenario(nextScenario);
         setForecast(nextForecast);
-        setBacktest(nextBacktest);
         setAttribution(nextAttribution);
         setLoading(false);
       })
@@ -160,6 +166,16 @@ export function Dashboard() {
       active = false;
     };
   }, [data, location, appliedCuts, hours, retry, replayAt, region]);
+
+  useEffect(() => {
+    if (!data || !location || tab !== "Backtest") return;
+    let active = true;
+    setBacktest(null);
+    api.backtest(location, data.demo, replayAt, region)
+      .then(next => active && setBacktest(next))
+      .catch(() => active && setError("Historical backtest could not load. Other live analysis remains available."));
+    return () => { active = false; };
+  }, [data, location, replayAt, region, tab]);
 
   const frame = frameIndex > 0 ? timeline?.frames[frameIndex] : undefined;
   const mapCells = useMemo(() => {
@@ -241,7 +257,7 @@ export function Dashboard() {
     return (
       <main className="startup" role="status">
         <RefreshCw className="spin" />
-        <h1>Loading AirTwin PCMC</h1>
+        <h1>Loading AirTwin Pune + PCMC</h1>
         <p>Preparing the pollution grid and location analysis.</p>
       </main>
     );
@@ -251,33 +267,14 @@ export function Dashboard() {
         <div className="brand">
           <span className="brand-mark" aria-label="AirTwin leaf logo" role="img"><Leaf size={36} strokeWidth={1.7} /></span>
           <div>
-            <h1>AirTwin {region === "maharashtra" ? "Maharashtra" : "Pune + PCMC"}</h1>
+            <h1>AirTwin Pune + PCMC</h1>
             <p>
               Urban Environmental Digital Twin ·{" "}
-              {region === "maharashtra"
-                ? "Maharashtra"
-                : "Pune & Pimpri-Chinchwad"}
+              Pune & Pimpri-Chinchwad
             </p>
           </div>
         </div>
         <div className="header-status">
-          <label className="status-chip">
-            Region{" "}
-            <select
-              aria-label="Region"
-              value={region}
-              onChange={(event) => {
-                setReplayAt(null);
-                setCellLocation(null);
-                setData(null);
-                setScenario(null);
-                setRegion(event.target.value as RegionId);
-              }}
-            >
-              <option value="pcmc">Pune + PCMC</option>
-              <option value="maharashtra">Maharashtra</option>
-            </select>
-          </label>
           {!data.demo && region === "pcmc" && (
             <button
               className="status-chip replay-toggle"
@@ -325,31 +322,31 @@ export function Dashboard() {
       )}
       {data.coverage?.modeled_points !== undefined && (
         <div className="api-warning">
-          Coverage: {data.coverage.modeled_points} CAMS model reference points ·{" "}
-          {data.coverage.observed_points} fresh observed points · provider cache
-          refreshed hourly while the backend is running.
+          Data status: {data.coverage.observed_points === 0 ? "NO FRESH OBSERVATIONS" : `${data.coverage.observed_points} fresh observed points`} · {data.coverage.observed_points === 0 && `${data.coverage.discovered_pm25_sensors ?? 0} OpenAQ PM2.5 sensors discovered, none passed the 24-hour freshness check · `}{data.coverage.modeled_points} CAMS modeled reference points ({data.coverage.distinct_modeled_pm25_levels ?? "—"} distinct PM2.5 levels) · provider refresh interval {Math.round(Number(data.coverage.refresh_interval_seconds ?? 900) / 60)} minutes while the backend is running. CAMS Global is about 45 km resolution; these points are not neighborhood monitors.
         </div>
       )}
       <section className="workspace-intro">
         <h2>Explore air quality</h2>
-        <p>Compare local conditions and test clean-air interventions.</p>
+        <p>Explore modeled air quality and compare assumption-based intervention scenarios.</p>
         <div className="intro-summary">
           <div><span>Selected location</span><strong>{location.short_name}</strong></div>
           <div><span>PM2.5 · {location.source_type}</span><strong>{number(location.pm25)} <small>µg/m³</small></strong></div>
-          <div><span>Scenario benefit · modeled</span><strong>{selected ? `${number(selected.reduction_percent)}%` : "Preparing…"}</strong></div>
+          <div><span>{tab === "Planner" ? "Modeled package reduction" : "Modeled scenario change"}</span><strong>{tab === "Planner" ? plan ? `${number(plan.selected.reduction_percent, 2)}%` : "Preparing…" : selected ? currentScenario?.location_status === "no_resolvable_local_excess" ? "Unavailable" : `−${number(selected.reduction, 3)} µg/m³` : "Preparing…"}</strong></div>
         </div>
         <span>{data.demo ? "Synthetic demonstration" : `Snapshot · ${dateLabel(location.timestamp)} · ${timeLabel(location.timestamp)} IST`}
           {!data.demo && !replayAt && Date.now() - Date.parse(location.timestamp) > 24 * 3600000 && <strong className="snapshot-stale"> · STALE: over 24 h old; forecasts start at this snapshot</strong>}
         </span>
       </section>
+      {region === "pcmc" && <LiveFeed replay={Boolean(replayAt)} />}
+      {tab === "Planner" && plan && !planCurrent && <p className="api-warning" role="status">Recomputing plan. The previous successful package and map remain visible.</p>}
       <section className="workspace">
         <MapView
-          stations={mapStations}
-          cells={mapCells ?? (after && selected ? selected.cells : data.cells)}
+          stations={tab === "Planner" && plan ? mapStations.filter(station => !plan.forecast.masked_sensor_ids.includes(station.id)) : mapStations}
+          cells={tab === "Planner" && plan ? (after ? plan.cells_after : plan.cells_before) : mapCells ?? (after && selected ? selected.cells : data.cells)}
           selected={location}
           onSelect={chooseLocation}
           after={!frame && after && Boolean(selected)}
-          forecastLabel={frame ? `+${frame.hour} h forecast` : null}
+          forecastLabel={tab === "Planner" && plan ? "24 h modeled plan" : frame ? `+${frame.hour} h forecast` : null}
           onAfter={() => {
             setFrameIndex(0);
             setAfter(!after);
@@ -404,7 +401,7 @@ export function Dashboard() {
               className={`result-status ${outdated ? "stale" : ""}`}
               role="status"
             >
-              {loading || !selected
+              {tab === "Planner" ? planCurrent && plan ? "PLAN CURRENT" : "PLAN OUTDATED" : loading || !selected
                 ? "LOADING"
                 : outdated
                   ? "RESULTS OUTDATED"
@@ -465,6 +462,12 @@ export function Dashboard() {
               </div>
             ) : (
               <>
+                {tab === "Planner" && region === "pcmc" && !data.demo && (
+                  <PlanningPanel replayAt={replayAt} snapshotAt={snapshotAt ?? location.timestamp} onPlan={setPlan} onCurrent={setPlanCurrent}
+                    onReplay={timestamp => { setHours(24); setFrameIndex(0); setSwitching(true); setReplayAt(timestamp); }} />
+                )}
+                {tab === "Planner" && (region !== "pcmc" || data.demo) && <p className="api-warning">Planner requires the connected Pune–PCMC backend. Synthetic fallback does not establish sensor resilience.</p>}
+                {tab === "Backtest" && !backtest && <p role="status">Loading historical backtest…</p>}
                 {tab === "Scenarios" && (
                   <ScenarioPanel
                     cuts={cuts}
