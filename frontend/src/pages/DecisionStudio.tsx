@@ -24,7 +24,6 @@ import { TimelineBar } from "../components/TimelineBar";
 import { AskAirTwin } from "../components/AskAirTwin";
 import { DataBadge } from "../components/DataBadge";
 import "./decision-studio.css";
-import "./decision-studio-vivid.css";
 import "./framevitals-theme.css";
 
 type View = "overview" | "forecast" | "sources" | "scenarios" | "validation";
@@ -310,7 +309,7 @@ export function DecisionStudio() {
       <div className="tw-main" id="tw-content">
         <header className="fv-topbar">
           <div className="fv-topbar-inner">
-            <a className="fv-brand" href="#tw-content" aria-label="AirTwin city overview" onClick={() => navigateTo("overview")}>
+            <a className="fv-brand" href="#tw-content" aria-label="AirTwin city overview" onClick={() => setView("overview")}>
               <span className="fv-brand-symbol"><Leaf size={18} strokeWidth={1.8}/></span>
               <span className="fv-brand-name">AirTwin</span>
               <span className="fv-build-label">ENR / 01</span>
