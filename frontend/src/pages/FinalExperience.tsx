@@ -20,6 +20,9 @@ import "../final.css";
 const FinalMap = lazy(async () => ({
   default: (await import("../components/FinalMap")).FinalMap,
 }));
+const ResearchWorkbench = lazy(async () => ({
+  default: (await import("../components/ResearchWorkbench")).ResearchWorkbench,
+}));
 type Page = "overview" | "map" | "forecast";
 type Subview = "explore" | "analytics";
 
@@ -406,9 +409,12 @@ export function FinalExperience() {
               <div className="fv-advice-item"><span className="fv-advice-icon"><MapPin size={18}/></span><div><strong>Check the source</strong><p>Modeled map cells aren't air monitors. Choose a recent measured station reading where available.</p></div></div>
               <div className="fv-advice-item"><span className="fv-advice-icon"><ShieldCheck size={18}/></span><div><strong>Protect sensitive groups</strong><p>Children, older adults, and people with breathing or heart conditions may need extra care when particles rise.</p></div></div>
               <div className="fv-divider"/>
-              <div className="fv-locked"><LockKeyhole size={17}/><div><strong>Municipal operations</strong><p>Scenario controls and management actions require server-verified PMC/PCMC access. Role switching is disabled until secure authentication is connected.</p></div></div>
+              <div className="fv-locked"><LockKeyhole size={17}/><div><strong>Municipal operations</strong><p>Only executing municipal actions requires a server-verified PMC/PCMC role. Read-only model experiments below are public; employee access remains disabled until secure authentication is connected.</p></div></div>
               <details className="fv-disclosure"><summary>Data assumptions and provenance</summary><p>{selected?.assumptions?.join(" ") || "Select an area on the map to inspect its evidence."}</p></details>
             </section>
+            <Suspense fallback={<div role="status" className="fv-research-shell">Loading research tools…</div>}>
+              <ResearchWorkbench selected={selected} demo={data.demo}/>
+            </Suspense>
           </div>}
           {page === "forecast" && <div className="fv-forecast-panels">
             <div className="fv-card fv-forecast-summary"><span className="fv-card-kicker"><CloudMoon size={17}/> {focus ? "Area forecast" : "Selected reference forecast"}</span>
