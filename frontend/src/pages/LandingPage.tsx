@@ -74,9 +74,9 @@ export function LandingPage() {
           <div className="air-hero-inner">
             <Starburst />
             <div className="air-hero-copy">
-              <p className="air-hero-eyebrow">URBAN AIR INTELLIGENCE</p>
+              <p className="air-hero-eyebrow">AIR QUALITY / URBAN FUTURES</p>
               <h1 id="air-hero-title" className="air-display">
-                <span>AIR</span>
+                <span>THE CITY</span>
                 <span className="air-display-indent">HAS A</span>
                 <span>PULSE.</span>
               </h1>
@@ -84,7 +84,7 @@ export function LandingPage() {
                 Understand where pollution rises, what drives it, and what could make tomorrow's air cleaner.
               </p>
               <div className="air-home-actions">
-                <a className="air-hero-button air-hero-button-primary" href="#/map">START THE TOUR</a>
+                <a className="air-hero-button air-hero-button-primary" href="#/map">EXPLORE AIR TWIN</a>
                 <a className="air-hero-button air-hero-button-outline" href="#/forecast">
                   FORECAST LAB <ArrowUpRight size={14} strokeWidth={2.3}/>
                 </a>
@@ -98,8 +98,8 @@ export function LandingPage() {
           <div className="air-container">
             <div className="air-section-intro">
               <p className="air-small-label">01 / THE EXPERIENCE</p>
-              <h2 id="air-explore-heading">See the air.<br/><em>Follow the evidence.</em></h2>
-              <p>Five focused pages. One connected picture of your city's air.</p>
+              <h2 id="air-explore-heading">EXPLORE THE<br/><em>CITY TWIN.</em></h2>
+              <p>Five linked workspaces. One clearer picture of your city's air.</p>
             </div>
             <div className="air-destinations">
               {DESTINATIONS.map((item) => (
@@ -123,7 +123,7 @@ export function LandingPage() {
           <div className="air-container air-caveat-inner">
             <div>
               <p className="air-small-label">02 / THE EVIDENCE</p>
-              <h2 id="air-caveat-title">Modeled isn't<br/><em>measured.</em></h2>
+              <h2 id="air-caveat-title">EVIDENCE,<br/><em>NOT ASSUMPTION.</em></h2>
             </div>
             <div className="air-caveat-description">
               <p>AirTwin distinguishes observed sensor readings from modeled predictions and synthetic demonstrations. Proposed pollution-control outcomes are estimates, not measured policy effects.</p>
