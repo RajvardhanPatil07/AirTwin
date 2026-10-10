@@ -93,3 +93,18 @@ OpenAQ station with a fresh measurement and a complete 49-hour recent window,
 plus correctly aligned CAMS/weather features. No amount of backfilling
 fixes an upstream source publishing data days late. The model artifact is
 ignored by Git and must be provisioned independently to any deployed backend.
+
+
+## Optional historical observed monitor map overlay
+
+The dedicated `GET /api/observed-history?region=pcmc` endpoint returns the
+latest stored genuine PM2.5 hour per station **only when older than 24 h**.
+It reads the same private Supabase table, or local SQLite when no database is
+configured, and reports each monitor's timestamp and age in hours. The
+frontend offers an opt-in **Past readings** map layer with purple outlined
+markers and an explicit `OBSERVED · HISTORICAL (NOT LIVE)` tooltip.
+
+These historical observations never enter the live stations endpoint,
+current hotspot colors, live coverage counts, scenarios or operational model
+inference. If Supabase is temporarily unreachable the overlay disappears
+without breaking the modeled main dashboard.

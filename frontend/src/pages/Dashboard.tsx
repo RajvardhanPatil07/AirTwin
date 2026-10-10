@@ -7,6 +7,7 @@ import type {
   BacktestResponse,
   Cuts,
   DashboardData,
+  HistoricalObservationsResponse,
   ForecastResponse,
   ScenarioResponse,
   Station,
@@ -42,6 +43,7 @@ export function Dashboard() {
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [historical, setHistorical] = useState<HistoricalObservationsResponse | null>(null);
   const [locationId, setLocationId] = useState("bhosari");
   const [cellLocation, setCellLocation] = useState<Station | null>(null);
   const [tab, setTab] = useState<Tab>("Scenarios");
@@ -110,6 +112,18 @@ export function Dashboard() {
       window.clearInterval(timer);
     };
   }, [region, replayAt]);
+  useEffect(() => {
+    if (region !== "pcmc" || replayAt || !data || data.demo) {
+      setHistorical(null);
+      return;
+    }
+    let active = true;
+    api.observedHistory()
+      .then((response) => { if (active) setHistorical(response); })
+      .catch(() => { if (active) setHistorical(null); });
+    return () => { active = false; };
+  }, [region, replayAt, data?.demo, data?.coverage?.updated_at]);
+
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
@@ -328,6 +342,9 @@ export function Dashboard() {
           Coverage: {data.coverage.modeled_points} CAMS model reference points ·{" "}
           {data.coverage.observed_points} fresh observed points · provider cache
           refreshed hourly while the backend is running.
+          {region === "pcmc" && historical?.stations.length ? (
+            <> · {historical.stations.length} historical observed monitors available in the Past readings layer (not live)</>
+          ) : null}
         </div>
       )}
       <section className="workspace-intro">
@@ -345,6 +362,7 @@ export function Dashboard() {
       <section className="workspace">
         <MapView
           stations={mapStations}
+          historicalStations={region === "pcmc" && !replayAt ? historical?.stations ?? [] : []}
           cells={mapCells ?? (after && selected ? selected.cells : data.cells)}
           selected={location}
           onSelect={chooseLocation}

@@ -29,6 +29,20 @@ export interface Station extends Provenance {
   pollutants?: Record<string, DataPoint>;
   weather?: Weather;
 }
+export interface HistoricalObservedStation {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  pm25: number;
+  timestamp: string;
+  age_hours: number;
+  source_type: "observed";
+}
+export interface HistoricalObservationsResponse extends Provenance {
+  stations: HistoricalObservedStation[];
+  latest_measurement_at: string | null;
+}
 export interface Cell extends Provenance {
   id: string;
   latitude: number;

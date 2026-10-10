@@ -7,6 +7,7 @@ import type {
   DashboardData,
   ForecastResponse,
   HotspotsResponse,
+  HistoricalObservationsResponse,
   ScenarioResponse,
   Station,
   StationsResponse,
@@ -95,6 +96,8 @@ function withReplay(path: string, replayAt: string | null) {
     : path;
 }
 export const api = {
+  observedHistory: () =>
+    request<HistoricalObservationsResponse>("/api/observed-history?region=pcmc"),
   replay: () => request<ReplayResponse>("/api/replay"),
   timeline: (replayAt: string | null, region: RegionId) =>
     request<TimelineResponse>(

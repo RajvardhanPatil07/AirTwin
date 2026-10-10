@@ -150,6 +150,58 @@ def read_observations(station_id, hours=96):
     ]
 
 
+
+def historical_observed_stations(days=90):
+    """Return latest *stale* observed PM2.5 per monitor for an opt-in map layer.
+
+    This is a separate historical view. Neither these records nor their age
+    may be used to inflate live observed coverage or feed live inference.
+    """
+    if not 1 <= days <= RETENTION_DAYS:
+        raise ValueError("historical view must be within retention")
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    columns = "station_id, observed_at, pm25, latitude, longitude, station_name"
+    if database.configured():
+        with database._connect() as conn:
+            _ensure_postgres(conn)
+            records = conn.execute(f"""
+                SELECT DISTINCT ON (station_id) {columns}
+                FROM airtwin.station_observations
+                WHERE observed_at >= %s::timestamptz
+                ORDER BY station_id, observed_at DESC
+            """, (cutoff,)).fetchall()
+    else:
+        with closing(_sqlite()) as conn:
+            rows = conn.execute(f"""
+                SELECT {columns} FROM station_observations
+                WHERE observed_at >= ?
+                ORDER BY station_id, observed_at DESC
+            """, (cutoff,)).fetchall()
+        seen, records = set(), []
+        for row in rows:
+            if row[0] not in seen:
+                records.append(row)
+                seen.add(row[0])
+
+    now = pd.Timestamp.now(tz="UTC")
+    history = []
+    for station_id, observed_at, pm25, lat, lon, name in records:
+        timestamp = pd.Timestamp(observed_at)
+        if timestamp.tzinfo is None:
+            continue
+        timestamp = timestamp.tz_convert("UTC")
+        age_hours = (now - timestamp).total_seconds() / 3600
+        if not 24 < age_hours <= days * 24:
+            continue
+        history.append({
+            "id": station_id, "name": name,
+            "latitude": lat, "longitude": lon, "pm25": float(pm25),
+            "timestamp": timestamp.isoformat(),
+            "age_hours": round(age_hours, 1),
+            "source_type": "observed",
+        })
+    return sorted(history, key=lambda row: row["timestamp"], reverse=True)
+
 def ingest_pune_history(stations, fetch_payload, *, max_sensors=None,
                         backfill_days=None, page_limit=8):
     """Fetch observed OpenAQ hourly PM2.5; never turn old hours into live data.

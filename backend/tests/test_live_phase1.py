@@ -293,3 +293,33 @@ def test_manual_backfill_rejects_unsafe_windows(monkeypatch):
             observations.ingest_pune_history([], lambda *_: {}, backfill_days=invalid)
     with pytest.raises(ValueError, match="page_limit"):
         observations.ingest_pune_history([], lambda *_: {}, page_limit=0)
+
+
+def test_historical_layer_only_returns_stale_observed_measurements(monkeypatch, tmp_path):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(observations, "SQLITE_PATH", tmp_path / "past_stations.sqlite")
+    current = pd.Timestamp.now(tz="UTC").floor("h")
+    real = history(current, hours=1)[0]
+    observations.persist_observations([
+        {**real, "timestamp": (current - pd.Timedelta(hours=68)).isoformat()},
+        {**real, "timestamp": (current - pd.Timedelta(hours=69)).isoformat()},
+        {**real, "station_id": "openaq-124", "timestamp": current.isoformat()},
+        {**real, "station_id": "cams-0", "timestamp": (current - pd.Timedelta(hours=70)).isoformat()},
+    ])
+    latest = observations.historical_observed_stations()
+    assert len(latest) == 1
+    assert latest[0]["id"] == "openaq-123"
+    assert latest[0]["source_type"] == "observed"
+    assert latest[0]["age_hours"] > 24
+    assert pd.Timestamp(latest[0]["timestamp"]) == current - pd.Timedelta(hours=68)
+
+
+def test_historical_endpoint_is_not_live_station_response(monkeypatch):
+    from app.routers import map as map_router
+    mocked = [{"id": "openaq-123", "timestamp": "2026-10-07T10:00:00Z",
+               "pm25": 33.0, "source_type": "observed", "age_hours": 67}]
+    monkeypatch.setattr(map_router, "historical_observed_stations", lambda: mocked)
+    result = map_router.observed_history()
+    assert result["stations"] == mocked
+    assert "older than 24 hours" in result["assumptions"][0]
+    assert result["latest_measurement_at"] == mocked[0]["timestamp"]

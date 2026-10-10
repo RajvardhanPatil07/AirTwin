@@ -15,6 +15,7 @@ import type { GeoJsonObject } from "geojson";
 import type {
   Cell,
   Station,
+  HistoricalObservedStation,
   Weather,
   ZoneCollection,
   RegionInfo,
@@ -98,6 +99,7 @@ function MapRuntime({ region }: { region?: RegionInfo }) {
 interface Props {
   region?: RegionInfo;
   stations: Station[];
+  historicalStations?: HistoricalObservedStation[];
   cells: Cell[];
   selected: Station;
   onSelect: (location: Station) => void;
@@ -113,6 +115,7 @@ interface Props {
 }
 export function MapView({
   stations,
+  historicalStations = [],
   cells,
   selected,
   onSelect,
@@ -131,6 +134,7 @@ export function MapView({
     Hotspots: true,
     Stations: true,
     Zones: false,
+    History: false,
   });
   const [hover, setHover] = useState<string | null>(null);
   const [tileError, setTileError] = useState(false);
@@ -261,6 +265,25 @@ export function MapView({
             />
           </>
         )}
+        {layers.History &&
+          historicalStations.map((station) => (
+            <CircleMarker
+              key={`history-${station.id}`}
+              center={[station.latitude, station.longitude]}
+              radius={7}
+              pathOptions={{
+                color: "#7c3aed", weight: 3,
+                dashArray: "5 4", fillColor: "#7c3aed", fillOpacity: 0.12,
+              }}
+            >
+              <Tooltip direction="top">
+                <strong>{station.name}</strong>
+                <div>OBSERVED · HISTORICAL (NOT LIVE)</div>
+                <div>{number(station.pm25, 1)} µg/m³ · {Math.round(station.age_hours)} hours old</div>
+                <div>{new Date(station.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST</div>
+              </Tooltip>
+            </CircleMarker>
+          ))}
         {layers.Stations &&
           stations.map((station) => (
             <CircleMarker
@@ -354,8 +377,9 @@ export function MapView({
         </span>
       </div>
       <div className="map-controls" aria-label="Map layers">
-        {(Object.keys(layers) as (keyof typeof layers)[]).map(
-          (layer, index) => (
+        {(Object.keys(layers) as (keyof typeof layers)[])
+          .filter((layer) => layer !== "History" || historicalStations.length > 0)
+          .map((layer, index) => (
             <button
               key={layer}
               aria-pressed={layers[layer]}
@@ -365,7 +389,7 @@ export function MapView({
                 setHover(null);
               }}
             >
-              {layer}
+              {layer === "History" ? "Past readings" : layer}
               {layers[layer] && <Check size={11} />}
             </button>
           ),
@@ -381,6 +405,7 @@ export function MapView({
           <br />
           <small>
             {layers.Zones ? (zonesSourceType === "mapped" ? "Mapped OSM zones shown · activity assumed" : "Illustrative zones shown") : "Zones hidden"}
+            {layers.History && historicalStations.length > 0 ? " · Purple dashed points are real historical station measurements, not current air quality" : ""}
           </small>
         </span>
       </div>
