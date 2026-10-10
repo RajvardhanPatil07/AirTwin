@@ -144,7 +144,6 @@ export function DecisionStudio() {
     return () => { active = false; };
     // Do not depend on appliedCuts: saving a user-run decision should not
     // trigger a competing speculative request that overwrites its result.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, location?.id, view, hours, replayAt, reload]);
 
   useEffect(() => {
