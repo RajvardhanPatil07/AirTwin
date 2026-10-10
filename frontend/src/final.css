@@ -447,3 +447,7 @@ button.fv-card:hover { transform: translateY(-2px); box-shadow: 0 13px 30px #164
   .fm-legend-scale { font-size: 8px; }
   .fm-legend .fm-demo { font-size: 9px; line-height: 1.3; }
 }
+
+/* Keep the distance scale and map legend separately readable. */
+.fm-shell .fm-legend { bottom: 72px; }
+@media (max-width: 640px) { .fm-shell .fm-legend { bottom: 64px; } }
