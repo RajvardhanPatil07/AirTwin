@@ -161,6 +161,12 @@ def _validate(candidate):
         return "candidate_includes_nonobserved_targets"
     if 24 not in candidate["models"]:
         return "candidate_missing_24h_model"
+    # Reject candidates whose installed 24h model would serve persistence
+    # exclusively, even if an earlier holdout fit happened to improve.
+    bundle = candidate["models"][24]
+    weight = bundle.get("weight") if isinstance(bundle, dict) else None
+    if weight is None or not np.isfinite(weight) or not 0 < weight <= 1:
+        return "24h_production_model_has_no_lightgbm_contribution"
     metric = report["metrics"]
     mae, persistence = float(metric["mae"]), float(metric["persistence_mae"])
     if (int(report["test_rows"]) < MIN_TEST_ROWS or not np.isfinite(mae)
