@@ -20,6 +20,7 @@ import { TimelineBar } from "../components/TimelineBar";
 import { AskAirTwin } from "../components/AskAirTwin";
 import { DataBadge } from "../components/DataBadge";
 import "./decision-studio.css";
+import "./decision-studio-vivid.css";
 
 type View = "overview" | "forecast" | "sources" | "scenarios" | "validation";
 type SaveState = "none" | "saved" | "unsaved";
@@ -165,6 +166,14 @@ export function DecisionStudio() {
   }, { observed: 0, modeled: 0, synthetic: 0 }) ?? { observed: 0, modeled: 0, synthetic: 0 };
   const filtered = data?.stations.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())) ?? [];
 
+  function navigateTo(next: View) {
+    setView(next);
+    setMobileNav(false);
+    if (window.matchMedia("(max-width: 1100px)").matches) {
+      window.requestAnimationFrame(() => document.getElementById("analysis-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }
+
   function chooseLocation(next: Station) {
     if (running) return;
     setSelectedId(next.id);
@@ -241,6 +250,7 @@ export function DecisionStudio() {
   }
   return (
     <main className="tw-shell">
+      <a className="tw-skip-link" href="#tw-content">Skip to city dashboard</a>
       <aside className={"tw-rail" + (mobileNav ? " tw-rail-open" : "")}>
         <a className="tw-logo" href="/" aria-label="AirTwin homepage">
           <span className="tw-logo-symbol"><Leaf size={23} /></span>
@@ -251,7 +261,7 @@ export function DecisionStudio() {
           {NAV.map(({ id, label, description, icon: Icon }) => (
             <button key={id} className={"tw-nav-item" + (view === id ? " is-active" : "")}
               aria-current={view === id ? "page" : undefined}
-              onClick={() => { setView(id); setMobileNav(false); }}>
+              onClick={() => navigateTo(id)}>
               <Icon size={18} strokeWidth={1.8} />
               <span><strong>{label}</strong><small>{description}</small></span>
               {view === id && <ChevronRight size={14} className="tw-nav-arrow" />}
@@ -264,8 +274,9 @@ export function DecisionStudio() {
           <a href="https://github.com/RajvardhanPatil07/AirTwin/tree/dev/parth-overhaul" target="_blank" rel="noreferrer">Project source <ArrowRight size={13} /></a>
         </div>
       </aside>
+      {mobileNav && <button type="button" className="tw-mobile-backdrop" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
 
-      <div className="tw-main">
+      <div className="tw-main" id="tw-content">
         <header className="tw-header">
           <div className="tw-breadcrumb">
             <button className="tw-mobile-toggle" onClick={() => setMobileNav(!mobileNav)} aria-label="Toggle navigation"><Layers3 size={19}/></button>
@@ -283,7 +294,11 @@ export function DecisionStudio() {
           <div className="tw-introduction">
             <div><div className="tw-overline"><span className="tw-live-dot"/> URBAN ENVIRONMENTAL DIGITAL TWIN / ENR–01</div>
               <h1>See the air. <span>Shape what happens next.</span></h1>
-              <p>Explore PM2.5 hotspots, forecast exposure and compare three pollution-control strategies across Pune–PCMC.</p></div>
+              <p>Explore PM2.5 hotspots, forecast exposure and compare three pollution-control strategies across Pune–PCMC.</p>
+              <div className="tw-hero-actions">
+                <button type="button" className="tw-primary-action" onClick={() => navigateTo("scenarios")}>Compare interventions <ArrowRight size={16}/></button>
+                <button type="button" className="tw-secondary-action" onClick={() => navigateTo("forecast")}>Explore forecast <Activity size={16}/></button>
+              </div></div>
             <div className="tw-provenance-key" aria-label="Evidence provenance legend">
               <DataBadge source="observed"/><DataBadge source="modeled"/><DataBadge source="synthetic"/>
             </div>
@@ -324,7 +339,7 @@ export function DecisionStudio() {
 
           <div className="tw-workspace">
             <div className="tw-map-column">
-              <section className="tw-map-panel" aria-label="PM2.5 hotspot exploration">
+              <section className="tw-map-panel" id="pollution-map" aria-label="PM2.5 hotspot exploration">
                 <div className="tw-panel-heading"><div>
                   <div className="tw-eyebrow">SPATIAL INTELLIGENCE</div>
                   <h2>Pollution hotspots <span>· Pune–PCMC</span></h2>
@@ -387,7 +402,7 @@ export function DecisionStudio() {
               </div>
             </div>
 
-            <aside className="tw-inspector" aria-label="Selected location analysis">
+            <aside className="tw-inspector" id="analysis-panel" aria-label="Selected location analysis">
               <div className="tw-inspector-header">
                 <div className="tw-eyebrow">LOCAL DECISION STUDIO</div>
                 <h2>{location.short_name}</h2>
@@ -405,19 +420,19 @@ export function DecisionStudio() {
                 </select>
               </div>
               <div className="tw-section-tabs" role="tablist" aria-label="Analytical views">
-                {NAV.map(({ id, label }) => <button key={id} role="tab" aria-selected={view === id}
-                  onClick={() => setView(id)} className={view === id ? "selected" : ""}>{label.split(" ")[0]}</button>)}
+                {NAV.map(({ id, label }) => <button key={id} type="button" role="tab" id={"tw-tab-" + id} aria-controls="tw-analysis-content" aria-selected={view === id}
+                  onClick={() => navigateTo(id)} className={view === id ? "selected" : ""}>{label.split(" ")[0]}</button>)}
               </div>
-              <div className="tw-inspector-content">
+              <div className="tw-inspector-content" id="tw-analysis-content" role="tabpanel" aria-labelledby={"tw-tab-" + view}>
                 {error && <ModelNotice>{error} <button onClick={() => setReload((n) => n + 1)}>Retry</button></ModelNotice>}
                 {analysisLoading && <div className="tw-loading" role="status"><RefreshCw className="tw-spin" size={17}/> Updating analytical context…</div>}
                 {view === "overview" && <div className="tw-overview">
                   <div className="tw-eyebrow">WHAT THE EVIDENCE SAYS</div>
                   <h3>From city map to practical choices</h3>
                   <p className="tw-copy">Explore forecasted PM2.5, likely source contributions and modeled policy outcomes for this selected location.</p>
-                  <div className="tw-overview-step"><span>01</span><div><strong>Predict what changes</strong><p>{hours}-hour modeled outlook with uncertainty intervals and an origin timestamp.</p></div><button aria-label="Open forecast" onClick={() => setView("forecast")}><ArrowRight size={17}/></button></div>
-                  <div className="tw-overview-step"><span>02</span><div><strong>Explore source hypotheses</strong><p>Traffic, industry, dust and background based on configured spatial proxies.</p></div><button aria-label="Open source analysis" onClick={() => setView("sources")}><ArrowRight size={17}/></button></div>
-                  <div className="tw-overview-step"><span>03</span><div><strong>Compare interventions</strong><p>Rank three individual actions and their combined modeled effect.</p></div><button aria-label="Open interventions" onClick={() => setView("scenarios")}><ArrowRight size={17}/></button></div>
+                  <div className="tw-overview-step"><span>01</span><div><strong>Predict what changes</strong><p>{hours}-hour modeled outlook with uncertainty intervals and an origin timestamp.</p></div><button aria-label="Open forecast" onClick={() => navigateTo("forecast")}><ArrowRight size={17}/></button></div>
+                  <div className="tw-overview-step"><span>02</span><div><strong>Explore source hypotheses</strong><p>Traffic, industry, dust and background based on configured spatial proxies.</p></div><button aria-label="Open source analysis" onClick={() => navigateTo("sources")}><ArrowRight size={17}/></button></div>
+                  <div className="tw-overview-step"><span>03</span><div><strong>Compare interventions</strong><p>Rank three individual actions and their combined modeled effect.</p></div><button aria-label="Open interventions" onClick={() => navigateTo("scenarios")}><ArrowRight size={17}/></button></div>
                   <div className="tw-compact-summary">
                     <span>Selected area's potential modeled benefit</span>
                     <div><strong>{selected ? number(selected.reduction) : "—"}</strong><small>µg/m³</small></div>

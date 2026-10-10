@@ -1,2 +1,0 @@
-# Compatibility entry point; the full backend stack is now implemented.
--r requirements.txt
