@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import joblib
 import numpy as np
 import pandas as pd
 
@@ -60,7 +61,7 @@ def _stub_check(monkeypatch, candidate_mae=8.0, baseline_mae=10.0):
         assert set(frame.source_type) == {"observed"}
         assert len(frame) == 460
         return {
-            "models": {24: object()}, "version": rt.VERSION,
+            "models": {24: {"weight": 0.3}}, "version": rt.VERSION,
             "fingerprint": fingerprint,
             "report": {"target_source_types": ["observed"],
                        "test_rows": 50,
@@ -97,6 +98,23 @@ def test_retraining_rejects_persistence_tie(monkeypatch):
     assert calls == []
 
 
+def test_retraining_rejects_zero_weight_production_bundle(monkeypatch):
+    calls = _stub_check(monkeypatch)
+    def production_is_persistence_only(frame, fingerprint, warnings, **kwargs):
+        return {
+            "models": {24: {"weight": 0.0}},
+            "version": rt.VERSION,
+            "fingerprint": fingerprint,
+            "report": {"target_source_types": ["observed"], "test_rows": 50,
+                       "metrics": {"mae": 8.0, "persistence_mae": 10.0}},
+        }
+    monkeypatch.setattr(rt, "train", production_is_persistence_only)
+    result = rt.run_retraining_check()
+    assert result["status"] == "rejected"
+    assert result["reason"] == "24h_production_model_has_no_lightgbm_contribution"
+    assert calls == []
+
+
 def test_retraining_waits_for_new_readings(monkeypatch):
     calls = _stub_check(monkeypatch)
     monkeypatch.setattr(rt, "MIN_NEW_ROWS", 61)
@@ -125,8 +143,25 @@ def test_retrained_artifact_is_preferred_but_bad_file_falls_back(monkeypatch, tm
     assert attempts == [live, base]
 
 
+def test_legacy_persistence_tie_artifact_falls_back(monkeypatch, tmp_path):
+    base = tmp_path / "forecast.joblib"
+    live = tmp_path / "forecast_live.joblib"
+    incumbent = {"version": rt.VERSION, "models": {24: {"weight": 0.4}},
+                 "report": {"target_source_types": ["observed"]}}
+    tied = {"version": rt.VERSION, "models": {24: {"weight": 0.0}},
+            "report": {"target_source_types": ["observed"], "test_rows": 50,
+                       "metrics": {"mae": 10.0, "persistence_mae": 10.0}}}
+    joblib.dump(incumbent, base)
+    joblib.dump(tied, live)
+    monkeypatch.setattr(fd, "ARTIFACT", base)
+    monkeypatch.setattr(fd, "LIVE_ARTIFACT", live)
+    fd._load_artifact.cache_clear()
+    assert fd.verified_artifact(base) == incumbent
+    fd._load_artifact.cache_clear()
+
+
 def test_validation_requires_observed_targets_and_honest_benchmark():
-    sample = {"models": {24: object()},
+    sample = {"models": {24: {"weight": 0.3}},
               "report": {"target_source_types": ["modeled"], "test_rows": 100,
                          "metrics": {"mae": 3.0, "persistence_mae": 10.0}}}
     assert rt._validate(sample) == "candidate_includes_nonobserved_targets"
