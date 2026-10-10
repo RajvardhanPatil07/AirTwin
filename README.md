@@ -11,10 +11,14 @@
 
 ## Landing page and separate analysis routes
 
-The dev branch now opens on an **AirTwin landing page inspired by the
-FrameVitals homepage**, using the actual FrameVitals frontend source as its
-design reference. The map, forecasts, attribution and policy simulator no longer
-compete for space on a single scrolling dashboard.
+The dev branch now opens on an **AirTwin landing page styled directly
+after the user-supplied screenshot of `framevitals.vercel.app`**: dark-navy
+minimal header, blue-gradient hero, oversized high-contrast serif typography,
+eight-spoke star, cream and outlined calls to action, luminous circular
+orbital arc and a red horizontal band. The hero reads **AIR HAS A PULSE.**
+The rest of the site uses the same navy/ocean/cream design language.
+The map, forecasts, attribution and policy simulator no longer compete
+for space on a single scrolling dashboard.
 
 After running the local frontend, use these clickable hash routes:
 
