@@ -53,3 +53,58 @@ describe("API availability and provenance", () => {
     expect((await loadDashboard()).demo).toBe(true);
   });
 });
+
+
+describe("optimized dashboard bootstrap", () => {
+  const bundle = {
+    source_type: "modeled",
+    assumptions: ["Grid interpolation is modeled"],
+    stations: [{
+      id: "s1", name: "Monitor", short_name: "Monitor",
+      pm25: 23, latitude: 18.6, longitude: 73.8,
+      timestamp: "2026-10-10T10:00:00+05:30",
+      source_type: "observed", assumptions: ["OpenAQ observation"],
+    }],
+    cells: [{
+      id: "cell-0", latitude: 18.6, longitude: 73.8, pm25: 24,
+      bounds: [[18.59, 73.79], [18.61, 73.81]],
+      source_type: "modeled", assumptions: ["Interpolation"],
+    }],
+  };
+
+  it("loads stations and hotspots with one network call, deduplicating simultaneous readers", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://test.invalid");
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true, json: async () => bundle,
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { loadDashboard } = await import("./api");
+    const [first, second] = await Promise.all([loadDashboard(), loadDashboard()]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(first.demo).toBe(false);
+    expect(second.cells[0].source_type).toBe("modeled");
+    expect(first.stations[0].source_type).toBe("observed");
+    await loadDashboard(null, "pcmc", true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to legacy API on a missing bootstrap route", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://test.invalid");
+    const fetch = vi.fn().mockImplementation(async (uri: string) => {
+      if (uri.includes("/v2/bootstrap")) {
+        return { ok: false, status: 404, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        json: async () => uri.includes("/stations")
+          ? { source_type: "modeled", assumptions: ["Provider"], stations: bundle.stations }
+          : { source_type: "modeled", assumptions: ["IDW"], cells: bundle.cells },
+      };
+    });
+    vi.stubGlobal("fetch", fetch);
+    const { loadDashboard } = await import("./api");
+    const response = await loadDashboard();
+    expect(response.demo).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+});
