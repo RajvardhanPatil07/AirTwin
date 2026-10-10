@@ -134,7 +134,7 @@
   align-items:flex-start;
   margin:25px 0 43px;
   font-family:"Times New Roman", "Nimbus Roman", Georgia,serif;
-  font-size:clamp(90px,11.6vw,188px);
+  font-size:clamp(90px,10vw,150px);
   font-weight:400;
   letter-spacing:-.079em;
   line-height:.77;
@@ -407,7 +407,7 @@
     font-size:clamp(59px,18vw,76px);
     line-height:.71;
     letter-spacing:-.077em;
-    margin:16px 0 27px;
+    margin:16px 0 14px;
   }
   .air-display-indent {margin-left:.28em;}
   .air-home-lede {
@@ -422,7 +422,7 @@
     flex-direction:column;
     align-items:flex-start;
     width:100%;
-    margin-top:20px;
+    margin-top:10px;
     gap:10px;
   }
   .air-home .air-hero-button {
