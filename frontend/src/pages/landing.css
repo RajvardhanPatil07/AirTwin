@@ -481,3 +481,112 @@
     scroll-behavior:auto!important;
   }
 }
+
+
+/* fps.hu-inspired editorial typography and composition.
+   Exact fps.hu font identification is unverified: system serif + Inter are
+   intentional available-font approximations, not claimed originals. */
+.air-home {
+  --air-display-serif: "Times New Roman", Georgia, serif;
+  --air-editorial-sans: Inter, Arial, system-ui, sans-serif;
+}
+.air-home-nav {height:90px;}
+.air-home-nav-inner {max-width:1840px;}
+.air-home .air-home-brand {
+  font-family:var(--air-display-serif);
+  font-size:clamp(31px,3.4vw,48px);
+  letter-spacing:-.065em;
+}
+.air-home-hero {
+  min-height:clamp(720px,70vw,1040px);
+  background:
+    radial-gradient(ellipse 56% 72% at 90% 96%,rgba(99,189,225,.42),transparent 70%),
+    linear-gradient(140deg,#071e30 4%,#12476a 53%,#1b6894 100%);
+}
+.air-hero-inner {max-width:1840px;padding-left:clamp(24px,5.3vw,95px);padding-right:clamp(24px,5.3vw,95px);}
+.air-hero-copy {max-width:1420px;}
+.air-display {
+  font-family:var(--air-display-serif);
+  font-size:clamp(104px,12.4vw,205px);
+  font-weight:400;
+  letter-spacing:-.085em;
+  line-height:.77;
+  margin-top:38px;
+  margin-bottom:49px;
+}
+.air-display-indent {margin-left:.15em;}
+.air-hero-eyebrow {
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.24em;
+}
+.air-home-lede {font-family:var(--air-editorial-sans);font-weight:480;max-width:760px;}
+.air-hero-star {width:clamp(100px,12vw,170px);}
+.air-hero-button {border-radius:0;}
+.air-home .air-hero-button-primary {background:#f9f7f0;color:#06141d;}
+.air-explore {
+  background:#f4f0e8;
+  color:#081b29;
+  padding-top:clamp(100px,11vw,165px);
+  padding-bottom:clamp(104px,12vw,175px);
+}
+.air-explore .air-small-label {color:#8e3040;}
+.air-section-intro {max-width:1180px;}
+.air-section-intro h2 {
+  color:#061b29;
+  font-family:var(--air-display-serif);
+  font-size:clamp(64px,9.2vw,132px);
+  font-weight:400;
+  line-height:.82;
+  letter-spacing:-.078em;
+  margin:27px 0 36px;
+}
+.air-section-intro h2 em {color:#27526d;}
+.air-section-intro > p:last-child {color:#3d596a;font-weight:470;}
+.air-destinations {border-top-color:rgba(9,27,41,.26);margin-top:75px;}
+.air-home .air-destination {
+  grid-template-columns:100px minmax(0,1fr) 170px;
+  border-bottom-color:rgba(9,27,41,.24);
+  min-height:166px;
+}
+.air-home .air-destination:hover {background:rgba(12,69,104,.07);}
+.air-destination-number {color:#9b3547;}
+.air-destination-content strong {
+  font-family:var(--air-display-serif);
+  color:#0a2231;
+  font-size:clamp(37px,4vw,58px);
+  font-weight:400;
+  letter-spacing:-.058em;
+}
+.air-destination-content small {color:#456274;}
+.air-destination-action {color:#123e58;}
+.air-caveat {background:#0b2536;color:#f7f3eb;}
+.air-caveat h2 {
+  font-family:var(--air-display-serif);
+  font-size:clamp(60px,7.4vw,110px);
+  font-weight:400;
+}
+.air-caveat h2 em {color:#9ccee5;}
+.air-caveat .air-small-label {color:#e49daa;}
+.air-caveat-description p {color:#c8dce7;}
+.air-caveat-description a {color:#f7f3eb;border-bottom-color:#69899b;}
+@media(max-width:1100px) {
+ .air-display {font-size:clamp(85px,11.8vw,140px);}
+ .air-home-hero {min-height:750px;}
+}
+@media(max-width:700px) {
+ .air-home-nav {height:60px;}
+ .air-home .air-home-brand {font-size:29px;}
+ .air-home-hero {height:620px;min-height:620px;}
+ .air-hero-inner {min-height:620px;padding:57px 19px 75px;}
+ .air-display {font-size:clamp(65px,16.7vw,82px);margin:35px 0 37px;line-height:.83;letter-spacing:-.083em;}
+ .air-display-indent {margin-left:.12em;}
+ .air-hero-star {width:77px;top:24px;right:18px;}
+ .air-home-lede {font-size:15px;max-width:330px;}
+ .air-home-actions {margin-top:26px;}
+ .air-home .air-hero-button {width:min(100%,310px);}
+ .air-red-band {bottom:49px;}
+ .air-section-intro h2 {font-size:clamp(49px,12.3vw,71px);line-height:.88;}
+ .air-home .air-destination {grid-template-columns:27px minmax(0,1fr) 22px;gap:10px;min-height:143px;}
+ .air-destination-content strong {font-size:clamp(29px,8vw,39px);}
+ .air-caveat h2 {font-size:clamp(51px,12vw,69px);}
+}
