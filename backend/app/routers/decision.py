@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.schemas import Cuts, Region
 from app.services import decision_store
 from app.services.state_data import get_region_runtime
+from app.services.regions import region_metadata
 
 LOG = logging.getLogger("airtwin.decisions")
 router = APIRouter(prefix="/v2", tags=["Decision workspace"])
@@ -81,10 +82,30 @@ def data_health(region: Region = "pcmc"):
     }
 
 
+@router.get("/bootstrap")
+def bootstrap(region: Region = "pcmc", replay_at: str | None = None):
+    """Return the full city workspace in one round trip with source lineage."""
+    runtime = get_region_runtime(region, replay_at)
+    # stations() and this call share a per-runtime snapshot cache, avoiding
+    # duplicate spatial interpolation during a single page initialization.
+    metadata = runtime.stations(replay_at)
+    _, cells, _, _, _ = runtime.cached_snapshot(replay_at)
+    return {
+        **metadata,
+        "cells": cells,
+        "region": metadata.get("region", region_metadata(region)),
+        "source_type": "modeled",
+        "assumptions": [
+            "Grid cells are modeled interpolation, not additional ground sensors.",
+            *metadata.get("assumptions", []),
+        ],
+    }
+
+
 @router.get("/hotspot-summary")
 def hotspot_summary(region: Region = "pcmc"):
     runtime = get_region_runtime(region, None)
-    stations, cells, _, _, timestamp = runtime.snapshot()
+    stations, cells, _, _, timestamp = runtime.cached_snapshot()
     top = sorted(cells, key=lambda cell: cell["pm25"], reverse=True)[:5]
     return {
         "region": region, "as_of": timestamp.isoformat(),
