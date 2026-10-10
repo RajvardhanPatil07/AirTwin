@@ -165,7 +165,13 @@ export function DecisionStudio() {
     setFrameIndex(0);
     setTimeline(null);
     api.timeline(replayAt, "pcmc").then((result) => active && setTimeline(result))
-      .catch(() => active && setTimeline(null));
+      .catch(() => {
+        if (active) {
+          setTimeline(null);
+          // Restore the load button so an unsuccessful playback can be retried.
+          setTimelineRequested(false);
+        }
+      });
     return () => { active = false; };
   }, [timelineRequested, data?.stations[0]?.timestamp, data?.demo, replayAt]);
 
@@ -384,7 +390,7 @@ export function DecisionStudio() {
             <div className="tw-kpi">
               <span><ShieldCheck size={16}/> HISTORICAL MAE <DataBadge source="modeled"/></span>
               <div><strong>{backtest?.metrics ? number(backtest.metrics.mae) : "—"}</strong><small>µg/m³</small></div>
-              <p>{backtest?.metrics ? (backtest.metrics.improvement_percent >= 0 ? "Compared with persistence baseline" : "Underperforms persistence on this holdout") : "Not validated for this location"}</p>
+              <p>{backtest?.metrics ? (backtest.metrics.improvement_percent >= 0 ? "Compared with persistence baseline" : "Underperforms persistence on this holdout") : view === "validation" ? "No held-out metrics for this location" : "Open Validation to load historical evidence"}</p>
             </div>
           </section>
 
