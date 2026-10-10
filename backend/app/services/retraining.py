@@ -105,7 +105,7 @@ def prepare_training_data(base, recent):
         if not required.issubset(live):
             raise ValueError("missing_live_observation_columns")
         live = live[live.source_type.eq("observed")].copy()
-        live = live[live.station_id.astype(str).str.fullmatch(r"openaq-\\d+")].copy()
+        live = live[live.station_id.astype(str).str.fullmatch(r"openaq-\d+")].copy()
         live["timestamp"] = pd.to_datetime(live.timestamp, utc=True).dt.tz_convert("Asia/Kolkata")
         live["pm25"] = pd.to_numeric(live.pm25, errors="coerce")
         live = live[live.pm25.between(0, 1000)]
