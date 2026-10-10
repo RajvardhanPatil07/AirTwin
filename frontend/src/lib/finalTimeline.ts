@@ -1,4 +1,4 @@
-import type { Cell, TimelineFrame, TimelineResponse } from "../types";
+import type { Cell, ForecastResponse, TimelineFrame, TimelineResponse } from "../types";
 
 /** The API supplies spatial forecast frames only at explicitly calculated hours. */
 export function frameAtOrBefore(timeline: TimelineResponse | null, hour: number): TimelineFrame | null {
@@ -20,4 +20,27 @@ export function cellsAtFrame(baseline: Cell[], frame: TimelineFrame | null): Cel
     pm25: values.get(cell.id) ?? cell.pm25,
     source_type: cell.source_type === "synthetic" ? "synthetic" : "modeled",
   }));
+}
+
+/** Match a spatial map to the same forecast issue time as the selected-area
+ * chart. Never combine unrelated provider snapshots, even if hours match.
+ */
+export function alignedForecastFrame(
+  timeline: TimelineResponse | null,
+  forecast: ForecastResponse | null,
+  selection: number,
+): TimelineFrame | null {
+  if (!timeline || !forecast) return null;
+  const predicted = forecast.series.filter(point =>
+    point.predicted !== null && Number.isFinite(point.predicted));
+  if (!predicted.length) return null;
+  const origin = Date.parse(timeline.origin);
+  const first = Date.parse(predicted[0].timestamp);
+  const timestamp = Date.parse(predicted[Math.min(Math.max(0,selection),predicted.length - 1)].timestamp);
+  if (![origin,first,timestamp].every(Number.isFinite)) return null;
+  // A direct forecast starts one hour after its issue timestamp.
+  if (Math.abs(first - origin - 3600_000) > 3600_000) return null;
+  const hour = Math.floor((timestamp - origin) / 3600_000 + 1e-6);
+  if (hour < 0) return null;
+  return frameAtOrBefore(timeline, Math.min(hour,24));
 }
