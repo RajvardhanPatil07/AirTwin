@@ -53,7 +53,7 @@ export function FinalMap({
   metric: MetricId;
   night?: boolean;
   focus?: boolean;
-  atmosphere?: "off" | "clear" | "hazy";
+  atmosphere?: "off" | "clear" | "hazy" | "cloudy";
   onClearFocus?: () => void;
   forecast?: boolean;
   forecastCells?: Cell[] | null;
