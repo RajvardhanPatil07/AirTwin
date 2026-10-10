@@ -601,3 +601,114 @@ body { background-image: none !important; }
   .tw-kpis {animation:fv-appear .5s cubic-bezier(.22,1,.36,1) both;}
   .tw-workspace {animation:fv-appear .56s cubic-bezier(.22,1,.36,1) both;}
 }
+
+
+/*
+ * Landing-page fidelity pass.
+ * FrameVitals HomePage uses typography, numbered editorial rules and
+ * unboxed feature descriptions instead of a colorful KPI-card collection.
+ * Transfer that language to AirTwin's real analytical readout.
+ */
+@media(min-width:951px) {
+  .tw-introduction {
+    min-height:270px;
+    padding-top:28px;
+    padding-bottom:31px;
+  }
+}
+.tw-introduction h1 { max-width:950px; }
+.tw-kpis {
+  position:relative;
+  gap:0;
+  margin-top:0;
+  margin-bottom:32px;
+  border-top:1px solid var(--fv-line);
+  border-bottom:1px solid var(--fv-line);
+}
+.tw-kpi,.tw-kpi-main {
+  position:relative;
+  border:0;
+  border-right:1px solid var(--fv-line);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  padding:22px clamp(12px,1.6vw,23px) 23px;
+  min-height:148px;
+}
+.tw-kpi:first-child {padding-left:0;}
+.tw-kpi:last-child {border-right:0;}
+.tw-kpi-main {background:transparent;}
+.tw-kpi-main strong {color:var(--fv-accent);}
+.tw-kpi:hover {
+  background:rgba(255,255,255,.016);
+  border-color:var(--fv-line);
+  transform:none;
+  box-shadow:none;
+}
+.tw-kpi-main:hover {background:rgba(94,234,212,.025);}
+.tw-kpi > span,.tw-kpi-main > span {font-family:ui-monospace,SFMono-Regular,Consolas,monospace;}
+.tw-kpi strong,.tw-kpi-main strong {font-size:clamp(32px,3.2vw,47px);letter-spacing:-.055em;}
+.tw-bottom-cards {
+  gap:25px;
+  margin-top:18px;
+  background:transparent;
+}
+.tw-mini-panel {
+  padding:22px 4px 19px;
+  border:0;
+  border-top:1px solid var(--fv-line-strong);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.tw-mini-title {
+  font:600 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+.tw-mini-title svg {color:var(--fv-accent);}
+.tw-hotspot-row {min-height:49px;}
+.tw-mini-panel > p {font-size:11px;line-height:1.75;}
+.tw-inspector .tw-compact-summary {
+  background:transparent;
+  border:0;
+  border-top:1px solid var(--fv-accent-line);
+  border-bottom:1px solid var(--fv-accent-line);
+  border-radius:0;
+  padding:22px 3px;
+}
+.fv-section-divider {
+  position:relative;
+  border-top:0;
+  padding-top:0;
+  margin:32px 0 19px;
+}
+.fv-section-divider::after {
+  content:"";
+  height:1px;
+  background:var(--fv-line);
+  flex:1;
+  order:1;
+}
+.fv-section-divider span:first-child {order:0;white-space:nowrap;}
+.fv-section-divider span:last-child {order:2;white-space:nowrap;}
+.tw-shell .tw-primary-action,.tw-shell .tw-secondary-action {
+  border-radius:5px;
+}
+.tw-shell .tw-primary-action:hover,.tw-shell .tw-secondary-action:hover {transform:translateY(-1px);}
+@media(max-width:950px) {
+  .tw-kpi:nth-child(2) {border-right:0;}
+  .tw-kpi:nth-child(-n+2) {border-bottom:1px solid var(--fv-line);}
+  .tw-kpi:nth-child(3) {padding-left:0;}
+  .tw-kpis {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .fv-section-divider span:last-child {white-space:normal;max-width:45%;text-align:right;}
+  .tw-mini-panel {padding:20px 3px;}
+}
+@media(max-width:640px) {
+  .tw-kpi,.tw-kpi-main {padding:16px 13px 17px;min-height:137px;}
+  .tw-kpi:first-child,.tw-kpi:nth-child(3) {padding-left:0;}
+  .tw-kpi strong,.tw-kpi-main strong {font-size:clamp(28px,7.5vw,38px);}
+  .tw-bottom-cards {gap:9px;margin-top:12px;}
+  .fv-section-divider {margin:27px 0 16px;}
+  .tw-introduction {margin-bottom:14px;}
+}
