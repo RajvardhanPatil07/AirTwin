@@ -40,7 +40,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(700);
   await page.screenshot({path:"screenshots/forecast-mobile.png",fullPage:true});
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const overflow = await page.evaluate(() => globalThis.document.documentElement.scrollWidth - globalThis.document.documentElement.clientWidth);
   assert.ok(overflow <= 2, "Mobile layout must not cause horizontal document overflow: " + overflow);
   assert.deepEqual(runtimeErrors, [], "No uncaught JS errors: " + runtimeErrors.join("; "));
   console.log("AirTwin finalv1 browser smoke passed: guest, Overview, Map dropdown, hotspots, Analytics scenarios, Forecast, mobile layout.");
