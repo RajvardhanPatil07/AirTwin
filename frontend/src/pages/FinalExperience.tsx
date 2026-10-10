@@ -5,10 +5,11 @@ import {
   ShieldCheck, Sparkles, Sun, TrendingDown, Wind, X,
 } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { DashboardData, ForecastResponse, Station } from "../types";
+import type { DashboardData, ForecastResponse, Station, TimelineResponse } from "../types";
 import { api, loadDashboard } from "../lib/api";
 import { DEFAULT_CUTS } from "../mocks/engine";
 import { dateLabel, number, timeLabel } from "../lib/format";
+import { cellsAtFrame, frameAtOrBefore } from "../lib/finalTimeline";
 import {
   concentrationLabel, interpretChange, isStale, METRICS,
   orderedPlaces, provenanceLabel, readingFor, supportsMetric,
@@ -98,6 +99,8 @@ export function FinalExperience() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [hours, setHours] = useState(24);
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
+  const [timeline, setTimeline] = useState<TimelineResponse | null>(null);
+  const [timelineError, setTimelineError] = useState("");
   const [forecastBusy, setForecastBusy] = useState(false);
   const [forecastError, setForecastError] = useState("");
   const [timeIndex, setTimeIndex] = useState(23);
@@ -165,6 +168,17 @@ export function FinalExperience() {
     }).finally(() => {if (active) setForecastBusy(false);});
     return () => { active = false; };
   }, [selected?.id, data?.demo, hours]);
+  useEffect(() => {
+    if (!data || data.demo) {setTimeline(null); return;}
+    let active = true;
+    setTimelineError("");
+    api.timeline(null, "pcmc").then((result) => {
+      if (active) setTimeline(result);
+    }).catch((error: unknown) => {
+      if (active) {setTimeline(null);setTimelineError(error instanceof Error ? error.message : "Spatial forecast unavailable");}
+    });
+    return () => {active = false;};
+  }, [data?.demo, refresh]);
   useEffect(() => {setTimeIndex(Math.min(hours - 1, 23));}, [hours]);
   useEffect(() => {setAnswer("");setAnswerMeta("");}, [selected?.id]);
 
@@ -182,6 +196,9 @@ export function FinalExperience() {
   const night = page === "forecast" && (localHour < 6 || localHour >= 19);
   const haze = when?.predicted !== null && when?.predicted !== undefined && when.predicted > 60;
   const atmosphere = night && effectsOn ? haze ? "hazy" : "clear" : "off";
+  const spatialFrame = frameAtOrBefore(timeline, Math.min(timeIndex + 1, 24));
+  const forecastCells = useMemo(() => data ? cellsAtFrame(data.cells, spatialFrame) : null, [data, spatialFrame]);
+  const spatialTimestamp = forecastCells && spatialFrame?.hour ? formatStamp(spatialFrame.timestamp) : null;
   const avgStale = data?.stations[0] ? isStale(data.stations[0].timestamp) : true;
   const topReading = top && data ? readingFor(top, metric, data.demo) : null;
 
@@ -305,16 +322,19 @@ export function FinalExperience() {
           <div className="fv-map-frame">
             <Suspense fallback={<div className="fv-map-loading" role="status">Loading the city map…</div>}>
               <FinalMap data={data} selected={selected} onSelect={chooseLocation} metric={page === "forecast" ? "pm25" : metric}
-                night={night} focus={focus && page === "forecast"} atmosphere={atmosphere} forecast={page === "forecast"}
+                night={night} focus={(focus && page === "forecast") || (detailsOpen && page === "map")} atmosphere={atmosphere} forecast={page === "forecast"}
+                forecastCells={page === "forecast" ? forecastCells : null}
+                spatialTimestamp={page === "forecast" ? spatialTimestamp : null}
                 onClearFocus={() => {setFocus(false);setDetailsOpen(false);}}/>
             </Suspense>
             {page === "overview" && <div className="fv-map-floating"><span className="fv-eyebrow">SPATIAL ESTIMATE</span><strong>Know where air is changing.</strong><span>{data.cells.length} interpolated cells · not additional monitors</span></div>}
-            {page === "forecast" && <div className="fv-map-floating fv-forecast-overlay"><span className="fv-eyebrow">{night ? "EVENING OUTLOOK" : "FORECAST VIEW"}</span><strong>{selected?.short_name ?? "Pune + PCMC"}</strong><span>{formatStamp(selectedTime)} · Model forecast for selection; map grid remains baseline</span></div>}
+            {page === "forecast" && <div className="fv-map-floating fv-forecast-overlay"><span className="fv-eyebrow">{night ? "EVENING OUTLOOK" : "FORECAST VIEW"}</span><strong>{selected?.short_name ?? "Pune + PCMC"}</strong><span>{spatialTimestamp ? "CAMS-modeled spatial forecast " + spatialTimestamp : "Spatial forecast unavailable · map shows modeled baseline"} · {data.demo ? "SYNTHETIC DEMO" : "IDW spatial layer"}</span></div>}
           </div>
           {page === "forecast" && <div className="fv-time-strip"><span>{formatStamp(forecast?.series.find((p) => p.predicted !== null)?.timestamp)}</span>
             <input type="range" min="0" max={Math.max(0, Math.min(hours, forecast?.series.filter((p) => p.predicted !== null).length ?? hours) - 1)} value={timeIndex}
               onChange={(event) => setTimeIndex(Number(event.target.value))} aria-label="Select forecast time"/>
             <span>{selectedTime ? timeLabel(selectedTime) + " IST" : "Unavailable"}</span></div>}
+          {page === "forecast" && <div className="fv-map-disclaimer"><Info size={13}/> {spatialTimestamp ? "Map updates at available provider forecast frames (0, 3, 6, 9, 12, 18, 24 hours); chart can extend to 72 hours." : "Map uses the baseline when a compatible spatial forecast is unavailable."} {timelineError && "Spatial feed: " + timelineError}</div>}
           {page !== "forecast" && <div className="fv-map-disclaimer"><Info size={13}/> Map grid is interpolated PM2.5, not a street-level monitor network. {data.demo && "All readings in this fallback are synthetic."}</div>}
         </div>
         <aside className={"fv-side" + (!mobilePanel ? " fv-side-collapsed" : "")}>
