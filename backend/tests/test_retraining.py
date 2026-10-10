@@ -135,3 +135,14 @@ def test_recent_holdout_ends_at_latest_hour():
     assert "recent" in method
     assert start == data.timestamp.iloc[1200]
     assert end > data.timestamp.iloc[-1]
+
+
+def test_local_file_lock_prevents_concurrent_training(monkeypatch, tmp_path):
+    monkeypatch.setattr(rt.database, "configured", lambda: False)
+    monkeypatch.setattr(rt, "MODELS", tmp_path)
+    with rt._exclusive_training() as acquired:
+        assert acquired is True
+        with rt._exclusive_training() as second:
+            assert second is False
+    with rt._exclusive_training() as acquired:
+        assert acquired is True
