@@ -250,3 +250,46 @@ def test_postgres_schema_initialization_uses_transaction_advisory_lock():
     assert "pg_advisory_xact_lock" in connection.commands[0]
     assert connection.commands[1] == "CREATE SCHEMA IF NOT EXISTS airtwin"
     assert "CREATE TABLE IF NOT EXISTS airtwin.station_observations" in connection.commands[2]
+
+
+
+def test_manual_long_history_backfill_paginates_and_preserves_provenance(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-only")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(observations, "SQLITE_PATH", tmp_path / "long_history.sqlite")
+    now = pd.Timestamp.now(tz="UTC").floor("h")
+    calls = []
+
+    def fake_hours(url, params, headers):
+        calls.append(params["page"])
+        assert params["limit"] == 1000
+        assert 44 <= (now - pd.Timestamp(params["datetime_from"])).total_seconds() / 86400 <= 46
+        page = params["page"]
+        start, end = ((0, 1000) if page == 1 else (1000, 1070))
+        return {"results": [
+            {"period": {"datetimeFrom": {"utc": (now - pd.Timedelta(hours=i)).isoformat()}},
+             "value": 20 + i % 5}
+            for i in range(start, end)
+        ]}
+
+    sensor = station(now - pd.Timedelta(hours=70))
+    result = observations.ingest_pune_history(
+        [sensor, sensor], fake_hours, max_sensors=2, backfill_days=45)
+    assert result == {"sensors": 1, "rows": 1070, "failures": 0}
+    assert calls == [1, 2]
+    stored = observations.read_observations("openaq-123", hours=1100)
+    assert len(stored) == 200  # Read API is capped for live use; SQL has all rows.
+    import sqlite3
+    with sqlite3.connect(observations.SQLITE_PATH) as conn:
+        count = conn.execute("SELECT COUNT(*) FROM station_observations").fetchone()[0]
+    assert count == 1070
+    assert set(record["source_type"] for record in stored) == {"observed"}
+
+
+def test_manual_backfill_rejects_unsafe_windows(monkeypatch):
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-only")
+    for invalid in (0, 91, -1):
+        with pytest.raises(ValueError, match="backfill_days"):
+            observations.ingest_pune_history([], lambda *_: {}, backfill_days=invalid)
+    with pytest.raises(ValueError, match="page_limit"):
+        observations.ingest_pune_history([], lambda *_: {}, page_limit=0)

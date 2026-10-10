@@ -57,3 +57,39 @@ Inspect forecast_provider, model_id, fallback_reason, history_source_type, issue
 - Live uncertainty coverage needs independent operational verification. The historical model card does not validate current CAMS provider forecasts.
 - If a production DB connection fails, do not silently claim that its history has been saved.
 - No Supabase project or remote database was modified as part of this branch commit.
+
+
+## One-time measured-history backfill and observed-target training (Windows)
+
+The hourly server refresh is intentionally cheap (96 hours on first use; then
+8 hours). It does **not** acquire long-range historical data or change stale
+measurements into live data. From the repo root with a working Supabase connection:
+
+```powershell
+python backend/scripts/backfill_openaq_history.py --days 45 --max-sensors 23
+python backend/scripts/export_observed_history.py --days 90 --min-station-hours 720
+python backend/scripts/fetch_weather.py
+python backend/scripts/build_dataset.py
+python backend/scripts/train_model.py
+```
+
+The first command requests paged genuine OpenAQ `/hours` records, keeps
+individual station identities, and stores only observed PM2.5 in private
+PostgreSQL. Maximum lookback is 90 days (matching persistence retention).
+The second command aborts without overwriting existing training input unless
+a station has at least 720 distinct actual observed hours; it never exports
+modeled or synthetic PM2.5 as observed.
+
+Inspect `backend/models/metrics.json` and
+`docs/model_card.md` to verify that `target_source_types` is exactly
+`["observed"]`, with a chronological holdout and improvement against
+persistence. The weather script uses separately labeled reanalysis inputs.
+Before treating validation as representative, inspect missing weather data
+and gaps in the observed target timeline. If external weather requests fail,
+do not mistake the fallback sample for weather reanalysis.
+
+Even when this trains an observed-target model, serving it live requires an
+OpenAQ station with a fresh measurement and a complete 49-hour recent window,
+plus correctly aligned CAMS/weather features. No amount of backfilling
+fixes an upstream source publishing data days late. The model artifact is
+ignored by Git and must be provisioned independently to any deployed backend.

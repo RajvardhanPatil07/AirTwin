@@ -150,52 +150,96 @@ def read_observations(station_id, hours=96):
     ]
 
 
-def ingest_pune_history(stations, fetch_payload, *, max_sensors=None):
-    """Fetch OpenAQ /hours for visible real sensors, independently of UI requests.
+def ingest_pune_history(stations, fetch_payload, *, max_sensors=None,
+                        backfill_days=None, page_limit=8):
+    """Fetch observed OpenAQ hourly PM2.5; never turn old hours into live data.
 
-    Full 96-hour backfill on first discovery; later fetch only recent hours.
-    A bounded thread pool prevents one broken sensor blocking all others.
+    Normal refreshes use the bounded 96h/8h windows. A separately invoked
+    historical backfill may request 1-90 days. Each sensor is paged with a
+    maximum of 1,000 hours per API request, bounded by page_limit.
+
+    Persist each page before requesting the next: if an API page fails, earlier
+    committed genuine observations remain usable.
     """
     key = os.getenv("OPENAQ_API_KEY")
     if not key:
         return {"sensors": 0, "rows": 0, "failures": 0}
+    if backfill_days is not None and not 1 <= backfill_days <= RETENTION_DAYS:
+        raise ValueError("backfill_days must be 1-90 days")
+    if not 1 <= page_limit <= 20:
+        raise ValueError("page_limit must be 1-20")
     limit = max_sensors if max_sensors is not None else int(os.getenv("LIVE_HISTORY_MAX_SENSORS", "12"))
-    sensors = sorted(
+    if limit < 0:
+        raise ValueError("max_sensors cannot be negative")
+    # Sensors with more recent provider metadata go first. IDs must be
+    # numeric OpenAQ IDs; duplicate listings must not trigger duplicate calls.
+    discovered = sorted(
         [s for s in stations if str(s.get("id", "")).startswith("openaq-")],
         key=lambda s: s.get("timestamp", ""), reverse=True
-    )[:max(0, limit)]
+    )
+    sensors, seen = [], set()
+    for station in discovered:
+        sid = str(station["id"]).split("-", 1)[1]
+        if not sid.isdigit() or sid in seen:
+            continue
+        seen.add(sid)
+        sensors.append(station)
+        if len(sensors) >= limit:
+            break
+    if limit == 0:
+        sensors = []
     now = datetime.now(timezone.utc)
+    page_size = 1000
 
     def fetch_sensor(station):
         sid = station["id"].split("-", 1)[1]
-        if not sid.isdigit():
-            return 0
-        previous = read_observations(station["id"], hours=96)
-        from_time = now - timedelta(hours=96 if not previous else 8)
-        payload = fetch_payload(
-            f"https://api.openaq.org/v3/sensors/{sid}/hours",
-            {"datetime_from": from_time.isoformat(), "datetime_to": now.isoformat(),
-             "limit": 200, "page": 1},
-            {"X-API-Key": key},
-        )
-        rows = []
-        for item in payload.get("results", []):
-            # OpenAQ /hours puts the measured hour under period.datetimeFrom.
-            period = item.get("period") or {}
-            instant = (period.get("datetimeFrom") or item.get("datetimeFrom") or {}).get("utc")
-            if instant is None or item.get("value") is None:
-                continue
-            rows.append({
-                "station_id": station["id"], "timestamp": instant,
-                "pm25": item["value"], "latitude": station["latitude"],
-                "longitude": station["longitude"], "name": station["name"],
-                "source_type": "observed",
-            })
-        return persist_observations(rows)
+        if backfill_days is None:
+            previous = read_observations(station["id"], hours=96)
+            from_time = now - timedelta(hours=96 if not previous else 8)
+        else:
+            from_time = now - timedelta(days=backfill_days)
+        accepted = 0
+        for page in range(1, page_limit + 1):
+            payload = fetch_payload(
+                f"https://api.openaq.org/v3/sensors/{sid}/hours",
+                {"datetime_from": from_time.isoformat(), "datetime_to": now.isoformat(),
+                 "limit": page_size, "page": page},
+                {"X-API-Key": key},
+            )
+            items = payload.get("results", [])
+            if not isinstance(items, list):
+                raise ValueError("Invalid OpenAQ hourly results")
+            rows = []
+            for item in items:
+                period = item.get("period") or {}
+                stamp_data = period.get("datetimeFrom") or item.get("datetimeFrom") or {}
+                instant = stamp_data.get("utc") if isinstance(stamp_data, dict) else None
+                if instant is None or item.get("value") is None:
+                    continue
+                try:
+                    hour = pd.Timestamp(instant)
+                    if hour.tzinfo is None:
+                        continue
+                    hour = hour.tz_convert("UTC")
+                    if hour < pd.Timestamp(from_time) or hour > pd.Timestamp(now):
+                        continue
+                except (ValueError, TypeError, OverflowError):
+                    continue
+                rows.append({
+                    "station_id": station["id"], "timestamp": instant,
+                    "pm25": item["value"], "latitude": station["latitude"],
+                    "longitude": station["longitude"], "name": station["name"],
+                    "source_type": "observed",
+                })
+            accepted += persist_observations(rows)
+            found = (payload.get("meta") or {}).get("found")
+            if len(items) < page_size or (isinstance(found, int) and page * page_size >= found):
+                return accepted
+        raise RuntimeError(f"OpenAQ sensor {sid} exceeded {page_limit} pages; narrow the time range")
 
     collected, failures = 0, 0
     with ThreadPoolExecutor(max_workers=min(3, max(1, len(sensors)))) as workers:
-        futures = [workers.submit(fetch_sensor, s) for s in sensors]
+        futures = [workers.submit(fetch_sensor, station) for station in sensors]
         for job in as_completed(futures):
             try:
                 collected += job.result()
