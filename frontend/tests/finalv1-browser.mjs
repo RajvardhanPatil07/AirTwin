@@ -16,6 +16,11 @@ try {
   await page.goto(base, {waitUntil:"domcontentloaded",timeout:45000});
   await page.getByRole("button",{name:/explore as guest/i}).click();
   await page.locator(".fv-overview-cards").waitFor({timeout:30000});
+  await page.locator(".leaflet-container").waitFor({timeout:30000});
+  await page.waitForFunction(() => {
+    const tiles = [...globalThis.document.querySelectorAll(".leaflet-tile-loaded")];
+    return tiles.some((tile) => tile instanceof globalThis.HTMLImageElement && tile.naturalWidth > 0);
+  }, { timeout: 35000 });
   assert.equal(await page.locator(".fv-nav button").count(),3, "Exactly three primary pages");
   await page.screenshot({path:"screenshots/overview-desktop.png",fullPage:true});
   await route("Map");
