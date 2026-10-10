@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, ArrowRight, ChevronDown, Factory, Gauge, Info, Leaf, ShieldAlert, TrendingDown, Truck } from "lucide-react";
+import { Activity, ArrowRight, ChevronDown, Factory, Gauge, Info, Leaf, ShieldAlert, Truck } from "lucide-react";
 import type { AttributionResponse, BacktestResponse, Cuts, ScenarioResponse, Station } from "../types";
 import type { Plan } from "../lib/operations";
 import { operations } from "../lib/operations";
