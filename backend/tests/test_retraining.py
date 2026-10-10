@@ -113,7 +113,7 @@ def test_retrained_artifact_is_preferred_but_bad_file_falls_back(monkeypatch, tm
         return {"version": 3, "models": {24: "existing"}}
 
     monkeypatch.setattr(fd, "_verified_file", valid_model)
-    assert fd.verified_artifact() == {"version": 3, "models": {24: "existing"}}
+    assert fd.verified_artifact(base) == {"version": 3, "models": {24: "existing"}}
     assert attempts == [live, base]
 
 
