@@ -9,6 +9,29 @@
   </p>
 </div>
 
+## Landing page and separate analysis routes
+
+The dev branch now opens on an **AirTwin landing page inspired by the
+FrameVitals homepage**, using the actual FrameVitals frontend source as its
+design reference. The map, forecasts, attribution and policy simulator no longer
+compete for space on a single scrolling dashboard.
+
+After running the local frontend, use these clickable hash routes:
+
+| Route | Purpose |
+| --- | --- |
+| `http://127.0.0.1:5188/#/` | Minimal overview, editorial introduction and links |
+| `http://127.0.0.1:5188/#/map` | City pollution map, PM2.5 location selector, hotspots and provenance |
+| `http://127.0.0.1:5188/#/forecast` | Forecast series, uncertainty, hours selector |
+| `http://127.0.0.1:5188/#/sources` | Source-category proxy contributions |
+| `http://127.0.0.1:5188/#/scenarios` | Three actions, combined response and assumed reductions |
+| `http://127.0.0.1:5188/#/validation` | Historical held-out evidence and replay |
+
+The page selected in the URL drives which analysis is fetched and rendered.
+The landing page uses a separate lightweight bundle, so it does not initialize
+the map or ML endpoint until a workspace route is opened. Hash URLs work in a
+static frontend deployment; use browser Back and Forward as normal.
+
 ## Decision Studio development branch
 
 **dev/parth-overhaul** is the redesigned Pune–PCMC experience: an integrated map, forward PM2.5 estimates, proxy attribution, individual/combined interventions, and separate historical model evaluation. The original screenshot has been removed because it no longer represents the new interface.
