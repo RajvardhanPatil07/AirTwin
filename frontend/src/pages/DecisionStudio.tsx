@@ -113,7 +113,7 @@ export function DecisionStudio() {
       setAnalysisLoading(false);
     });
     return () => { active = false; };
-  }, [data, location?.id, hours, replayAt, appliedCuts, reload]);
+  }, [data, location?.id, hours, replayAt, reload]);
 
   useEffect(() => {
     if (!data || data.demo) {
