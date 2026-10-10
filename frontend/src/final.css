@@ -451,3 +451,17 @@ button.fv-card:hover { transform: translateY(-2px); box-shadow: 0 13px 30px #164
 /* Keep the distance scale and map legend separately readable. */
 .fm-shell .fm-legend { bottom: 72px; }
 @media (max-width: 640px) { .fm-shell .fm-legend { bottom: 64px; } }
+
+/* Forecast tomorrow evidence: intentionally restrained secondary insights. */
+.fv-tomorrow-insights { padding: 17px 19px; }
+.fv-forecast-insights-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; margin: 14px 0 11px; }
+.fv-forecast-insights-grid > div { display: grid; align-content: start; gap: 4px; border: 1px solid #e3ecf1; background: linear-gradient(160deg,#f9fcff,#f3f8f9); border-radius: 12px; padding: 12px; min-width: 0; }
+.fv-forecast-insights-grid span { font-size: 10px; font-weight: 650; color: #6b8599; }
+.fv-forecast-insights-grid strong { font-size: 15px; line-height: 1.25; font-weight: 770; color: #174765; overflow-wrap: anywhere; }
+.fv-forecast-insights-grid small { font-size: 10px; color: #8197a4; line-height: 1.35; }
+.fv-tomorrow-insights > p { font-size: 10px; color: #7e94a0; line-height: 1.65; }
+@media (max-width: 410px) {
+  .fv-tomorrow-insights { padding: 15px; }
+  .fv-forecast-insights-grid > div { padding: 9px; }
+  .fv-forecast-insights-grid strong { font-size: 13px; }
+}
