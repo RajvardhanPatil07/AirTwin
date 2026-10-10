@@ -74,13 +74,13 @@ export function FinalMap({
       station.name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6),
     ...localityMatches(data, search),
   ].slice(0, 9), [search, data]);
-  const tile = night
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  // Public OpenStreetMap tiles do not require an API key. Respect tile-policy
+  // attribution and avoid restricted CARTO/Apple imagery.
+  const tile = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   return <section className={"fm-shell" + (night ? " fm-night" : "") + (focus ? " fm-focus" : "")} aria-label="Interactive Pune and PCMC air-quality map">
     <MapContainer center={[18.60, 73.835]} zoom={11} minZoom={9} maxZoom={16} zoomControl={false} scrollWheelZoom className="fm-leaflet">
       <TileLayer key={tile} url={tile}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
         eventHandlers={{ tileerror: () => setTileError(true), tileload: () => setTileError(false) }}/>
       <ZoomControl position="bottomleft"/>
       <ScaleControl position="bottomleft" imperial={false}/>
