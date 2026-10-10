@@ -27,6 +27,20 @@ class FakeRuntime:
             }],
         }
 
+    def cached_snapshot(self, replay_at=None):
+        return self.snapshot()
+
+    def stations(self, replay_at=None):
+        return {
+            "stations": [
+                {"id": "sensor", "name": "Test station", "source_type": "observed",
+                 "timestamp": "2026-10-09T00:00:00+00:00", "assumptions": ["Measured"]},
+            ],
+            "source_type": "modeled",
+            "assumptions": ["Station and map provenance are preserved."],
+            "warnings": [],
+        }
+
     def snapshot(self):
         timestamp = datetime(2026, 10, 9, tzinfo=timezone.utc)
         stations = [{"id": "sensor"}]
@@ -76,3 +90,37 @@ def test_hotspot_summary_explicitly_modeled(monkeypatch):
     assert data["source_type"] == "modeled"
     assert data["hotspots"][0]["cell_id"] == "cell-b"
     assert "IDW" in data["assumptions"][0]
+
+
+def test_bootstrap_reuses_workspace_and_preserves_provenance(monkeypatch):
+    monkeypatch.setattr(decision, "get_region_runtime", lambda *_: FakeRuntime())
+    api = FastAPI()
+    api.include_router(decision.router, prefix="/api")
+    result = TestClient(api).get("/api/v2/bootstrap?region=pcmc")
+    assert result.status_code == 200, result.text
+    body = result.json()
+    assert body["source_type"] == "modeled"
+    assert len(body["stations"]) == 1
+    assert body["stations"][0]["source_type"] == "observed"
+    assert len(body["cells"]) == 2
+    assert "interpolation" in body["assumptions"][0]
+
+
+def test_runtime_snapshot_cache_deduplicates_repeated_queries():
+    from app.services.runtime import Runtime
+
+    class Counter:
+        def __init__(self):
+            self.calls = 0
+
+        def snapshot(self, replay_at=None):
+            self.calls += 1
+            return {"replay": replay_at}
+
+    runtime = Counter()
+    first = Runtime.cached_snapshot(runtime)
+    second = Runtime.cached_snapshot(runtime)
+    historical = Runtime.cached_snapshot(runtime, "2026-10-09")
+    assert first is second
+    assert first is not historical
+    assert runtime.calls == 2
