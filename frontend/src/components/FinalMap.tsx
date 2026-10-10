@@ -3,7 +3,7 @@ import type { LeafletEvent } from "leaflet";
 import { CircleMarker, GeoJSON, MapContainer, Rectangle, ScaleControl, TileLayer, Tooltip, useMap, ZoomControl } from "react-leaflet";
 import { Layers3, LocateFixed, MapPin, Search, X } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
-import type { DashboardData, Station } from "../types";
+import type { Cell, DashboardData, Station } from "../types";
 import { concentrationColor, METRICS, readingFor, type MetricId } from "../lib/finalMetrics";
 import { localityMatches } from "../lib/finalPlaces";
 import { SmoothHeatLayer } from "./SmoothHeatLayer";
@@ -45,7 +45,7 @@ function RecenterControl() {
 
 export function FinalMap({
   data, selected, onSelect, metric, night = false, focus = false, atmosphere = "off",
-  onClearFocus, forecast = false,
+  onClearFocus, forecast = false, forecastCells = null, spatialTimestamp = null,
 }: {
   data: DashboardData;
   selected: Station | null;
@@ -56,6 +56,8 @@ export function FinalMap({
   atmosphere?: "off" | "clear" | "hazy";
   onClearFocus?: () => void;
   forecast?: boolean;
+  forecastCells?: Cell[] | null;
+  spatialTimestamp?: string | null;
 }) {
   const [layers, setLayers] = useState({ modeled: true, observed: true, boundaries: false });
   const [search, setSearch] = useState("");
@@ -63,6 +65,7 @@ export function FinalMap({
   const [tileError, setTileError] = useState(false);
   const metricInfo = METRICS.find((item) => item.id === metric)!;
   const showGrid = layers.modeled && metric === "pm25";
+  const displayedCells = forecastCells ?? data.cells;
   const markers = useMemo(() =>
     data.stations.filter((station) => readingFor(station, metric, data.demo) && (layers.observed || station.source_type !== "observed")),
     [data.stations, metric, data.demo, layers.observed]);
@@ -83,7 +86,7 @@ export function FinalMap({
       <ScaleControl position="bottomleft" imperial={false}/>
       <FollowSelected selected={selected} focus={focus}/>
       <RecenterControl/>
-      {showGrid && <SmoothHeatLayer cells={data.cells} opacity={selected && focus ? 0.66 : 1}/>}
+      {showGrid && <SmoothHeatLayer cells={displayedCells} opacity={selected && focus ? 0.66 : 1}/>} 
       {showGrid && data.cells.map((cell) => <Rectangle key={cell.id} bounds={cell.bounds}
         pathOptions={{
           color: selected?.id === cell.id ? "#194e85" : "transparent",
@@ -97,7 +100,7 @@ export function FinalMap({
           timestamp: data.stations[0]?.timestamp ?? "", source_type: data.demo ? "synthetic" : "modeled",
           assumptions: cell.assumptions,
         }) }}>
-        <Tooltip sticky><strong>{number(cell.pm25)} µg/m³</strong><br/>{data.demo ? "SYNTHETIC" : "MODELED"} · IDW grid estimate<br/>Not a street-level measurement</Tooltip>
+        <Tooltip sticky><strong>{number(displayedCells.find((c) => c.id === cell.id)?.pm25 ?? cell.pm25)} µg/m³</strong><br/>{data.demo ? "SYNTHETIC" : "MODELED"} · {spatialTimestamp ? "SPATIAL FORECAST" : "IDW BASELINE"}<br/>Not a street-level measurement</Tooltip>
       </Rectangle>)}
       {layers.boundaries && data.zones && <GeoJSON key="zones" data={data.zones as unknown as GeoJsonObject}
         style={{ color: "#1f77b4", weight: 2, fillOpacity: 0.025, dashArray: "5 4" }}/>}
@@ -150,7 +153,7 @@ export function FinalMap({
         <div className="fm-gradient"/><div className="fm-legend-scale"><span>0</span><span>30</span><span>60</span><span>90</span><span>120+</span></div>
         <div className="fm-legend-foot">µg/m³ · smooth display of a coarse 12×12 modeled grid, not extra measurements or AQI</div>
       </> : <div className="fm-legend-foot">No modeled heat surface for {metricInfo.label}. Only supported reference readings.</div>}
-      {forecast && <div className="fm-legend-foot">Spatial baseline only. Forecast timeline is location-specific.</div>}
+      {forecast && <div className="fm-legend-foot">{spatialTimestamp ? "MODELED spatial forecast · " + spatialTimestamp + " · per-station prediction interpolated via IDW." : "Spatial baseline only; dated forecast grid unavailable."}</div>}
       {data.demo && <div className="fm-demo">SYNTHETIC DEMO · not measured air</div>}
     </div>
     {tileError && <div className="fm-tile-error" role="status">Basemap tiles are temporarily unavailable; geographic data labels remain.</div>}
