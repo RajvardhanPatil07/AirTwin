@@ -115,7 +115,7 @@ export function FinalMap({
           pathOptions={{
             color: active ? "#fff" : station.source_type === "observed" ? "#0e5a86" : "#fff",
             weight: active ? 3 : 1.5,
-            fillColor: concentrationColor(reading.value),
+            fillColor: metric === "pm25" ? concentrationColor(reading.value) : "#168bb6",
             fillOpacity: focus && !active ? 0.35 : 0.97,
             dashArray: station.source_type !== "observed" ? "4 3" : undefined,
           }}
