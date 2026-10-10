@@ -54,7 +54,7 @@ type CacheEntry = { until: number; value?: unknown; pending?: Promise<unknown> }
 const readCache = new Map<string, CacheEntry>();
 const MAX_CACHE_ENTRIES = 64;
 
-function cachedRead<T>(path: string, ttlMs = 60_000, force = false): Promise<T> {
+function cachedRead<T>(path: string, ttlMs = 60_000, force = false, timeout = 8000): Promise<T> {
   const now = Date.now();
   const current = readCache.get(path);
   if (!force && current?.value !== undefined && current.until > now) {
@@ -63,7 +63,7 @@ function cachedRead<T>(path: string, ttlMs = 60_000, force = false): Promise<T> 
   if (!force && current?.pending) return current.pending as Promise<T>;
 
   const entry: CacheEntry = { until: 0 };
-  const pending = request<T>(path).then(
+  const pending = request<T>(path, undefined, timeout).then(
     (value) => {
       entry.value = value;
       entry.until = Date.now() + ttlMs;
@@ -161,7 +161,7 @@ export const api = {
       body: JSON.stringify({ location_id: locationId, cuts, replay_at: replayAt, region }),
     }, 60000),
   timeline: (replayAt: string | null, region: RegionId) =>
-    cachedRead<TimelineResponse>(withReplay(`/api/timeline?region=${region}`, replayAt), 120_000),
+    cachedRead<TimelineResponse>(withReplay(`/api/timeline?region=${region}`, replayAt), 120_000, false, 60000),
   explain: (
     locationId: string,
     question: string,
