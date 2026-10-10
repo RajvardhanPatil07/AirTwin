@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { LeafletEvent } from "leaflet";
 import { CircleMarker, GeoJSON, MapContainer, Rectangle, ScaleControl, TileLayer, Tooltip, useMap, ZoomControl } from "react-leaflet";
 import { Layers3, LocateFixed, MapPin, Search, X } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
@@ -6,11 +7,31 @@ import type { DashboardData, Station } from "../types";
 import { concentrationColor, METRICS, readingFor, type MetricId } from "../lib/finalMetrics";
 import { number, timeLabel, dateLabel } from "../lib/format";
 
+function accessibleTarget(event: LeafletEvent, label: string, retries = 1) {
+  const layer = event.target as { getElement?: () => SVGElement | undefined; fire: (name: string) => void };
+  const element = layer.getElement?.();
+  if (!element) {
+    if (retries > 0) requestAnimationFrame(() => accessibleTarget(event, label, retries - 1));
+    return;
+  }
+  element.setAttribute("role", "button");
+  element.setAttribute("tabindex", "0");
+  element.setAttribute("aria-label", label);
+  element.addEventListener("keydown", (key: KeyboardEvent) => {
+    if (key.key === "Enter" || key.key === " ") {
+      key.preventDefault();
+      layer.fire("click");
+    }
+  });
+}
+
 function FollowSelected({ selected, focus }: { selected: Station | null; focus: boolean }) {
   const map = useMap();
+  const previousFocus = useRef(focus);
   useEffect(() => {
     if (focus && selected) map.flyTo([selected.latitude, selected.longitude], 12, { duration: 0.65 });
-    else if (!focus) map.flyTo([18.60, 73.835], 11, { duration: 0.65 });
+    else if (previousFocus.current && !focus) map.flyTo([18.60, 73.835], 11, { duration: 0.65 });
+    previousFocus.current = focus;
   }, [focus, selected?.id, map]);
   return null;
 }
@@ -59,7 +80,7 @@ export function FinalMap({
       <RecenterControl/>
       {showGrid && data.cells.map((cell) => <Rectangle key={cell.id} bounds={cell.bounds}
         pathOptions={{ color: concentrationColor(cell.pm25), weight: 0.3, fillColor: concentrationColor(cell.pm25), fillOpacity: selected && focus ? 0.14 : 0.36 }}
-        eventHandlers={{ click: () => onSelect({
+        eventHandlers={{ add: (event) => accessibleTarget(event, "Select modeled grid cell " + cell.id), click: () => onSelect({
           id: cell.id, name: "Modeled grid · " + cell.id, short_name: "Grid cell",
           latitude: cell.latitude, longitude: cell.longitude, pm25: cell.pm25,
           timestamp: data.stations[0]?.timestamp ?? "", source_type: data.demo ? "synthetic" : "modeled",
@@ -81,7 +102,7 @@ export function FinalMap({
             fillOpacity: focus && !active ? 0.35 : 0.97,
             dashArray: station.source_type !== "observed" ? "4 3" : undefined,
           }}
-          eventHandlers={{ click: () => onSelect(station) }}>
+          eventHandlers={{ add: (event) => accessibleTarget(event, "Select location " + station.name), click: () => onSelect(station) }}>
           <Tooltip direction="top" offset={[0, -8]}>
             <strong>{station.short_name || station.name}</strong><br/>
             {number(reading.value)} {reading.unit} · {reading.source.toUpperCase()}<br/>
