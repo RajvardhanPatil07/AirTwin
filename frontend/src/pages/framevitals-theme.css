@@ -854,3 +854,127 @@ body { background-image: none !important; }
 .tw-map-details .tw-bottom-cards {margin:9px 0 0;}
 .tw-inspector-details {margin-top:17px;}
 .tw-inspector-details .assumptions {margin-top:11px;}
+
+
+/*
+ * Blue editorial continuity with the supplied FrameVitals landing screenshot.
+ * Detail pages retain their own functionality, but share the ink, ocean
+ * surfaces, serif display and cream controls rather than the old mint scheme.
+ * Data-source badge hues stay distinct for provenance.
+ */
+:root {
+  --page:#07131d;
+  --surface:#10283a;
+  --soft:#16354b;
+  --text:#f8f7f1;
+  --muted:#a5c1d1;
+  --border:rgba(235,245,251,.20);
+  --blue:#d8ecf4;
+  --fv-bg:#07131d;
+  --fv-panel:#0d2333;
+  --fv-raised:#153349;
+  --fv-ink:#f8f7f1;
+  --fv-secondary:#d0e1e9;
+  --fv-dim:#9bb5c5;
+  --fv-line:rgba(237,248,254,.15);
+  --fv-line-strong:rgba(237,248,254,.30);
+  --fv-accent:#f8f7f1;
+  --fv-accent-line:rgba(248,247,241,.35);
+  --fv-accent-soft:rgba(248,247,241,.09);
+}
+html, body, html body, #root {background:#07131d!important;}
+.tw-shell {
+  background:
+    radial-gradient(ellipse 850px 480px at 84% -8%,rgba(37,114,159,.28),transparent 74%),
+    #07131d;
+  color:#f8f7f1;
+}
+.fv-topbar {
+  background:rgba(7,19,29,.93);
+  border-bottom:1px solid rgba(241,249,253,.30);
+}
+.fv-brand-symbol {display:none;}
+.fv-brand-name {
+  font:400 clamp(25px,2.8vw,32px)/1 "Times New Roman",Georgia,serif;
+  letter-spacing:-.05em;
+}
+.fv-build-label {color:#9ab4c5;}
+.tw-shell .fv-nav-link {color:#b8ceda;}
+.tw-shell .fv-nav-link.is-active {color:#f8f7f1;}
+.fv-nav-link.is-active::after {background:#f8f7f1;}
+.tw-shell .fv-region-tag {color:#bfd4df;}
+.tw-shell .tw-icon-button,
+.tw-shell .ask-trigger {
+  background:#10283a;
+  border:1px solid rgba(238,250,254,.25);
+  color:#f8f7f1;
+}
+.tw-shell .tw-icon-button:hover,.tw-shell .ask-trigger:hover {background:#1d425c;color:#fff;}
+.tw-route-introduction {
+  background:
+    radial-gradient(circle at 88% 95%,rgba(66,151,195,.20),transparent 43%),
+    linear-gradient(118deg,#0d344f 0%,#12476a 66%,#155a82 100%);
+  border:1px solid rgba(236,250,254,.14);
+  padding:clamp(26px,3.4vw,42px);
+  margin-bottom:30px;
+}
+.tw-route-introduction h1 {
+  font-family:"Times New Roman",Georgia,serif;
+  font-weight:400;
+  font-size:clamp(45px,5vw,73px);
+  line-height:.95;
+  text-transform:uppercase;
+  letter-spacing:-.06em;
+}
+.tw-route-introduction .tw-overline {color:#d7e9f1;}
+.tw-route-introduction p {color:#d3e8f0;}
+.tw-route-introduction .fv-key-label {color:#d6e2eb;}
+.tw-workspace-detail {max-width:1140px;}
+.tw-map-panel,.tw-inspector,.tw-mini-panel {
+  background:#0d2333;
+  border-color:rgba(238,248,253,.17);
+  color:#f8f7f1;
+}
+.tw-inspector-header {
+  background:linear-gradient(120deg,#0f2a3d,#133a55);
+  border-color:rgba(238,248,253,.18);
+}
+.tw-inspector-content,
+.tw-inspector-footer {
+  background:#0d2333;
+}
+.tw-inspector .tw-validation-gate {background:#102d40;}
+.tw-inspector .chart {background:#0e2637;}
+.tw-workspace-detail .tw-inspector .chart {border-color:rgba(238,248,253,.18);}
+.tw-shell .tw-primary-action,
+.tw-inspector .run-button,
+.tw-inspector .primary-button,
+.tw-validation-gate button {
+  background:#f8f7f1;
+  color:#081927;
+  border-color:#f8f7f1;
+}
+.tw-shell .tw-primary-action:hover {background:#e3edf2;color:#07131d;}
+.tw-shell .data-badge.observed {color:#b2f3d3;border-color:rgba(124,237,186,.36);background:rgba(82,167,132,.14);}
+.tw-shell .data-badge.modeled {color:#a8eaff;border-color:rgba(112,194,242,.45);background:rgba(52,143,199,.16);}
+.tw-shell .data-badge.synthetic {color:#ffcc94;border-color:rgba(255,185,94,.40);background:rgba(203,117,46,.14);}
+.tw-map-panel .map-shell {background:#12354c;}
+.tw-map-panel .map-shell .map {background:#12354c;}
+.tw-map-panel .map-legend,
+.tw-map-panel .timeline-bar,
+.tw-map-panel .wind-card {background:rgba(7,24,37,.95);}
+.tw-map-panel .timeline-play {background:#f8f7f1;color:#081927;}
+.tw-shell .tw-section-tabs button.selected::after {background:#f8f7f1;}
+.tw-shell .tw-section-tabs button.selected {color:#f8f7f1;}
+.tw-shell .tw-inspector .reduction-strip {background:rgba(93,173,198,.12);color:#ceeef9;}
+.tw-model-notice svg {color:#ffc594;}
+.air-route-loading {background:#07131d;color:#f8f7f1;}
+.air-route-loading > span {color:#e5eff5;}
+@media(max-width:950px) {
+  .tw-route-introduction {padding:27px 21px;}
+  .tw-route-introduction h1 {font-size:clamp(39px,7.5vw,61px);}
+}
+@media(max-width:640px) {
+  .tw-route-introduction {padding:23px 17px;}
+  .tw-route-introduction h1 {font-size:clamp(35px,9vw,46px);}
+}
