@@ -205,7 +205,16 @@ def run_retraining_check():
             return _record("skipped", "Another worker is retraining")
         previous = _existing_live_artifact()
         previous_meta = previous.get("retraining", {}) if previous else {}
-        if previous_meta.get("trained_at"):
+        # A legacy promotion that only tied persistence must not block a
+        # validated replacement for seven days. Keep its observation cutoff
+        # to avoid retraining the same data without any new measurements.
+        previous_eligible = False
+        if previous:
+            try:
+                previous_eligible = _validate(previous) is None
+            except (KeyError, ValueError, TypeError):
+                LOG.warning("Previous live model has incomplete validation metadata")
+        if previous_eligible and previous_meta.get("trained_at"):
             age_hours = (pd.Timestamp.now(tz="UTC") -
                          pd.Timestamp(previous_meta["trained_at"])).total_seconds() / 3600
             if age_hours < MIN_GAP_HOURS:
