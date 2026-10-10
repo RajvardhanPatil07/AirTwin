@@ -32,9 +32,16 @@ data. Raw CSV, processed Parquet and joblib artifacts are ignored. The generated
 model card is committed evidence; the sample stays under 1 MB.
 
 The historical LightGBM dataset is refreshed deliberately by rerunning the pipeline
-and restarting the backend. The current Pune–PCMC provider cache refreshes every 15 minutes while the backend runs; the browser checks for updated
-snapshots every 30 seconds. The UI labels source and timestamp and warns about stale
-data. There is no automatic alert service.
+and restarting the backend. A *separate* live observed-target model now supports
+unattended checks: 15 minutes after startup and daily thereafter, with a minimum
+week between successful promotions, 48 new measured station-hours, 720 total
+observed rows and a recent purged chronological holdout. Only an accepted candidate
+replaces the dedicated live artifact, via atomic file rename; it never rewrites the
+historical replay model. The existing dev/raj 24-hour station-specific model
+selector remains ahead of this pooled live dispatcher. The Pune–PCMC provider
+cache refreshes every 15 minutes while the backend runs; the browser checks for
+updated snapshots every 30 seconds. The UI labels source and timestamp and warns
+about stale data. There is no automatic alert service.
 
 ## Module responsibilities
 
