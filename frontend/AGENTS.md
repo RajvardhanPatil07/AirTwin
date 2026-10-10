@@ -1,24 +1,45 @@
-# Prototype Instructions
+# AirTwin finalv1 agent instructions
 
-For this project, preserve the user-selected AirTwin civic dashboard screenshot
-and the proportions/colors in `DESIGN.md`. Do not redesign the interface. Treat
-synthetic demo inputs as synthetic everywhere. Scenario banner, cards, table, and
-map must use the same selected result. See `README.md` and `../docs/api.md`.
+This branch is the user-approved **complete frontend redesign**, based on the
+uploaded `AirTwin_Full_Prompt_and_17_Design_Images(1).zip` brief and its
+17 reference images. The current design authority is `DESIGN.md`, **not** the
+2026-09 eight-step guide or old dense glass dashboard.
 
-Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
+## Hard requirements
 
-Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
+- Keep exactly three main app pages: Overview, Map, Forecast. Map contains
+  Analytics as a subview. Welcome/guest entry is separate.
+- Preserve working FastAPI endpoints and the truthful source types:
+  OBSERVED / MODELED / SYNTHETIC, real measurement timestamps, known units.
+- Use actual backend data, never the values printed in reference mockups.
+  Offline mock engine is allowed only when conspicuously labeled synthetic.
+- Map tiles: use licensed OSM/CARTO or another attributed licensed provider.
+  The Apple screenshot is a visual reference only; never copy its tiles.
+- The only currently supported spatial gridded layer is PM2.5;
+  no fake AQI/CO2/O2 pollutant measurement layers.
+- Only authenticated and **server-verified** PMC/PCMC employees can get
+  municipal tools; until backend auth exists, do not activate those controls.
+- Preserve the existing Site worker/hosting contract and `frontend/tests` files.
+- Respect reduced motion, keyboard input, responsive layouts, and readable maps.
 
-When implementing from a selected generated mock, treat that image as the source of truth for layout, component anatomy, density, spacing, color, typography, visible content, and hierarchy.
+## Implementation map
 
-Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
+- `src/App.tsx`: mounts finalv1 three-page experience.
+- `src/pages/FinalExperience.tsx`: role-safe guest entry, Overview, Map,
+  Forecast, Analytics, deep-link/browser navigation.
+- `src/components/FinalMap.tsx`: live interactive Leaflet map + provider
+  attribution + separate measured and modeled overlays.
+- `src/lib/finalMetrics.ts`: normalized metric and provenance adapter.
+- `src/final.css`: approved bone/ocean visual system.
+- Old `GuidedExperience.tsx` and `Dashboard.tsx` are retained as references;
+  they are not the finalv1 entry point.
 
-Current visual authority: user selected the light glass AirTwin mockup on 2026-09-27 (exec-75bae9d5-79ee-42c3-bc56-95c3d1516fcf.png). Use pale blue atmosphere, translucent pearl panels, teal actions, and subtle raised concentration grids. Preserve accurate source labels and functional geographic data.
+## Verification before deploy
 
-User feedback: keep Ask AirTwin visible in offline mode with honest availability messaging; put compact selected-location and concentration context in the intro space; retain the forecast playback timeline and use a teal leaf logo suited to the glass theme.
+`npm run lint`, `npm test`, `npm run build`, `npm run test:sites`
+inside `frontend`, plus project backend CI. Fix warnings that materially
+affect correctness. Browser screenshot and mobile keyboard/map tests are
+a prerequisite for calling visual polish fully verified.
 
-User scope decision (2026-10-10): Pune and PCMC are the sole supported urban region. Keep all forecast, attribution, hotspot, intervention and historical validation features focused on this bounded area; do not restore a statewide selector.
-
-User visual direction (2026-10-10): build the attached eight-step AirTwin flow as the default guided frontend, using the installed Vengeance UI Spotlight Navbar and Animated Button components. Retain the connected dashboard as Advanced view. Guided example values and maps must be explicitly labeled illustrative rather than live observations.
-
-User scope decision (2026-10-10): connect the default guide to FastAPI and verify the actual Ask AirTwin model. Keep source labels, timestamps, assumptions and backend failures visible. Gemini credentials stay in the root server `.env`; fallback summaries must never be labeled Gemini answers.
+**Branch restriction:** all finalv1 frontend changes belong on `finalv1`.
+Do not modify or merge `dev/raj` or `main` without new user permission.
