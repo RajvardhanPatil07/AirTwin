@@ -582,3 +582,22 @@ body { background-image: none !important; }
   .tw-kpi,.tw-hotspot-row {transition:none!important;}
   .tw-shell * {scroll-behavior:auto!important;}
 }
+
+
+/* The first paint uses the same editorial language, even before city data loads. */
+.tw-startup {
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  min-height:100dvh;gap:12px;padding:24px;text-align:center;
+  background:radial-gradient(ellipse 600px 350px at 50% 30%,rgba(94,234,212,.055),transparent 70%),#0a0a0a;
+  color:var(--fv-ink);font-family:Inter,system-ui,sans-serif;
+}
+.tw-startup svg {color:var(--fv-accent);}
+.tw-startup h1 {max-width:520px;font-size:clamp(28px,4.6vw,44px);line-height:1.08;letter-spacing:-.055em;}
+.tw-startup p {color:var(--fv-dim);font-size:13px;line-height:1.6;}
+.tw-startup button {border:1px solid var(--fv-accent-line);background:var(--fv-accent-soft);padding:11px 16px;border-radius:5px;color:var(--fv-accent);}
+@keyframes fv-appear {from {opacity:0;transform:translateY(8px);}to {opacity:1;transform:translateY(0);}}
+@media(prefers-reduced-motion:no-preference) {
+  .tw-introduction .fv-hero-copy {animation:fv-appear .42s cubic-bezier(.22,1,.36,1) both;}
+  .tw-kpis {animation:fv-appear .5s cubic-bezier(.22,1,.36,1) both;}
+  .tw-workspace {animation:fv-appear .56s cubic-bezier(.22,1,.36,1) both;}
+}
