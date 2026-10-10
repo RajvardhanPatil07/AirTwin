@@ -61,6 +61,13 @@ export function FinalMap({
 }) {
   const [layers, setLayers] = useState({ modeled: true, observed: true, boundaries: false });
   const [layersOpen, setLayersOpen] = useState(() => typeof window === "undefined" || window.innerWidth > 700);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px)");
+    const sync = () => setLayersOpen(!media.matches);
+    media.addEventListener("change", sync);
+    sync();
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [tileError, setTileError] = useState(false);
