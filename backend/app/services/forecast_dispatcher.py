@@ -12,7 +12,7 @@ import pandas as pd
 from app.services.live_features import LiveFeatureError, build_live_input
 from app.services.live_observations import read_observations
 from app.services.model import ARTIFACT, VERSION, predict, explain_features
-from app.services.retraining import LIVE_ARTIFACT
+from app.services.retraining import LIVE_ARTIFACT, _validate as validate_retrained_candidate
 from app.services.spatial import distance_km
 
 LOG = logging.getLogger("airtwin.live.dispatch")
@@ -45,9 +45,15 @@ def verified_artifact(path=ARTIFACT):
     # observed-station inference. A failed live read falls back safely.
     if Path(path) == ARTIFACT and LIVE_ARTIFACT.is_file():
         try:
-            return _verified_file(LIVE_ARTIFACT)
-        except (LiveFeatureError, OSError, ValueError, EOFError):
-            LOG.warning("Invalid live retrained artifact; using historical fallback")
+            candidate = _verified_file(LIVE_ARTIFACT)
+            # Also audit artifacts promoted by older releases that allowed
+            # tying the persistence benchmark or serving zero-weight ML.
+            reason = validate_retrained_candidate(candidate)
+            if reason is not None:
+                raise LiveFeatureError(f"retrained_model_failed_quality_gate:{reason}")
+            return candidate
+        except (LiveFeatureError, OSError, ValueError, EOFError, KeyError, TypeError):
+            LOG.warning("Ineligible live retrained artifact; using historical fallback")
     return _verified_file(Path(path))
 
 
