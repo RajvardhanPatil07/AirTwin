@@ -108,3 +108,45 @@ been measured by this change alone. Model loading on cold API instances and
 provider/network delays remain deployment-level risks. Source labeling,
 historical validation, and all existing `/api/*` response contracts remain
 part of the acceptance gate.
+
+
+## FrameVitals frontend design baseline (2026-10-10)
+
+User-selected visual reference: `framevitals.vercel.dev`. The domain was not
+retrievable from this session, so the implementation was grounded in the actual
+source of `parthdongre/FrameVitals`, especially:
+
+- `frontend/src/styles/globals.css`: near-black `#0a0a0a` surfaces,
+  warm cream `#f5efe6` ink, a single mint `#5eead4` accent, mono
+  eyebrow labels, fine hairlines, and subtle fixed background texture.
+- `frontend/src/components/site/SiteShell.tsx`: restrained sticky
+  navigation, compact logo, fine active underline, and editorial spacing.
+- `frontend/src/pages/HomePage.tsx`: oversized display typography,
+  numbered editorial sections and primary/secondary actions.
+- `frontend/src/components/site/Variants.ts`: short fades, subtle
+  vertical motion, and accessibility-friendly reduced-motion behavior.
+
+The AirTwin implementation translates those patterns into a map-first
+decision workspace rather than importing FrameVitals analytics screens.
+Changes live only on `dev/parth-overhaul`:
+
+- Top horizontal responsive navigation replaces the older heavy sidebar.
+- Evidence-first hero and numbered readout/workspace section rules.
+- Dark editorial cards with unambiguous OBSERVED / MODELED / SYNTHETIC labels.
+- High-density pollution map remains interactive; controls and tooltips
+  match the new dark shell without altering modeling/provenance.
+- The older Chromatic/Vivid CSS theme is no longer imported; the
+  `framevitals-theme.css` is applied after baseline AirTwin component CSS.
+- Responsive nav scrolling, focused interaction states, motion preferences,
+  and initial loading view are part of the same design system.
+
+Do not port the FrameVitals file upload/ML diagnostic domain into AirTwin.
+Retain PM2.5 forecasting, held-out validation, source proxy attribution,
+three individual interventions plus a combined result, and data freshness
+labels unchanged.
+
+Before merging, compare rendered screenshots on desktop (1440px),
+tablet (768px) and mobile (390px) against the live FrameVitals source where
+available, plus test readable chart text, Leaflet overlays, and keyboard
+navigation at each width. A GitHub CI build does not substitute for a
+visual screenshot or measured Lighthouse performance report.
