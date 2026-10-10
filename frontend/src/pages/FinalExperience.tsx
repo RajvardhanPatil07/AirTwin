@@ -11,6 +11,7 @@ import { DEFAULT_CUTS } from "../mocks/engine";
 import { dateLabel, number, timeLabel } from "../lib/format";
 import { cellsAtFrame, frameAtOrBefore } from "../lib/finalTimeline";
 import { readRoute, writeRoute, resolveRouteStation } from "../lib/finalRoute";
+import { forecastReferenceRange, selectedForecastPeak } from "../lib/finalOutlook";
 import {
   concentrationLabel, interpretChange, isStale, METRICS,
   orderedPlaces, provenanceLabel, readingFor, supportsMetric,
@@ -211,6 +212,8 @@ export function FinalExperience() {
   const spatialFrame = frameAtOrBefore(timeline, Math.min(timeIndex + 1, 24));
   const forecastCells = useMemo(() => data ? cellsAtFrame(data.cells, spatialFrame) : null, [data, spatialFrame]);
   const spatialTimestamp = forecastCells && spatialFrame?.hour ? formatStamp(spatialFrame.timestamp) : null;
+  const dayReferenceRange = useMemo(() => forecastReferenceRange(frameAtOrBefore(timeline, 24), data?.stations ?? []), [timeline, data]);
+  const selectedPeak = useMemo(() => selectedForecastPeak(forecast), [forecast]);
   const avgStale = data?.stations[0] ? isStale(data.stations[0].timestamp) : true;
   const topReading = top && data ? readingFor(top, metric, data.demo) : null;
 
@@ -444,6 +447,21 @@ export function FinalExperience() {
               <div className="fv-forecast-caption">{forecast?.issued_at ? "Issued " + formatStamp(forecast.issued_at) : "Prediction time unavailable"} · {data.demo ? "SYNTHETIC DEMO" : "MODELED OUTLOOK"}</div>
               {forecast?.fallback_reason && <div className="fv-inline-warning">{forecast.fallback_reason}</div>}
             </div>
+            <section className="fv-card fv-tomorrow-insights" aria-label="Tomorrow's computed outlook">
+              <span className="fv-card-kicker"><CloudSun size={16}/> Tomorrow outlook · Backend evidence</span>
+              <div className="fv-forecast-insights-grid">
+                <div><span>Highest modeled reference</span><strong>{dayReferenceRange.highest?.name ?? "Unavailable"}</strong>
+                  <small>{dayReferenceRange.highest ? number(dayReferenceRange.highest.pm25, 0) + " µg/m³ · modeled" : "No spatial forecast"}</small></div>
+                <div><span>Relatively lower reference</span><strong>{dayReferenceRange.lowest?.name ?? "Unavailable"}</strong>
+                  <small>{dayReferenceRange.lowest ? number(dayReferenceRange.lowest.pm25, 0) + " µg/m³ · modeled" : "No spatial forecast"}</small></div>
+                <div><span>Selected-area predicted peak</span><strong>{selectedPeak ? timeLabel(selectedPeak.timestamp) + " IST" : "Unavailable"}</strong>
+                  <small>{selectedPeak ? number(selectedPeak.pm25, 0) + " µg/m³ · within " + hours + "h" : "Forecast not available"}</small></div>
+                <div><span>Weather forecast at selection</span>
+                  <strong>{selectedWeather?.cloud_cover !== undefined ? number(selectedWeather.cloud_cover, 0) + "% cloud" : "Unavailable"}</strong>
+                  <small>{selectedWeather?.wind_speed_10m !== undefined ? number(selectedWeather.wind_speed_10m * 3.6, 0) + " km/h modeled wind" : "Wind forecast not available"}</small></div>
+              </div>
+              <p>Ranked points are forecast reference locations, not measured street hotspots; forecasts are not causal attributions.</p>
+            </section>
             <div className="fv-card fv-forecast-note"><span className="fv-card-kicker"><Info size={16}/> Reading this forecast</span><p>{advice(when?.predicted ?? null)}</p>
               <small>{forecast?.history_source_type?.toUpperCase() ?? "UNKNOWN"} history · MODELED future. Historical validation is separate from current forecast confidence.</small>
               {focus && <button type="button" className="fv-small-link" onClick={() => setFocus(false)}>← Back to city view</button>}
