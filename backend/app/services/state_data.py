@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from app.config import RAW, ROOT, TIMEZONE, BBOX
 from app.services.regions import CITY_POINTS, PUNE_POINTS, STATE_BBOX, inside_state, region_metadata
 from app.services.runtime import Runtime, get_runtime
-from app.services import database
+from app.services import database, decision_store
 from app.services.spatial import make_grid, distance_km, CONFIG, ZONES, ASSUMPTIONS, spatial_assumptions
 from app.services.spatial_inputs import load_spatial_inputs
 from app.services.scenarios import simulate
@@ -115,7 +115,9 @@ def save_context(payload, path=CACHE, region='maharashtra'):
     temp.write_text(json.dumps(payload, allow_nan=False))
     temp.replace(path)
     try:
-        database.save_snapshot(region, payload)
+        if database.configured():
+            database.save_snapshot(region, payload)
+            decision_store.capture_snapshot(region, payload)
     except Exception:
         LOG.warning('Could not persist %s provider snapshot to PostgreSQL.', region, exc_info=True)
 
