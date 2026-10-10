@@ -56,3 +56,7 @@ npm run test:sites
 See `../docs/api.md`, `src/types.ts`, `DESIGN.md` and `design-qa.md`. The original
 mock calculations remain tested in `src/mocks/engine.ts`; they do not describe
 backend model accuracy. Inter is SIL OFL; retain OpenStreetMap and provider credits.
+
+## Guided frontend
+
+The default screen is the reference-based eight-step AirTwin guide. It uses adapted Vengeance UI Spotlight Navbar and Animated Button components, Leaflet geography and Recharts visualizations. The guide connects through `/backend` to FastAPI for location estimates, map cells, forecasts, source proxies, scenarios, budget optimization, historical validation and Gemini Ask AirTwin. A failed initial connection switches to an explicitly labeled offline example; failed analyses show errors and Retry. Review exports backend results and their provenance as JSON. Advanced view retains the full dashboard. `src/guided.css` scopes the responsive guide theme, including dark and reduced-motion states. See `design-qa.md` and `docs/guided-evidence/` for verification.

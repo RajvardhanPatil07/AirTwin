@@ -135,6 +135,8 @@ def save_context(payload, path=PUNE_CACHE, region='pcmc'):
     temp = path.with_suffix('.tmp')
     temp.write_text(json.dumps(payload, allow_nan=False))
     temp.replace(path)
+    if not database.configured():
+        return
     try:
         database.save_snapshot(region, payload)
     except Exception:

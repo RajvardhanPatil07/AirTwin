@@ -18,3 +18,7 @@ Current visual authority: user selected the light glass AirTwin mockup on 2026-0
 User feedback: keep Ask AirTwin visible in offline mode with honest availability messaging; put compact selected-location and concentration context in the intro space; retain the forecast playback timeline and use a teal leaf logo suited to the glass theme.
 
 User scope decision (2026-10-10): Pune and PCMC are the sole supported urban region. Keep all forecast, attribution, hotspot, intervention and historical validation features focused on this bounded area; do not restore a statewide selector.
+
+User visual direction (2026-10-10): build the attached eight-step AirTwin flow as the default guided frontend, using the installed Vengeance UI Spotlight Navbar and Animated Button components. Retain the connected dashboard as Advanced view. Guided example values and maps must be explicitly labeled illustrative rather than live observations.
+
+User scope decision (2026-10-10): connect the default guide to FastAPI and verify the actual Ask AirTwin model. Keep source labels, timestamps, assumptions and backend failures visible. Gemini credentials stay in the root server `.env`; fallback summaries must never be labeled Gemini answers.

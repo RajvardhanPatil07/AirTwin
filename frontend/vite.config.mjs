@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
 
 const backendProxy = {
   "/backend": {
@@ -11,6 +12,11 @@ const backendProxy = {
 };
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   preview: { proxy: backendProxy },
   build: {
     outDir: "dist/client",

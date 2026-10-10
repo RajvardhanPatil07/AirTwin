@@ -64,3 +64,15 @@ def test_state_explanation_keeps_selected_evidence_without_full_station_payload(
     assert context['evidence']['stations']['data']['count'] == 2
     assert 'pollutants' in context['evidence']['baseline']['data']
     assert len(json.dumps(context).encode()) < 25_000
+
+
+def test_provider_cache_saves_locally_without_postgres(tmp_path, monkeypatch):
+    from app.services import state_data
+    monkeypatch.setattr(state_data.database, 'configured', lambda: False)
+    def unexpected_database_write(*args):
+        pytest.fail('Unconfigured PostgreSQL must not receive snapshot writes')
+    monkeypatch.setattr(state_data.database, 'save_snapshot', unexpected_database_write)
+    payload = {'updated_at': '2026-10-10T11:00:00+00:00', 'points': []}
+    target = tmp_path / 'provider.json'
+    state_data.save_context(payload, path=target)
+    assert json.loads(target.read_text()) == payload

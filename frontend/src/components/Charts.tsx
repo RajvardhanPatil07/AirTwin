@@ -337,7 +337,7 @@ export function BacktestChart({
         {data.model === "openaq_station_lightgbm_24h" && "This evaluates a monitor-specific model against an observed 24-hour holdout; it does not validate the CAMS provider forecast."}
       </p>
       {data.skill && <SkillChart skill={data.skill} />}
-      {data.seasonal_baseline && (
+      {typeof data.seasonal_baseline?.mae === "number" && (
         <p className="helper">
           Pooled training-only seasonal baseline MAE:{" "}
           {number(data.seasonal_baseline.mae, 2)} µg/m³. CV folds:{" "}
