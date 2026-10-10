@@ -53,8 +53,8 @@ def _stub_check(monkeypatch, candidate_mae=8.0, baseline_mae=10.0):
     monkeypatch.setattr(rt, "_exclusive_training", lock)
     calls = []
 
-    def train_candidate(frame, fingerprint, warnings, *, exog, persist):
-        assert persist is False
+    def train_candidate(frame, fingerprint, warnings, *, exog, persist, prefer_recent_holdout):
+        assert persist is False and prefer_recent_holdout is True
         assert set(frame.source_type) == {"observed"}
         assert len(frame) == 460
         return {
@@ -123,3 +123,13 @@ def test_validation_requires_observed_targets_and_honest_benchmark():
     sample["report"]["target_source_types"] = ["observed"]
     sample["report"]["test_rows"] = 1
     assert rt._validate(sample) == "insufficient_or_invalid_holdout"
+
+
+def test_recent_holdout_ends_at_latest_hour():
+    from app.services.model import choose_holdout
+    data = pd.DataFrame({"timestamp": pd.date_range("2025-01-01",
+                        periods=1500, freq="h", tz="Asia/Kolkata")})
+    start, end, method = choose_holdout(data, prefer_recent=True)
+    assert "recent" in method
+    assert start == data.timestamp.iloc[1200]
+    assert end > data.timestamp.iloc[-1]
