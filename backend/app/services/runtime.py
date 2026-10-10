@@ -1,5 +1,6 @@
 """A cached dataset/model bundle shared by all endpoint responses."""
 from functools import lru_cache
+from time import monotonic
 import pandas as pd
 import json
 from app.config import RAW
@@ -13,6 +14,27 @@ from app.services.scenarios import simulate
 
 
 class Runtime:
+    def cached_snapshot(self, replay_at=None):
+        """Reuse immutable-in-practice grid inputs for repeated dashboard reads.
+
+        Runtimes are replaced on live provider refresh, so each instance owns
+        its own small, short-lived cache. The cached objects are only read by
+        forecast/scenario services; scenarios create fresh changed cells.
+        """
+        key = replay_at or ""
+        cache = getattr(self, "_snapshot_cache", None)
+        if cache is None:
+            cache = self._snapshot_cache = {}
+        entry = cache.get(key)
+        now = monotonic()
+        if entry is not None and entry[0] > now:
+            return entry[1]
+        snapshot = self.cached_snapshot(replay_at)
+        if len(cache) >= 8:
+            cache.clear()
+        cache[key] = (now + 30, snapshot)
+        return snapshot
+
     def __init__(self, force_sample=False):
         self.frame, self.warnings, self.fingerprint, self.exog = load_all(force_sample)
         self.spatial_inputs = None if force_sample else load_spatial_inputs()
