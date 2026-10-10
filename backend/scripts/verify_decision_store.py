@@ -5,6 +5,8 @@ Run with DATABASE_URL and PYTHONPATH=backend.
 """
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from app.services import decision_store
 
 
@@ -13,20 +15,22 @@ def main():
         raise SystemExit("DATABASE_URL is required for the PostgreSQL integration test")
     decision_store.initialize()
     unique = "ci-" + uuid.uuid4().hex[:12]
+    clock = datetime.now(ZoneInfo("Asia/Kolkata")).replace(minute=0, second=0, microsecond=0)
     payload = {
-        "updated_at": "2026-10-10T09:00:00+05:30",
+        "updated_at": clock.isoformat(),
         "provider": "CAMS / Open-Meteo",
         "points": [{
             "id": unique + "-model", "name": "Test modeled point",
             "latitude": 18.60, "longitude": 73.85,
             "air": {
-                "time": ["2026-10-10T08:00", "2026-10-10T10:00"],
+                "time": [(clock - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
+                         (clock + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")],
                 "pm2_5": [47.5, 49.2],
             },
         }],
         "observed": [{
             "id": unique + "-station", "name": "Test observed point",
-            "source_type": "observed", "timestamp": "2026-10-10T03:30:00Z",
+            "source_type": "observed", "timestamp": clock.astimezone(timezone.utc).isoformat(),
             "latitude": 18.61, "longitude": 73.86, "pm25": 53,
         }],
     }
