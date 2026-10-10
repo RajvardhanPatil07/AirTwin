@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, BarChart3, CheckCircle2,
   ChevronRight, CircleHelp, CloudSun, Database, Gauge, GitCompareArrows,
@@ -12,8 +12,12 @@ import type {
 import { api, loadDashboard } from "../lib/api";
 import { dateLabel, number, timeLabel } from "../lib/format";
 import { DEFAULT_CUTS } from "../mocks/engine";
-import { MapView } from "../components/MapView";
-import { ForecastChart, BacktestChart, AttributionChart } from "../components/Charts";
+// Map and Recharts are separate on-demand chunks, not part of the shell bundle.
+const MapView = lazy(() => import("../components/MapView").then((module) => ({ default: module.MapView })));
+const chartsModule = () => import("../components/Charts");
+const ForecastChart = lazy(() => chartsModule().then((module) => ({ default: module.ForecastChart })));
+const BacktestChart = lazy(() => chartsModule().then((module) => ({ default: module.BacktestChart })));
+const AttributionChart = lazy(() => chartsModule().then((module) => ({ default: module.AttributionChart })));
 import { ScenarioPanel } from "../components/ScenarioPanel";
 import { AssumptionsPanel } from "../components/AssumptionsPanel";
 import { TimelineBar } from "../components/TimelineBar";
@@ -396,6 +400,7 @@ export function DecisionStudio() {
                   <button className={replayAt ? "tw-small-button active" : "tw-small-button"} disabled={data.demo} onClick={toggleReplay}>{replayAt ? "Exit historical replay" : "Replay history"}</button>
                   <span className="tw-grid-badge">{data.cells.length} modeled cells</span>
                 </div></div>
+                <Suspense fallback={<div className="tw-map-loading" role="status">Preparing interactive pollution map…</div>}>
                 <MapView
                   stations={mapStations}
                   cells={mapCells}
@@ -412,6 +417,7 @@ export function DecisionStudio() {
                   forecastLabel={frame ? "+" + frame.hour + "h modeled forecast" : null}
                   timeline={timelineControl}
                 />
+                </Suspense>
                 <div className="tw-map-caption">
                   <span><CheckCircle2 size={14}/> Each station retains its source type and timestamp</span>
                   <span>Hotspot grid = modeled interpolation, not observed sensors</span>
@@ -470,6 +476,7 @@ export function DecisionStudio() {
                   onClick={() => navigateTo(id)} className={view === id ? "selected" : ""}>{label.split(" ")[0]}</button>)}
               </div>
               <div className="tw-inspector-content" id="tw-analysis-content" role="tabpanel" aria-labelledby={"tw-tab-" + view}>
+                <Suspense fallback={<div className="tw-loading" role="status">Loading visualization…</div>}>
                 {error && <ModelNotice>{error} <button onClick={() => setReload((n) => n + 1)}>Retry</button></ModelNotice>}
                 {analysisLoading && <div className="tw-loading" role="status"><RefreshCw className="tw-spin" size={17}/> Updating analytical context…</div>}
                 {view === "overview" && <div className="tw-overview">
@@ -526,6 +533,7 @@ export function DecisionStudio() {
                       </div>
                     : backtest ? <BacktestChart data={backtest} demo={data.demo}/> : <div className="tw-empty">Historical evaluation unavailable.</div>}
                 </div>}
+                </Suspense>
               </div>
               <div className="tw-inspector-footer"><ArrowDownRight size={16}/> Interpretation is for decision support only. Always inspect data age, provenance and model limitations.</div>
             </aside>
