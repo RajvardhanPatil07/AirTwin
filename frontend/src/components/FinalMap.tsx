@@ -7,7 +7,7 @@ import type { Cell, DashboardData, Station } from "../types";
 import { concentrationColor, METRICS, readingFor, type MetricId } from "../lib/finalMetrics";
 import { localityMatches } from "../lib/finalPlaces";
 import { SmoothHeatLayer } from "./SmoothHeatLayer";
-import { number, timeLabel, dateLabel } from "../lib/format";
+import { number } from "../lib/format";
 
 function accessibleTarget(event: LeafletEvent, label: string, retries = 1) {
   const layer = event.target as { getElement?: () => SVGElement | undefined; fire: (name: string) => void };
