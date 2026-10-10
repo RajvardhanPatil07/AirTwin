@@ -1,4 +1,5 @@
-import { Dashboard } from "./pages/Dashboard";
+import { DecisionStudio } from "./pages/DecisionStudio";
+
 export default function App() {
-  return <Dashboard />;
+  return <DecisionStudio />;
 }

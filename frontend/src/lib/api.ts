@@ -12,6 +12,8 @@ import type {
   StationsResponse,
   RegionId,
   TimelineResponse,
+  DecisionRunResponse,
+  DataHealthResponse,
 } from "../types";
 import * as demo from "../mocks/engine";
 
@@ -96,6 +98,13 @@ function withReplay(path: string, replayAt: string | null) {
 }
 export const api = {
   replay: () => request<ReplayResponse>("/api/replay"),
+  dataHealth: (region: RegionId = "pcmc") =>
+    request<DataHealthResponse>("/api/v2/data-health?region=" + encodeURIComponent(region)),
+  runDecision: (locationId: string, cuts: Cuts, replayAt: string | null, region: RegionId = "pcmc") =>
+    request<DecisionRunResponse>("/api/v2/decision-runs", {
+      method: "POST",
+      body: JSON.stringify({ location_id: locationId, cuts, replay_at: replayAt, region }),
+    }, 60000),
   timeline: (replayAt: string | null, region: RegionId) =>
     request<TimelineResponse>(
       withReplay(`/api/timeline?region=${region}`, replayAt),
