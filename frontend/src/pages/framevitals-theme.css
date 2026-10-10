@@ -844,3 +844,13 @@ body { background-image: none !important; }
  .tw-workspace-detail .tw-inspector-content {padding:19px 15px;}
  .tw-workspace-detail .tw-inspector-header {padding:20px 16px;}
 }
+
+/* Secondary map data is available on demand, never forced into the first viewport. */
+.tw-map-details {margin:17px 0 0;border-top:1px solid var(--fv-line);color:var(--fv-secondary);}
+.tw-map-details > summary {list-style:none;display:flex;align-items:center;justify-content:space-between;gap:13px;padding:14px 6px;cursor:pointer;color:var(--fv-accent);font:650 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em;}
+.tw-map-details > summary::-webkit-details-marker {display:none;}
+.tw-map-details > summary svg {transition:transform .18s ease;}
+.tw-map-details[open] > summary svg {transform:rotate(90deg);}
+.tw-map-details .tw-bottom-cards {margin:9px 0 0;}
+.tw-inspector-details {margin-top:17px;}
+.tw-inspector-details .assumptions {margin-top:11px;}
