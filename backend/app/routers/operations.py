@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from typing import Literal
 from app.schemas import Region, Provenance
 from app.services.state_data import get_region_runtime
 from app.services.runtime import get_runtime
@@ -10,6 +11,7 @@ from app.services.live_feed import feed_status
 from app.services.resilience import REPORT, estimate_snapshot
 from app.services.planning import CATALOG, optimize
 from app.services.spatial import idw, CONFIG
+from app.services.monitor_coverage import monitor_coverage
 
 router=APIRouter()
 
@@ -24,6 +26,7 @@ class PlanRequest(BaseModel):
     withheld_location_id: str | None = None
     replay_at: str | None = None
     region: Region = 'pcmc'
+    preference: Literal['robust','max_benefit','min_cost'] = 'robust'
 
 
 @router.get('/feed')
@@ -63,14 +66,23 @@ def plan(body: PlanRequest):
     # Provider-only fallback uses the 24-hour forecast grid rather than the current snapshot.
     modeled=[s for s in stations if s['source_type']=='modeled']
     baseline=cells
-    if modeled and not any(s['source_type']=='observed' for s in stations):
+    provider_forecast=False
+    if modeled and not any(s['source_type']=='observed' and 0<=(issue-pd.Timestamp(s['timestamp'])).total_seconds()<=3*3600 for s in stations):
         future=[]
         for station in modeled:
-            forecast=runtime.forecast(station['id'],24,body.replay_at)
-            future.append({**station,'pm25':forecast['series'][-1]['predicted']})
+            if hasattr(runtime,'all_frame'):
+                endpoint=runtime.all_frame[(runtime.all_frame.station_id==station['id']) & (runtime.all_frame.timestamp==issue+pd.Timedelta(hours=24))]
+                if endpoint.empty or pd.isna(endpoint.pm25.iloc[0]):
+                    raise HTTPException(503,'Provider cache lacks the exact 24-hour planning endpoint.')
+                value=float(endpoint.pm25.iloc[0])
+            else:
+                forecast=runtime.forecast(station['id'],24,body.replay_at)
+                value=forecast['series'][-1]['predicted']
+            future.append({**station,'pm25':value})
         background=float(np.percentile([s['pm25'] for s in future],CONFIG['background_percentile']))
         baseline=[{**c,'pm25':idw(c['latitude'],c['longitude'],future),
                    'background':min(background,idw(c['latitude'],c['longitude'],future))} for c in cells]
+        provider_forecast=True
     history=runtime.frame[runtime.frame.timestamp==issue-pd.Timedelta(hours=24)]
     lag={str(r.station_id):float(r.pm25) for r in history.itertuples() if pd.notna(r.pm25)}
     target=next((s for s in stations if s['id']==body.withheld_location_id),None)
@@ -83,10 +95,17 @@ def plan(body: PlanRequest):
                                   body.withheld_location_id,lag_lookup=lag)
     except ValueError as error:
         raise HTTPException(503,str(error)) from error
+    is_forecast=spatial['method'] in ('Spatial LightGBM','Spatial persistence')
+    if not is_forecast:
+        is_forecast=provider_forecast and spatial['available_sensors']==0
+        spatial['method']='CAMS provider forecast' if is_forecast else 'Snapshot interpolation'
+        spatial['assumptions'].append(
+            'Planning uses the provider 24-hour forecast without calibrated forecast uncertainty.' if is_forecast else
+            'Planning uses a snapshot interpolated from available inputs, not a 24-hour forecast. Future intervention benefits are not established.')
     heldout_result=None
     if target:
         point=spatial['cells'].pop()
-        if spatial['method']=='Spatial LightGBM':
+        if spatial['method'] in ('Spatial LightGBM','Spatial persistence'):
             actual=runtime.frame[(runtime.frame.station_id.astype(str)==target['id']) &
                                  (runtime.frame.timestamp==issue+pd.Timedelta(hours=24))]
             heldout_result={'location_id':target['id'],'name':target['name'],'predicted':point['pm25'],
@@ -95,13 +114,15 @@ def plan(body: PlanRequest):
                             'forecast_source_type':'modeled','target_source_type':'observed',
                             'valid_at':(issue+pd.Timedelta(hours=24)).isoformat()}
     result=optimize(spatial['cells'],body.budget,body.unavailable_actions,body.cost_multiplier,
-                    body.response_multiplier,body.target_percent)
+                    body.response_multiplier,body.target_percent,preference=body.preference)
     spatial.pop('cells')
     result['forecast']=spatial
-    result['forecast_valid_at']=(issue+pd.Timedelta(hours=24)).isoformat()
+    result['baseline_kind']='forecast' if is_forecast else 'snapshot'
+    result['forecast_valid_at']=(issue+pd.Timedelta(hours=24) if is_forecast else issue).isoformat()
     result['snapshot_at']=issue.isoformat()
     result['input_source_types']=sorted({s['source_type'] for s in stations})
     result['replay_at']=body.replay_at
     result['heldout_result']=heldout_result
+    result['coverage']=monitor_coverage(stations,issue,replay=bool(body.replay_at),provider_payload=getattr(runtime,'payload',None))
     result['assumptions']+=spatial['assumptions']
     return result

@@ -104,6 +104,7 @@ class ForecastResponse(Provenance):
     issued_at: str | None = None
     input_cutoff: str | None = None
     fallback_reason: str | None = None
+    selection: dict | None = None
 
 
 class Metrics(BaseModel):
@@ -121,6 +122,7 @@ class BacktestResponse(Provenance):
     method: str
     series: list[SeriesPoint]
     metrics: Metrics | None
+    selection: dict | None = None
     available: bool = True
     seasonal_baseline: dict = {}
     cv: list[dict] = []

@@ -31,8 +31,11 @@ def parse_indices(html, received_at=None):
         # The upstream uses zero for several unavailable stations. Do not report it as clean air.
         if not 0 < value <= 1000:
             continue
-        stamp = pd.Timestamp(match[1]).tz_localize(TIMEZONE)
-        if stamp > pd.Timestamp(received_at) + pd.Timedelta(minutes=15):
+        try:
+            stamp = pd.Timestamp(match[1]).tz_localize(TIMEZONE)
+        except ValueError:
+            continue
+        if stamp > pd.Timestamp(received_at):
             continue
         records.append({'id': 'iitm-aqi-' + key, 'name': NAMES[key], 'indicator': 'AQI',
                         'value': value, 'unit': 'index', 'timestamp': stamp.isoformat(),
@@ -66,10 +69,10 @@ def feed_status():
     for record in payload['records']:
         age = max(0, (now - pd.Timestamp(record['timestamp'])).total_seconds() / 3600)
         records.append({**record, 'age_hours': round(age, 2),
-                        'status': 'fresh' if age <= 3 else 'delayed' if age <= 24 else 'stale'})
+                        'status': 'fresh' if age < 3 else 'delayed' if age <= 24 else 'stale'})
     records.sort(key=lambda r: r['timestamp'], reverse=True)
     return {'source_type': 'observed', 'checked_at': payload['checked_at'], 'records': records,
             'fresh_count': sum(r['status'] == 'fresh' for r in records),
             'assumptions': ['Provider-published station AQI indices; these are not PM2.5 concentrations.',
                             'IITM station index aggregation is not independently verified. Zero placeholders are excluded.',
-                            'Fresh means a measurement timestamp within three hours; older records retain their original timestamps.']}
+                            'Fresh means a measurement timestamp less than three hours old; older records retain their original timestamps.']}

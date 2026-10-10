@@ -64,9 +64,12 @@ def run_observed_station_forecast(station, provider_frame, hours, *,
         observations = reader(station["id"], hours=96)
         frame, exog, origin, reference = build_live_input(
             observations, provider_frame, artifact, hours=hours, now=now)
-        outputs = predict(artifact, frame, hours, exog)
+        comparisons=artifact['report'].get('skill',[])
+        comparison=next((r for r in comparisons if r.get('horizon')==hours),None)
+        use_model=bool(comparison and comparison.get('mae',float('inf'))<comparison.get('persistence_mae',0))
+        outputs = predict(artifact, frame, hours, exog) if use_model else [(float(frame.pm25.iloc[-1]),None,None)]*hours
         if len(outputs) != hours or any(
-            not all(np.isfinite(v) for v in point) or point[1] > point[2]
+            not np.isfinite(point[0]) or (use_model and (not all(np.isfinite(v) for v in point) or point[1] > point[2]))
             for point in outputs
         ):
             raise LiveFeatureError("invalid_ml_predictions")
@@ -78,11 +81,12 @@ def run_observed_station_forecast(station, provider_frame, hours, *,
         future = [
             {"timestamp": (origin + pd.Timedelta(hours=i + 1)).isoformat(),
              "actual": None, "predicted": float(point[0]),
-             "p10": float(point[1]), "p90": float(point[2]), "persistence": None}
+             "p10": float(point[1]) if point[1] is not None else None, "p90": float(point[2]) if point[2] is not None else None,
+             "persistence": float(frame.pm25.iloc[-1])}
             for i, point in enumerate(outputs)
         ]
         try:
-            shap = explain_features(artifact, frame, exog)
+            shap = explain_features(artifact, frame, exog) if use_model else None
         except Exception:
             shap = None
             LOG.warning("Optional live SHAP explanation unavailable", exc_info=True)
@@ -91,18 +95,19 @@ def run_observed_station_forecast(station, provider_frame, hours, *,
             "location_id": station["id"], "source_type": "modeled",
             "history_source_type": "observed", "history_reference": station["id"],
             "series": past + future, "shap": shap, "weather_forecast": [],
-            "forecast_provider": "AirTwin LightGBM",
-            "model_id": "airtwin-lightgbm-live",
+            "forecast_provider": "AirTwin LightGBM" if use_model else "Observed persistence",
+            "model_id": "airtwin-lightgbm-live" if use_model else "observed-persistence",
             "model_version": str(artifact["version"]),
             "issued_at": created,
             "input_cutoff": origin.isoformat(),
-            "fallback_reason": None,
+            "fallback_reason": None if use_model else "LightGBM has no better eligible horizon benchmark; retaining the latest observed PM2.5 as persistence.",
             "assumptions": [
                 "Recent OpenAQ hourly observations are the PM2.5 target history.",
                 f"Weather and CAMS model covariates come from nearby reference {reference}.",
-                "Direct LightGBM horizons 1–24, 48, 72; intervening hours interpolated.",
-                "Prediction bands have historical calibration, not demonstrated live coverage.",
+                "Direct LightGBM horizons 1–24, 48, 72; intervening hours interpolated." if use_model else "Persistence holds the latest observed concentration constant across the requested horizon.",
+                "Prediction bands have historical calibration, not demonstrated live coverage." if use_model else "No prediction band is supplied for this persistence fallback.",
                 "This is a station forecast, not an independently validated street-level estimate.",
+                "The historical pooled benchmark gates future serving; selected-method accuracy on that same benchmark is not an independent test of the gate.",
             ],
         }, None
     except LiveFeatureError as exc:

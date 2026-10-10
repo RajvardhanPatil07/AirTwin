@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { api } from "../lib/api";
-import { operations, type Plan } from "../lib/operations";
+import { operations, type Plan, type PlanPreference } from "../lib/operations";
+import { ActionEvidence, PlanChoices, PlanningBaseline, PlanningExplanation, SpatialForecastEvidence } from "./PlanningEvidence";
 import { ForecastChart, BacktestChart, AttributionChart } from "./Charts";
 import { AssumptionsPanel } from "./AssumptionsPanel";
-import type { Cuts, DashboardData, ExplainResponse, Station } from "../types";
+import type {
+  Cuts,
+  DashboardData,
+  ExplainResponse,
+  ScenarioResponse,
+  ScenarioResult,
+  Station,
+} from "../types";
 import { AirMap } from "./GuidedAirMap";
 
 function useRemote<T>(load: () => Promise<T>, delay = 0) {
@@ -50,6 +58,84 @@ const money = (value: number) =>
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(value);
+const reductionValue = (value: number) =>
+  value > 0 && value < 0.001 ? "<0.001" : value.toFixed(3);
+
+function ScenarioChange({
+  result,
+  scenario,
+}: {
+  result: ScenarioResult;
+  scenario: ScenarioResponse;
+}) {
+  const localUnresolved =
+    scenario.location_status === "no_resolvable_local_excess";
+  const gridAfter = result.cells.reduce(
+    (sum, cell) => sum + cell.pm25 * cell.population,
+    0,
+  );
+  const gridBefore = gridAfter + result.exposure_benefit;
+  const gridReductionPercent =
+    gridBefore > 0 ? (100 * result.exposure_benefit) / gridBefore : null;
+  return (
+    <>
+      {localUnresolved ? (
+        <>
+          <h3>Local effect cannot be estimated</h3>
+          <p>
+            This snapshot has too little local excess above the assumed regional
+            background to resolve an effect. Changing the cuts cannot establish
+            a local benefit here. This does not mean real interventions have no
+            effect.
+          </p>
+        </>
+      ) : (
+        <p>
+          {reductionValue(result.reduction)} µg/m³ simulated local reduction ·{" "}
+          {reductionValue(result.reduction_percent)}%
+        </p>
+      )}
+      {!localUnresolved && scenario.status_reason ? (
+        <p>{scenario.status_reason}</p>
+      ) : !localUnresolved && result.reduction === 0 ? (
+        <p>
+          The calculated actions produce no local change under these
+          assumptions.
+        </p>
+      ) : null}
+      {!localUnresolved &&
+      result.reduction > 0 &&
+      result.before.toFixed(3) === result.after.toFixed(3) ? (
+        <p>
+          The change is smaller than the three-decimal concentration display can
+          show.
+        </p>
+      ) : null}
+      <p>
+        Applies to this location's current snapshot. Simulated, not a measured
+        improvement.
+      </p>
+      <h3>Separate city-grid scenario</h3>
+      {gridReductionPercent !== null ? (
+        <p>
+          {reductionValue(gridReductionPercent)}% simulated population-weighted
+          concentration reduction across the Pune–PCMC grid.
+        </p>
+      ) : (
+        <p>
+          City-grid percentage unavailable because its weighted baseline is
+          zero.
+        </p>
+      )}
+      <p>
+        Uses the calculated cuts across the grid and{" "}
+        {result.population_source_type} population weights. This is an
+        assumption-based comparison across the city grid. It does not establish
+        a benefit at the selected location or a measured health benefit.
+      </p>
+    </>
+  );
+}
 function RequestStatus({
   busy,
   error,
@@ -188,6 +274,8 @@ export interface GuidedPlanControls {
   budget: number;
   target: number;
   unavailable: string[];
+  replayAt: string | null;
+  preference: PlanPreference;
 }
 function GuidedPlan({
   onPlan,
@@ -200,9 +288,12 @@ function GuidedPlan({
   onControls: (controls: GuidedPlanControls) => void;
   previousPlan: Plan | null;
 }) {
-  const { budget, target, unavailable } = controls;
+  const { budget, target, unavailable, replayAt, preference } = controls;
   const setBudget = (budget: number) => onControls({ ...controls, budget });
   const setTarget = (target: number) => onControls({ ...controls, target });
+  const evidenceLoad=useCallback(()=>operations.evidence(),[]);
+  const evidence=useRemote(evidenceLoad);
+  const withheldId=replayAt && evidence.data?.available ? evidence.data.report.withheld_station_id : null;
   const load = useCallback(
     () =>
       operations.plan({
@@ -210,13 +301,14 @@ function GuidedPlan({
         target_percent: target,
         unavailable_actions: unavailable,
         sensor_loss_percent: 0,
-        withheld_location_id: null,
-        replay_at: null,
+        withheld_location_id: withheldId,
+        replay_at: replayAt,
         region: "pcmc",
         cost_multiplier: 1,
         response_multiplier: 1,
+        preference,
       }),
-    [budget, target, unavailable],
+    [budget, target, unavailable, replayAt, preference, withheldId],
   );
   const result = useRemote(load, 350);
   useEffect(() => {
@@ -228,8 +320,15 @@ function GuidedPlan({
         <h3>Budget and available actions</h3>
         <p>
           Costs and intervention responses are synthetic assumptions. Packages
-          are computed by the backend using its 24-hour forecast.
+          are computed by the backend using a forecast or a labeled snapshot
+          fallback. Benefits are simulated, not measured policy effects.
         </p>
+        <p>{replayAt ? `Historical planning replay: ${stamp(replayAt)} IST` : "Planning with the current available context."}</p>
+        <button className="status-chip" disabled={!evidence.data?.available || !evidence.data.replay_at || !evidence.data.report.target_source_types.every(s=>s==="observed")} onClick={()=>{
+          if(evidence.data?.available && evidence.data.replay_at) onControls({...controls,replayAt:evidence.data.replay_at});
+        }}>Use observed historical replay</button>{" "}
+        {replayAt && <button className="status-chip" onClick={()=>onControls({...controls,replayAt:null})}>Return to current context</button>}
+        <RequestStatus {...evidence}/>
         <label className="planning-control">
           Total budget <strong>{money(budget)}</strong>
           <input
@@ -276,6 +375,7 @@ function GuidedPlan({
           </fieldset>
         )}
         <RequestStatus {...result} />
+        {result.data && <><PlanningBaseline plan={result.data}/><ActionEvidence plan={result.data}/></>}
       </section>
       <section className="at-panel">
         <h3>Preferred feasible package</h3>
@@ -290,7 +390,7 @@ function GuidedPlan({
             </p>
             <div className="at-big-number">
               {result.data.selected.reduction_percent.toFixed(1)}
-              <small>% reduction</small>
+              <small>% simulated city-grid reduction</small>
             </div>
             <p>
               {money(result.data.selected.cost)} expenditure ·{" "}
@@ -302,15 +402,24 @@ function GuidedPlan({
                 : `Target infeasible. Maximum feasible modeled reduction: ${result.data.maximum_feasible_reduction_percent.toFixed(1)}%.`}
             </p>
             <p>
-              {result.data.feasible_count} feasible packages · Forecast valid{" "}
+              {result.data.feasible_count} feasible packages ·{" "}
+              {result.data.baseline_kind === "forecast" ? "Forecast valid" : "Snapshot at"}{" "}
               {stamp(result.data.forecast_valid_at)} IST
             </p>
             <p>{result.data.forecast.method}</p>
+            <p>
+              {result.data.forecast.available_sensors} observed PM2.5 monitors
+              available. {result.data.forecast.uncertainty_kind === "unavailable"
+                ? "Forecast uncertainty is unavailable; real-world reduction accuracy is unverified."
+                : "Historical forecast calibration does not validate intervention effects."}
+            </p>
             {result.data.forecast.fallback_reason && (
               <p className="api-warning">
                 {result.data.forecast.fallback_reason}
               </p>
             )}
+            <PlanChoices plan={result.data} onPreference={preference=>onControls({...controls,preference})}/>
+            <PlanningExplanation plan={result.data}/>
             <AssumptionsPanel
               assumptions={result.data.assumptions}
               title="Planning assumptions"
@@ -382,10 +491,11 @@ export function GuidedBackendPanels({
     () => (step === 6 ? api.backtest(location, false) : Promise.resolve(null)),
     [id, location, step],
   );
+  const spatialEvidenceLoad=useCallback(()=>step===6 ? operations.evidence() : Promise.resolve(null),[step]);
   const forecast = useRemote(forecastLoad),
     attribution = useRemote(attributionLoad),
     scenario = useRemote(scenarioLoad),
-    backtest = useRemote(backtestLoad);
+    backtest = useRemote(backtestLoad), spatialEvidence=useRemote(spatialEvidenceLoad);
   const place = {
     name: location.short_name,
     area: "Pune + PCMC",
@@ -500,14 +610,18 @@ export function GuidedBackendPanels({
       <div className="at-action-grid">
         <section className="at-panel">
           <h3>Adjust assumed reductions</h3>
-          {["Traffic", "Industry", "Dust"].map((name, index) => (
+          {[
+            { name: "Traffic", max: 50 },
+            { name: "Industry", max: 60 },
+            { name: "Dust", max: 70 },
+          ].map(({ name, max }, index) => (
             <label className="planning-control" key={name}>
               {name} <strong>{actions[index]}%</strong>
               <input
                 type="range"
                 aria-label={`Reduce ${name.toLowerCase()}`}
                 min="0"
-                max="80"
+                max={max}
                 step="5"
                 value={actions[index]}
                 onChange={(event) =>
@@ -542,16 +656,19 @@ export function GuidedBackendPanels({
                   cells={combined.cells}
                 />
               </div>
-              <div className="at-big-number">
-                {combined.before.toFixed(1)} → {combined.after.toFixed(1)}
-                <small>µg/m³</small>
-              </div>
-              <p>
-                {combined.reduction_percent.toFixed(1)}% estimated reduction.
-                Simulated, not a measured improvement.
-              </p>
-              {scenario.data?.status_reason && (
-                <p>{scenario.data.status_reason}</p>
+              {scenario.data?.location_status ===
+              "no_resolvable_local_excess" ? (
+                <p>
+                  Current local estimate: {combined.before.toFixed(3)} µg/m³.
+                </p>
+              ) : (
+                <div className="at-big-number">
+                  {combined.before.toFixed(3)} → {combined.after.toFixed(3)}
+                  <small>µg/m³</small>
+                </div>
+              )}
+              {scenario.data && (
+                <ScenarioChange result={combined} scenario={scenario.data} />
               )}
               <AssumptionsPanel assumptions={combined.assumptions} />
             </>
@@ -570,10 +687,10 @@ export function GuidedBackendPanels({
     );
   if (step === 6)
     return (
-      <section className="at-panel at-connected-chart">
+      <><section className="at-panel at-connected-chart">
         <RequestStatus {...backtest} />
         {backtest.data && <BacktestChart data={backtest.data} demo={false} />}
-      </section>
+      </section><RequestStatus {...spatialEvidence}/>{spatialEvidence.data && <SpatialForecastEvidence evidence={spatialEvidence.data}/>}</>
     );
   if (step === 7)
     return (
@@ -582,35 +699,39 @@ export function GuidedBackendPanels({
           <section className="at-panel">
             <h3>Current {location.source_type} estimate</h3>
             <div className="at-big-number">
-              {location.pm25}
+              {(combined?.before ?? location.pm25).toFixed(3)}
               <small>µg/m³</small>
             </div>
             <p>{stamp(location.timestamp)} IST</p>
           </section>
           <section className="at-panel">
-            <h3>With calculated actions</h3>
+            <h3>With calculated actions · local scenario</h3>
             <RequestStatus {...scenario} />
             {combined && (
               <>
-                <div className="at-big-number">
-                  {combined.after.toFixed(1)}
-                  <small>µg/m³</small>
-                </div>
-                <p>
-                  {combined.reduction_percent.toFixed(1)}% simulated reduction
-                </p>
+                {scenario.data?.location_status !==
+                  "no_resolvable_local_excess" && (
+                  <div className="at-big-number">
+                    {combined.after.toFixed(3)}
+                    <small>µg/m³</small>
+                  </div>
+                )}
+                {scenario.data && (
+                  <ScenarioChange result={combined} scenario={scenario.data} />
+                )}
               </>
             )}
           </section>
         </div>
         <div className="at-review-grid">
           <section className="at-panel">
-            <h3>Forecast</h3>
+            <h3>Separate future forecast</h3>
             <RequestStatus {...forecast} />
             {forecast.data && (
               <p>
                 {forecast.data.forecast_provider ?? forecast.data.model_id} ·{" "}
-                {hours} hours · modeled
+                {hours}-hour outlook · modeled. The comparison above uses the
+                current snapshot.
               </p>
             )}
           </section>
@@ -636,9 +757,15 @@ export function GuidedBackendPanels({
                 </p>
                 <p>
                   {money(plan.selected.cost)} ·{" "}
-                  {plan.selected.reduction_percent.toFixed(1)}% reduction
+                  {reductionValue(plan.selected.reduction_percent)}% simulated
+                  city-grid reduction
                 </p>
-                <p>Forecast valid {stamp(plan.forecast_valid_at)} IST</p>
+                <p>{plan.baseline_kind === "forecast" ? "Forecast valid" : "Snapshot at"} {stamp(plan.forecast_valid_at)} IST</p>
+                <p>
+                  This package covers the city grid at the displayed time; its
+                  reduction differs in scope from the local comparison above.
+                  Costs and responses are assumed.
+                </p>
               </>
             ) : (
               <p>Open Plan to compute a package.</p>

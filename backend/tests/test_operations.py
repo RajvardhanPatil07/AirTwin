@@ -94,3 +94,61 @@ def test_api_region_schema_rejects_other_regions():
     assert PlanRequest(region='pcmc').region=='pcmc'
     with pytest.raises(ValidationError):
         PlanRequest(region='maharashtra')
+
+
+def test_feasible_target_changes_package_even_when_stress_ranking_differs(monkeypatch):
+    import numpy as np
+    from app.services import planning
+    actions=[dict(id=category,name=category,category=category,cost=100,
+                  latitude=18.6,longitude=73.8,radius_km=5,cut_percent=cut)
+             for category,cut in [('traffic',10),('dust',20)]]
+    monkeypatch.setattr(planning,'CATALOG',{'actions':actions,'limits':{}})
+    class FixedStress:
+        def uniform(self, low, high, size):
+            return np.tile([1.4,1.,.6],(size[0],1))
+    monkeypatch.setattr(planning.np.random,'default_rng',lambda seed:FixedStress())
+    cells=[{**grid()[0],'pm25':100,'background':0,
+            'local_weights':dict(traffic=.5,industry=0,dust=.5)}]
+    unconstrained=planning.optimize(cells,budget=100,target_percent=0)
+    target=planning.optimize(cells,budget=100,target_percent=unconstrained['selected']['reduction_percent']*1.5)
+    assert unconstrained['selected']['actions'][0]['id']=='traffic'
+    assert target['target_feasible']
+    assert target['selected']['actions'][0]['id']=='dust'
+    assert target['selected']['reduction_percent']>=target['target_percent']
+    assert all(p['id']!=target['selected']['id'] for p in target['alternatives'])
+
+
+@pytest.mark.parametrize('source,expected_kind,expected_method',[
+    ('observed','snapshot','Snapshot interpolation'),
+    ('modeled','forecast','CAMS provider forecast'),
+    ('synthetic','snapshot','Snapshot interpolation'),
+])
+def test_plan_fallback_time_matches_its_actual_baseline(monkeypatch,source,expected_kind,expected_method):
+    from app.routers import operations
+    from app.services import resilience
+    monkeypatch.setattr(resilience,'load_resilience',lambda:None)
+    issue=pd.Timestamp('2026-10-10T12:30:00Z')
+    station=dict(id='point',name='Test monitor',latitude=18.6,longitude=73.8,pm25=100,
+                 source_type=source,timestamp=issue.isoformat())
+    class Runtime:
+        frame=pd.DataFrame(columns=['timestamp','station_id','pm25'])
+        def snapshot(self,replay_at):
+            return [station],grid(),None,{},issue
+        def forecast(self,location_id,hours,replay_at):
+            return {'series':[{'predicted':130}]}
+    monkeypatch.setattr(operations,'get_region_runtime',lambda *args:Runtime())
+    result=operations.plan(operations.PlanRequest())
+    assert result['baseline_kind']==expected_kind
+    assert result['forecast']['method']==expected_method
+    expected=issue+pd.Timedelta(hours=24) if expected_kind=='forecast' else issue
+    assert pd.Timestamp(result['forecast_valid_at'])==expected
+    assert all(c['pm25']==(130 if source=='modeled' else 100 if source=='observed' else grid()[i]['pm25'])
+               for i,c in enumerate(result['cells_before']))
+
+
+def test_no_available_actions_never_spends_budget_or_claims_a_benefit():
+    result=optimize(grid(),budget=700000,unavailable=[a['id'] for a in CATALOG['actions']])
+    assert result['feasible_count']==1
+    assert result['selected']['actions']==[]
+    assert result['selected']['cost']==result['selected']['reduction_percent']==0
+    assert not result['target_feasible']

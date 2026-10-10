@@ -111,7 +111,7 @@ def fetch_context(reference_points=PUNE_POINTS, bbox=BBOX, inside=inside_pune,
                     value = row.get('value')
                     if unit not in ['µg/m³', 'μg/m³', 'ug/m3'] or value is None or not 0 <= value <= 1000:
                         continue
-                    if now - pd.Timestamp(time) > pd.Timedelta(hours=24):
+                    if not pd.Timedelta(0)<=now - pd.Timestamp(time)<=pd.Timedelta(hours=24):
                         continue
                     observed.append({'id': f"openaq-{sensor['id']}", 'name': location['name'],
                         'short_name': location['name'].split(',')[0], 'latitude': coords['latitude'],
@@ -204,7 +204,7 @@ class ProviderRuntime(Runtime):
             nearest = min(stations, key=lambda p: distance_km(lat, lon, p['latitude'], p['longitude']))
             return nearest['weather']
         weather = weather_at(18.52, 73.86)
-        observed = [point for point in self.payload.get('observed', []) if (pd.Timestamp.now(tz=TIMEZONE) - pd.Timestamp(point['timestamp'])).total_seconds() <= 86400]
+        observed = [point for point in self.payload.get('observed', []) if 0<=(pd.Timestamp.now(tz=TIMEZONE) - pd.Timestamp(point['timestamp'])).total_seconds()<=86400]
         interpolation_points = stations + [point for point in observed
             if pd.Timestamp(point['timestamp']).tz_convert(TIMEZONE).floor('h') == self.origin]
         cells, background = make_grid(interpolation_points, weather, self.origin, self.bbox, self.grid_size,
@@ -321,58 +321,23 @@ class ProviderRuntime(Runtime):
         if observations is None:
             return self._backtest_unavailable(location_id, 'No nearby OpenAQ PM2.5 monitor has at least 240 valid hourly values in the last 30 days; a chronological holdout would be too small.')
 
-        ordered_times = sorted(observations)
-        samples = []
-        lag_hours = (1, 3, 6, 12, 24, 48)
-        for target_time in ordered_times:
-            issue_time = target_time - pd.Timedelta(hours=24)
-            required = [issue_time - pd.Timedelta(hours=lag) for lag in lag_hours]
-            if issue_time not in observations or any(timestamp not in observations for timestamp in required):
-                continue
-            features = [observations[timestamp] for timestamp in required]
-            features.extend([float(issue_time.hour), float(issue_time.dayofweek)])
-            samples.append((target_time, features, observations[target_time], observations[issue_time]))
-        if len(samples) < 160:
-            return self._backtest_unavailable(location_id, f"{chosen['name']} has {len(samples)} complete 24-hour forecast/target pairs after missing-hour checks; at least 160 are required.")
-        split = int(len(samples) * 0.7)
-        if split < 100 or len(samples) - split < 40:
-            return self._backtest_unavailable(location_id, f"{chosen['name']} does not have enough complete pairs for a 70/30 chronological train/holdout split.")
+        from app.services.station_selection import station_bundle
+        records=[{'station_id':f"openaq-{chosen['id']}",'timestamp':time.isoformat(),
+                  'pm25':value,'source_type':'observed'} for time,value in observations.items()]
         try:
-            from lightgbm import LGBMRegressor
-            model = LGBMRegressor(objective='regression_l1', n_estimators=120, learning_rate=0.04,
-                num_leaves=7, max_depth=3, min_child_samples=12, reg_lambda=5,
-                verbosity=-1, n_jobs=1, random_state=42)
-            model.fit([sample[1] for sample in samples[:split]], [sample[2] for sample in samples[:split]])
-            heldout = samples[split:]
-            predicted = model.predict([sample[1] for sample in heldout])
-        except Exception as error:
-            LOG.warning('Could not train the observed station backtest for %s.', location_id, exc_info=True)
-            return self._backtest_unavailable(location_id, f"Station-specific backtest could not train: {type(error).__name__}.")
-        actual = [sample[2] for sample in heldout]
-        persistence = [sample[3] for sample in heldout]
-        errors = [prediction - target for prediction, target in zip(predicted, actual)]
-        mae = sum(abs(error) for error in errors) / len(errors)
-        rmse = (sum(error * error for error in errors) / len(errors)) ** 0.5
-        baseline_mae = sum(abs(prediction - target) for prediction, target in zip(persistence, actual)) / len(actual)
-        mean_actual = sum(actual) / len(actual)
-        total = sum((target - mean_actual) ** 2 for target in actual)
-        residual = sum(error * error for error in errors)
-        metrics = {'mae': mae, 'rmse': rmse, 'r2': 1 - residual / total if total else 0,
-            'persistence_mae': baseline_mae,
-            'improvement_percent': 100 * (1 - mae / baseline_mae) if baseline_mae else 0,
-            'interval_coverage': None}
-        points = [{'timestamp': sample[0].tz_convert(TIMEZONE).isoformat(), 'actual': sample[2],
-            'predicted': float(prediction), 'persistence': sample[3], 'p10': None, 'p90': None}
-            for sample, prediction in zip(heldout, predicted)]
-        return {'location_id': location_id, 'source_type': 'modeled', 'target_source_type': 'observed',
-            'series': points, 'metrics': metrics, 'available': True,
-            'method': '24-hour station-specific LightGBM · chronological 70/30 holdout',
-            'model': 'openaq_station_lightgbm_24h',
-            'assumptions': [f"Observed PM2.5 monitor: {chosen['name']} (sensor {chosen['id']}), {distance_km(location['latitude'], location['longitude'], chosen['latitude'], chosen['longitude']):.1f} km from the selected map location; {len(observations)} hourly values requested over the preceding 30 days.",
-                'Samples require an exact 24-hour issue-to-target pair and complete 1, 3, 6, 12, 24 and 48-hour observed lags.',
-                f'Trained on the first {split} chronological samples and evaluated on the final {len(heldout)} samples; no random shuffle.',
-                'This station-specific model benchmark does not validate the CAMS provider forecast or the separate Pune + PCMC production model.',
-                'No prediction interval is reported because this short station holdout has no separately calibrated interval.']}
+            bundle=station_bundle(records)
+        except ValueError as error:
+            return self._backtest_unavailable(location_id,str(error))
+        return {'location_id':location_id,'source_type':'modeled','target_source_type':'observed',
+                'series':bundle['series'],'metrics':bundle['metrics'],'available':True,
+                'method':'24-hour selected station baseline · purged fit/selection/test',
+                'model':bundle['report']['selected_method'],'selection':bundle['report'],
+                'assumptions':[f"Observed monitor: {chosen['name']} (sensor {chosen['id']}); the chosen station may differ from the map point.",
+                               bundle['report']['reason'],
+                               'Exact current and 1, 3, 6, 12, 24 and 48-hour observed lags; no gap imputation.',
+                               'Fit and selection targets are purged before the following period begins. The final test is not used to choose the model.',
+                               'This station benchmark does not validate CAMS or causal intervention effects.',
+                               'Only seasons present in the test data are reported; absent seasons remain unvalidated.']}
 
     @staticmethod
     def _backtest_unavailable(location_id, reason):
@@ -426,6 +391,15 @@ class PuneRuntime(ProviderRuntime):
         reason = 'location_has_no_observed_sensor'
         if sensor is not None:
             try:
+                if hours==24:
+                    from app.services.live_observations import read_observations
+                    from app.services.station_selection import station_forecast
+                    try:
+                        selected=station_forecast(sensor,read_observations(sensor['id'],hours=720),hours)
+                        if selected is not None:
+                            return selected
+                    except ValueError:
+                        pass
                 context = nearest_provider_frame(sensor, self.points, self.all_frame)
                 result, reason = run_observed_station_forecast(sensor, context, hours)
                 if result is not None:
@@ -496,9 +470,14 @@ def refresh_pune():
     # Only actual OpenAQ hourly readings are stored as station observations.
     # Failure must not block CAMS provider coverage.
     try:
-        from app.services.live_observations import ingest_pune_history
+        from app.services.live_observations import ingest_pune_history, latest_cached_monitors
         history_status = ingest_pune_history(payload.get('history_sensor_candidates', []), get_payload)
         payload['history_ingestion'] = history_status
+        merged={s['id']:s for s in payload.get('observed',[])}
+        for point in latest_cached_monitors(payload.get('history_sensor_candidates',[])):
+            if point['id'] not in merged or pd.Timestamp(point['timestamp'])>pd.Timestamp(merged[point['id']]['timestamp']):
+                merged[point['id']]=point
+        payload['observed']=list(merged.values())
         if history_status['failures']:
             message = (f"{history_status['failures']} OpenAQ hourly-history lookups failed; "
                        "live LightGBM may use CAMS fallback.")

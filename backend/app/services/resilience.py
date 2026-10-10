@@ -11,7 +11,7 @@ from app.services.spatial import distance_km, idw, CONFIG
 
 ARTIFACT = ROOT / 'backend/models/resilience.joblib'
 REPORT = ROOT / 'docs/evidence/sensor_resilience.json'
-VERSION = 1
+VERSION = 2
 HORIZONS = (6, 24, 72)
 LOSSES = (0, 25, 50, 75)
 FEATURES = ['spatial_pm25', 'spatial_lag24', 'own_pm25', 'own_lag24',
@@ -114,13 +114,15 @@ def train_resilience(frame, fingerprint, withheld=None, stride=6):
     if withheld not in ids:
         raise ValueError('Withheld monitor is absent from dataset')
     times = frame.timestamp.drop_duplicates().sort_values()
-    calibration_start = times.iloc[int(len(times)*.65)]
+    selection_start = times.iloc[int(len(times)*.65)]
+    calibration_start = times.iloc[int(len(times)*.725)]
     test_start = times.iloc[int(len(times)*.8)]
     report = {'version': VERSION, 'dataset_fingerprint': fingerprint, 'target_source_types': sources,
               'withheld_station_id': withheld, 'training_station_ids': [i for i in ids if i!=withheld],
+              'selection_start':selection_start.isoformat(),
               'calibration_start': calibration_start.isoformat(), 'test_issue_start': test_start.isoformat(),
               'sensor_loss_levels': list(LOSSES), 'mask_seed': 731, 'stride_hours': stride,
-              'features': FEATURES, 'results': [], 'splits': [],
+              'features': FEATURES, 'results': [], 'splits': [],'selection':[],'station_season_results':[],
               'limitations': ['Masks remove sensors for the whole declared experiment; they are simulated outages.',
                               'The held-out monitor is excluded from all fitting, calibration and neighbor predictors.',
                               'Weather is issue-time context, not future realized weather. Retrospective source availability is not an operational guarantee.',
@@ -130,35 +132,61 @@ def train_resilience(frame, fingerprint, withheld=None, stride=6):
     models, predictions = {}, []
     for horizon in HORIZONS:
         rows = training_rows(frame,horizon,withheld,stride)
-        fit = rows[(rows.station_id!=withheld)&(rows.timestamp<calibration_start)]
+        fit = rows[(rows.station_id!=withheld)&(rows.timestamp<selection_start)]
+        selection=rows[(rows.station_id!=withheld)&(rows.issue_time>=selection_start)&(rows.timestamp<calibration_start)]
         cal = rows[(rows.station_id!=withheld)&(rows.issue_time>=calibration_start)&(rows.timestamp<test_start)]
         test = rows[rows.issue_time>=test_start]
-        if len(fit)<100 or len(cal)<24 or len(test)<24:
+        if len(fit)<100 or len(selection)<24 or len(cal)<24 or len(test)<24:
             raise ValueError('Insufficient separated fit/calibration/test pairs')
         model = LGBMRegressor(n_estimators=180,num_leaves=15,max_depth=5,min_child_samples=40,
                               learning_rate=.04,reg_lambda=5,verbosity=-1,n_jobs=2,random_state=731)
         model.fit(fit[FEATURES],np.log(np.maximum(fit.target,1)/np.maximum(fit.spatial_pm25,1)))
-        residuals = cal.target.to_numpy(float)-np.maximum(0,cal.spatial_pm25.to_numpy(float)*np.exp(model.predict(cal[FEATURES])))
+        selection_model=np.maximum(0,selection.spatial_pm25.to_numpy(float)*np.exp(model.predict(selection[FEATURES])))
+        from app.services.station_selection import choose_candidate, season
+        selected_methods={}
+        for loss in LOSSES:
+            mask=(selection.loss_percent==loss).to_numpy()
+            method,model_mae,baseline_mae=choose_candidate(selection.target.to_numpy(float)[mask],selection_model[mask],selection.spatial_pm25.to_numpy(float)[mask])
+            selected_methods[loss]=method
+            report['selection'].append({'horizon':horizon,'loss_percent':loss,'selected_method':method,
+                'model_mae':model_mae,'spatial_persistence_mae':baseline_mae,'samples':int(mask.sum()),
+                'selection_issue_start':selection.issue_time.min().isoformat(),'selection_target_end':selection.timestamp.max().isoformat()})
+        calibration_model=np.maximum(0,cal.spatial_pm25.to_numpy(float)*np.exp(model.predict(cal[FEATURES])))
+        calibration_prediction=np.where(np.array([selected_methods[l]=='LightGBM' for l in cal.loss_percent]),calibration_model,cal.spatial_pm25.to_numpy(float))
+        residuals = cal.target.to_numpy(float)-calibration_prediction
         bands = {}
         for loss in LOSSES:
             r=residuals[cal.loss_percent.to_numpy()==loss]
             bands[loss] = (float(min(0,np.quantile(r,.1))),float(max(0,np.quantile(r,.9))))
-        predicted=np.maximum(0,test.spatial_pm25.to_numpy(float)*np.exp(model.predict(test[FEATURES])))
+        raw_model=np.maximum(0,test.spatial_pm25.to_numpy(float)*np.exp(model.predict(test[FEATURES])))
+        predicted=np.where(np.array([selected_methods[l]=='LightGBM' for l in test.loss_percent]),raw_model,test.spatial_pm25.to_numpy(float))
         lows=np.maximum(0,predicted+np.array([bands[l][0] for l in test.loss_percent]))
         highs=predicted+np.array([bands[l][1] for l in test.loss_percent])
         for group,label in [(test.station_id==withheld,'withheld_location'),(test.station_id!=withheld,'known_locations')]:
             for loss in LOSSES:
                 mask=(group&(test.loss_percent==loss)).to_numpy()
                 if mask.any():
-                    report['results'].append({'scope':label,'horizon':horizon,'loss_percent':loss,**score(test[mask],predicted[mask],lows[mask],highs[mask])})
+                    report['results'].append({'scope':label,'horizon':horizon,'loss_percent':loss,'selected_method':selected_methods[loss],
+                        'lightgbm_mae':float(np.mean(abs(test.target.to_numpy(float)[mask]-raw_model[mask]))),**score(test[mask],predicted[mask],lows[mask],highs[mask])})
+        seasonal=test.copy()
+        seasonal['season']=[season(t) for t in seasonal.timestamp]
+        for (sid,label,loss),indices in seasonal.groupby(['station_id','season','loss_percent']).indices.items():
+            actual=test.target.to_numpy(float)[indices]
+            report['station_season_results'].append({'station_id':sid,'season':label,'horizon':horizon,'loss_percent':int(loss),
+                'samples':len(indices),'selected_method':selected_methods[loss],
+                'selected_mae':float(np.mean(abs(actual-predicted[indices]))),
+                'lightgbm_mae':float(np.mean(abs(actual-raw_model[indices]))),
+                'spatial_persistence_mae':float(np.mean(abs(actual-test.spatial_pm25.to_numpy(float)[indices])))})
         saved=test[['station_id','issue_time','timestamp','loss_percent','target','spatial_pm25','persistence','persistence_kind']].copy()
         saved['predicted'],saved['p10'],saved['p90'],saved['horizon']=predicted,lows,highs,horizon
         predictions.append(saved)
-        models[horizon]={'model':model,'bands':bands}
+        models[horizon]={'model':model,'bands':bands,'selected_methods':selected_methods}
         report['splits'].append({'horizon':horizon,'fit_rows':len(fit),'calibration_rows':len(cal),'test_rows':len(test),
-                                'fit_target_end':fit.timestamp.max().isoformat(),'calibration_issue_start':cal.issue_time.min().isoformat(),
+                                'fit_target_end':fit.timestamp.max().isoformat(),'selection_issue_start':selection.issue_time.min().isoformat(),
+                                'selection_target_end':selection.timestamp.max().isoformat(),'calibration_issue_start':cal.issue_time.min().isoformat(),
                                 'calibration_target_end':cal.timestamp.max().isoformat(),'test_issue_start':test.issue_time.min().isoformat()})
-    report['model_id']='airtwin-spatial-lightgbm-v1'
+    report['model_id']='airtwin-spatial-selected-v2'
+    report['limitations'].append('LightGBM versus spatial persistence is selected on a separate earlier period excluding the withheld monitor. Final test targets never choose the method. Season/station detail covers only represented test periods.')
     artifact={'version':VERSION,'models':models,'report':report}
     ARTIFACT.parent.mkdir(parents=True,exist_ok=True)
     joblib.dump(artifact,ARTIFACT)
@@ -201,8 +229,9 @@ def estimate_snapshot(stations, cells, weather, issue, horizon=24, loss=0, withh
             neighbors=[{**p,'lag24':(lag_lookup or {}).get(p['id'],p['pm25'])} for p in available]
             features=spatial_features(cell,neighbors,issue,horizon,weather=weather)
             bundle=artifact['models'][min(HORIZONS,key=lambda h:abs(h-horizon))]
-            value=max(0,features['spatial_pm25']*float(np.exp(bundle['model'].predict(pd.DataFrame([features],columns=FEATURES))[0])))
             level=min(LOSSES,key=lambda l:abs(l-loss))
+            selected_method=bundle['selected_methods'][level]
+            value=max(0,features['spatial_pm25']*float(np.exp(bundle['model'].predict(pd.DataFrame([features],columns=FEATURES))[0]))) if selected_method=='LightGBM' else features['spatial_pm25']
             low,high=bundle['bands'][level]
             outputs.append({**cell,'background':min(background,value),'pm25':value,'p10':max(0,value+low),'p90':max(value,value+high),'source_type':'modeled'})
         else:
@@ -210,11 +239,12 @@ def estimate_snapshot(stations, cells, weather, issue, horizon=24, loss=0, withh
             outputs.append({**cell,'pm25':value,'background':min(background,value) if background is not None else cell['background'],'source_type':'modeled','p10':None,'p90':None})
     return {'cells':outputs,'source_type':'modeled','available_sensors':len(available),'total_sensors':len(observed),
             'masked_sensor_ids':sorted(omitted),'withheld_location_id':withheld,
-            'method':'Spatial LightGBM' if supported and len(available)>=2 else 'provider_or_historical_snapshot',
+            'method':('Spatial LightGBM' if selected_method=='LightGBM' else 'Spatial persistence') if supported and len(available)>=2 else 'provider_or_historical_snapshot',
             'uncertainty_kind':'historically_calibrated' if supported and len(available)>=2 else 'unavailable',
             'fallback_reason':None if supported and len(available)>=2 else 'At least two recent observed PM2.5 monitors and an eligible observed-target spatial artifact are required.',
             'model_id':artifact['report']['model_id'] if artifact and supported and len(available)>=2 else None,
             'issued_at':pd.Timestamp.now(tz='UTC').isoformat(),'input_cutoff':pd.Timestamp(issue).isoformat(),
+            'selection_evidence':[r for r in artifact['report'].get('selection',[]) if r['horizon']==horizon] if supported and len(available)>=2 else [],
             'assumptions':['Sensor masking removes observed PM2.5 inputs; CAMS points are not counted as physical monitors.',
                            'Grid forecasts are modeled. Withheld-monitor evaluation is reported separately; every grid cell is not independently validated.',
                            'Spatial prediction bands use historical monitor calibration, not a guarantee at arbitrary grid locations.']}

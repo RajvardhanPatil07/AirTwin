@@ -65,6 +65,8 @@ def _normalize(record):
             return None
         if not all(pd.notna(x) for x in (value, lat, lon)):
             return None
+        if pd.Timestamp(record['timestamp'])>pd.Timestamp.now(tz='UTC'):
+            return None
         return (sensor, _utc_hour(record["timestamp"]), value, lat, lon,
                 str(record.get("name", sensor))[:250],
                 datetime.now(timezone.utc).isoformat())
@@ -128,14 +130,14 @@ def read_observations(station_id, hours=96):
             records = conn.execute(f"""
                 SELECT {columns} FROM airtwin.station_observations
                 WHERE station_id=%s AND observed_at >= %s::timestamptz
-                ORDER BY observed_at DESC LIMIT 200
+                ORDER BY observed_at DESC LIMIT 2200
                 """, (station_id, cutoff)).fetchall()
     else:
         with closing(_sqlite()) as conn:
             records = conn.execute(f"""
                 SELECT {columns} FROM station_observations
                 WHERE station_id=? AND observed_at >= ?
-                ORDER BY observed_at DESC LIMIT 200
+                ORDER BY observed_at DESC LIMIT 2200
                 """, (station_id, cutoff)).fetchall()
     return [
         {"station_id": r[0], "timestamp": pd.Timestamp(r[1]).isoformat(),
@@ -148,7 +150,7 @@ def read_observations(station_id, hours=96):
 def ingest_pune_history(stations, fetch_payload, *, max_sensors=None):
     """Fetch OpenAQ /hours for visible real sensors, independently of UI requests.
 
-    Full 96-hour backfill on first discovery; later fetch only recent hours.
+    Full 30-day backfill on first discovery; later fetch recent hours.
     A bounded thread pool prevents one broken sensor blocking all others.
     """
     key = os.getenv("OPENAQ_API_KEY")
@@ -166,11 +168,11 @@ def ingest_pune_history(stations, fetch_payload, *, max_sensors=None):
         if not sid.isdigit():
             return 0
         previous = read_observations(station["id"], hours=96)
-        from_time = now - timedelta(hours=96 if not previous else 8)
+        from_time = now - timedelta(hours=720 if not previous else 8)
         payload = fetch_payload(
             f"https://api.openaq.org/v3/sensors/{sid}/hours",
             {"datetime_from": from_time.isoformat(), "datetime_to": now.isoformat(),
-             "limit": 200, "page": 1},
+             "limit": 1000, "page": 1},
             {"X-API-Key": key},
         )
         rows = []
@@ -198,3 +200,19 @@ def ingest_pune_history(stations, fetch_payload, *, max_sensors=None):
                 failures += 1
                 LOG.warning("Hourly OpenAQ history request or persistence failed", exc_info=True)
     return {"sensors": len(sensors), "rows": collected, "failures": failures}
+
+
+def latest_cached_monitors(candidates, *, now=None):
+    clock=pd.Timestamp.now(tz='UTC') if now is None else pd.Timestamp(now)
+    latest=[]
+    for station in candidates:
+        records=read_observations(station['id'],hours=24)
+        valid=[r for r in records if 0<=(clock-pd.Timestamp(r['timestamp'])).total_seconds()<=24*3600]
+        if not valid:
+            continue
+        row=max(valid,key=lambda r:pd.Timestamp(r['timestamp']))
+        latest.append({'id':row['station_id'],'name':row['name'],'short_name':row['name'].split(',')[0],
+                       'latitude':row['latitude'],'longitude':row['longitude'],'pm25':row['pm25'],
+                       'timestamp':row['timestamp'],'source_type':'observed',
+                       'assumptions':['OpenAQ cached hourly PM2.5 observation; original measurement time is retained.']})
+    return latest

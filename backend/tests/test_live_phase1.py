@@ -45,7 +45,8 @@ def artifact():
             "features": ["current_pm25", "lag_48", "rolling_mean_24",
                          "cams_target", "boundary_layer_height"]
         }},
-        "report": {"covariates": {"cams_pm25": True, "boundary_layer_height": True}},
+        "report": {"covariates": {"cams_pm25": True, "boundary_layer_height": True},
+                   "skill":[{"horizon":24,"mae":5,"persistence_mae":8}]},
     }
 
 
@@ -119,6 +120,26 @@ def test_live_ml_dispatch_success(monkeypatch):
     assert result["history_source_type"] == "observed"
     assert len([p for p in result["series"] if p["predicted"] is not None]) == 24
     assert result["input_cutoff"] == t.isoformat()
+
+
+@pytest.mark.parametrize("skill", [[], [{"horizon": 24, "mae": 9, "persistence_mae": 8}]])
+def test_observed_dispatch_retains_persistence_without_better_benchmark(monkeypatch, skill):
+    t = pd.Timestamp.now(tz=TIMEZONE).floor("h")
+    candidate = artifact()
+    candidate["report"]["skill"] = skill
+    monkeypatch.setattr(dispatcher, "verified_artifact", lambda path: candidate)
+
+    def forbidden_prediction(*args):
+        pytest.fail("A losing or unbenchmarked model must not serve predictions")
+
+    monkeypatch.setattr(dispatcher, "predict", forbidden_prediction)
+    result, reason = dispatcher.run_observed_station_forecast(
+        station(t), provider(t), 24, observation_reader=lambda *_a, **_kw: history(t), now=t)
+    assert reason is None
+    assert result["model_id"] == "observed-persistence"
+    future = [p for p in result["series"] if p["predicted"] is not None]
+    assert all(p["predicted"] == history(t)[-1]["pm25"] for p in future)
+    assert all(p["p10"] is None and p["p90"] is None for p in future)
 
 
 def test_model_fallback_and_pune_cams_preserved():
@@ -230,6 +251,7 @@ def test_refresh_pune_backfills_candidates_not_just_live_stations(monkeypatch):
     monkeypatch.setattr(state_data, "PuneRuntime", StubRuntime)
     monkeypatch.setattr(state_data, "save_context", fake_save)
     monkeypatch.setattr(observations, "ingest_pune_history", fake_ingest)
+    monkeypatch.setattr(observations, "latest_cached_monitors", lambda *a: [])
     state_data.refresh_pune()
     assert calls["sensors"] == [candidate]
     assert calls["saved"]["observed"] == []

@@ -92,6 +92,7 @@ export interface SeriesPoint {
   p90: number | null;
 }
 export interface ForecastResponse extends Provenance {
+  selection?: StationSelection | null;
   forecast_provider?: string | null;
   model_id?: string | null;
   model_version?: string | null;
@@ -114,6 +115,7 @@ export interface Metrics {
   interval_coverage: number | null;
 }
 export interface BacktestResponse extends Provenance {
+  selection?: StationSelection | null;
   location_id: string;
   target_source_type: SourceType;
   method: string;
@@ -203,3 +205,4 @@ export interface ExplainResponse extends Provenance {
   model: string;
   claims: { text: string; source_type: SourceType; evidence_ids: string[] }[];
 }
+import type { StationSelection } from "./lib/operations";

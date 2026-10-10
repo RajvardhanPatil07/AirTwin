@@ -283,7 +283,7 @@ export function BacktestChart({
     <section className="tab-content">
       <div className="eyebrow">CHRONOLOGICAL VALIDATION</div>
       <h2>
-        {data.model === "openaq_station_lightgbm_24h"
+        {data.selection || data.model === "openaq_station_lightgbm_24h"
           ? "Observed station backtest"
           : demo
           ? "Synthetic backtest demonstration"
@@ -297,6 +297,12 @@ export function BacktestChart({
         {data.method} · {dateLabel(data.series[0].timestamp)} to{" "}
         {dateLabel(data.series.at(-1)!.timestamp)}
       </p>
+      {data.selection && <>
+        <p>Selected {data.selection.selected_method}. Earlier selection MAE: LightGBM {number(data.selection.selection_model_mae,2)}, persistence {number(data.selection.selection_persistence_mae,2)} µg/m³.</p>
+        <p>{data.selection.reason}</p>
+        <div className="planning-table"><table><caption>Later untouched station test by represented season · µg/m³</caption><thead><tr><th>Season</th><th>Pairs</th><th>LightGBM MAE</th><th>Persistence MAE</th><th>Selected MAE</th></tr></thead><tbody>{data.selection.seasonal_comparisons.map(r=><tr key={r.season}><td>{r.season.replaceAll("_"," ")}</td><td>{r.samples}</td><td>{number(r.lightgbm_mae,2)}</td><td>{number(r.persistence_mae,2)}</td><td>{number(r.selected_mae,2)}</td></tr>)}</tbody></table></div>
+        <details><summary>Chronological selection boundaries</summary><p>Fit targets end {data.selection.fit_target_end}; selection issues start {data.selection.selection_issue_start}. Selection targets end {data.selection.selection_target_end}; test issues start {data.selection.test_issue_start}. Final test has {data.selection.test_rows} pairs and does not choose the method.</p></details>
+      </>}
       <div className="metric-grid">
         {[
           ["MAE", `${number(m.mae, 2)} µg/m³`],

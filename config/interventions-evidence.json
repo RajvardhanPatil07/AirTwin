@@ -1,0 +1,385 @@
+{
+  "version": 1,
+  "reviewed_on": "2026-10-10",
+  "currency": "INR",
+  "status": "scenario_assumptions_with_primary_source_context",
+  "response_range_interpretation": "Sensitivity envelope, not a measured confidence interval. Zero includes no implementation or no detectable immediate effect. Upper values are illustrative stress assumptions, not promises. Source cuts act on the local category contribution, not on all ambient PM2.5.",
+  "sources": [
+    {
+      "id": "mpcb-pune-sa-2024",
+      "title": "Pune Final Air Quality Assessment, Emission Inventory and Source Apportionment Report",
+      "url": "https://www.mpcb.gov.in/sites/default/files/Establishment%20of%20MPCB/Seniority%20list/2014/Pune_Final_EI_%26_SA_Report_July_2024.pdf",
+      "year": 2024,
+      "publisher": "Maharashtra Pollution Control Board",
+      "evidence_type": "source_apportionment_and_dispersion_scenarios",
+      "locators": [
+        "Executive summary ES-2 (PDF page 3)",
+        "Chapter 6.1 (PDF page 179)",
+        "Chapter 6.12 (PDF page 190)"
+      ],
+      "scope": "Pune study area; not a station-specific PCMC action trial",
+      "supports": "Local source context and sector-level policy scenarios; does not calibrate the eight action response percentages."
+    },
+    {
+      "id": "mpcb-pune-plan-2019",
+      "title": "Pune Draft Action Plan for Emission Control",
+      "url": "https://www.mpcb.gov.in/sites/default/files/pollution-index/severly-report/Pune_Action_Plan07112019.pdf",
+      "year": 2019,
+      "publisher": "Maharashtra Pollution Control Board",
+      "evidence_type": "municipal_action_plan",
+      "locators": [
+        "Printed page 27 (PDF page 27), transport item 9"
+      ],
+      "scope": "City-scale intelligent traffic management program",
+      "supports": "Program budget context only; no comparable daily restriction/management unit cost."
+    },
+    {
+      "id": "mpcb-mulshi-emp-2023",
+      "title": "Jorinco Specialities, Bhare, Mulshi, Pune: EIA Executive Summary",
+      "url": "https://www.mpcb.gov.in/sites/default/files/public_hearing/exe_summary/2023-10/Final%20Executive%20Summary__Jorinco%20Specialities%20Private%20Limited%20%28JSPL%29_Arin%20Bandyopadhyay_16.10.2023.pdf",
+      "year": 2023,
+      "publisher": "MPCB-hosted project proponent EIA",
+      "evidence_type": "proposed_site_environmental_budget",
+      "locators": [
+        "Printed page 23 (PDF page 24), construction air pollution budget"
+      ],
+      "scope": "Single industrial construction site at Bhare; bundled controls",
+      "supports": "Cost context only; not a municipal road dust control rate or realized expenditure."
+    },
+    {
+      "id": "mpcb-consent-2021",
+      "title": "Consent Appraisal Committee Booklets 7 and 8, August 2021",
+      "url": "https://mpcb.gov.in/sites/default/files/cac-meetings/minutes/WebhostlMoMBookletNo721092021.pdf",
+      "year": 2021,
+      "publisher": "Maharashtra Pollution Control Board",
+      "evidence_type": "consent_conditions",
+      "locators": [
+        "Printed page 24 (PDF page 24), item 26"
+      ],
+      "scope": "Specific Haveli, Pune industrial facility",
+      "supports": "Industrial controls require implementation and verification; bank guarantees are not action costs."
+    },
+    {
+      "id": "cpcb-ncap-2019",
+      "title": "National Clean Air Programme",
+      "url": "https://prana.cpcb.gov.in/ncapDashboard/download_public_portal_file/NCAP_Report.pdf",
+      "year": 2019,
+      "publisher": "Ministry of Environment, Forest and Climate Change / CPCB",
+      "evidence_type": "national_policy_guidance",
+      "locators": [
+        "Printed page 32 (PDF page 45), road dust action points"
+      ],
+      "scope": "National guidance; not a Pune intervention experiment",
+      "supports": "Operational rationale for sweeping and dust control, including disposal and feasibility."
+    }
+  ],
+  "actions": {
+    "bhosari-traffic": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 105000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 6,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One coordinated local traffic operation; routes, staffing and displaced traffic are not surveyed."
+      },
+      "implementation_limits": [
+        "Traffic-police authorization and diversion plan required.",
+        "Maximum two traffic actions in this scenario.",
+        "Displaced traffic and induced congestion are not modeled."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 30,
+        "high": 45.0
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-pune-plan-2019"
+      ]
+    },
+    "shivajinagar-traffic": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 95000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 5,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One coordinated local traffic operation; routes, staffing and displaced traffic are not surveyed."
+      },
+      "implementation_limits": [
+        "Traffic-police authorization and diversion plan required.",
+        "Maximum two traffic actions in this scenario.",
+        "Displaced traffic and induced congestion are not modeled."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 25,
+        "high": 37.5
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-pune-plan-2019"
+      ]
+    },
+    "wakad-dust": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 57000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 5,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One local road dust operation; treated road length, water demand, passes and disposal capacity are not surveyed."
+      },
+      "implementation_limits": [
+        "Verified equipment, access, water supply and collected-dust disposal required.",
+        "Maximum two dust actions in this scenario.",
+        "Rainfall and re-suspension can change persistence of any benefit."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 40,
+        "high": 60.0
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-mulshi-emp-2023",
+        "cpcb-ncap-2019"
+      ]
+    },
+    "pimpri-dust": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 68000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 5,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One local road dust operation; treated road length, water demand, passes and disposal capacity are not surveyed."
+      },
+      "implementation_limits": [
+        "Verified equipment, access, water supply and collected-dust disposal required.",
+        "Maximum two dust actions in this scenario.",
+        "Rainfall and re-suspension can change persistence of any benefit."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 35,
+        "high": 52.5
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-mulshi-emp-2023",
+        "cpcb-ncap-2019"
+      ]
+    },
+    "bhosari-industry": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 165000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 7,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One local compliance operation; facility count, violations and engineering remediation are not surveyed."
+      },
+      "implementation_limits": [
+        "Regulatory access and confirmed corrective operation required.",
+        "Maximum one industry action in this scenario.",
+        "Inspection by itself is not assumed to deliver a guaranteed immediate reduction; control upgrades may take months."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 35,
+        "high": 52.5
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-consent-2021"
+      ]
+    },
+    "hadapsar-traffic": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 115000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 6,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One coordinated local traffic operation; routes, staffing and displaced traffic are not surveyed."
+      },
+      "implementation_limits": [
+        "Traffic-police authorization and diversion plan required.",
+        "Maximum two traffic actions in this scenario.",
+        "Displaced traffic and induced congestion are not modeled."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 25,
+        "high": 37.5
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-pune-plan-2019"
+      ]
+    },
+    "katraj-dust": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 44000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 5,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One local road dust operation; treated road length, water demand, passes and disposal capacity are not surveyed."
+      },
+      "implementation_limits": [
+        "Verified equipment, access, water supply and collected-dust disposal required.",
+        "Maximum two dust actions in this scenario.",
+        "Rainfall and re-suspension can change persistence of any benefit."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 30,
+        "high": 45.0
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-mulshi-emp-2023",
+        "cpcb-ncap-2019"
+      ]
+    },
+    "chinchwad-industry": {
+      "cost_evidence": {
+        "status": "scenario_assumption",
+        "documented_unit_cost_inr": null,
+        "scenario_cost_inr": 150000,
+        "unit": "one illustrative local operation over 24 hours",
+        "year": null,
+        "derivation": "Existing project synthetic assumption retained. No comparable primary local operating unit price verified.",
+        "excludes": "Land, equipment purchase, long-term engineering upgrades and contractual mobilization are not independently costed."
+      },
+      "duration_hours": 24,
+      "duration_status": "scenario_horizon_not_verified_effect_lifetime",
+      "coverage": {
+        "radius_km": 6,
+        "status": "assumed_distance_decay_kernel_not_surveyed_service_boundary",
+        "implementation_scope": "One local compliance operation; facility count, violations and engineering remediation are not surveyed."
+      },
+      "implementation_limits": [
+        "Regulatory access and confirmed corrective operation required.",
+        "Maximum one industry action in this scenario.",
+        "Inspection by itself is not assumed to deliver a guaranteed immediate reduction; control upgrades may take months."
+      ],
+      "response_range_percent": {
+        "low": 0,
+        "central": 30,
+        "high": 45.0
+      },
+      "response_evidence": {
+        "status": "scenario_assumption",
+        "unit": "percent reduction of modeled local source-category contribution within distance-decay kernel",
+        "observed_causal_effect_available": false,
+        "reason": "No matching controlled local intervention study verified in this bounded search."
+      },
+      "source_ids": [
+        "mpcb-pune-sa-2024",
+        "mpcb-consent-2021"
+      ]
+    }
+  }
+}

@@ -12,6 +12,8 @@ python scripts/dev.py
 
 The backend checks public providers every 900 seconds by default. The dashboard checks cached results every 30 seconds. A provider's measurement timestamp stays distinct from the retrieval timestamp. Keeping the backend process running is required; browser animation does not manufacture measurements.
 
+The observed IITM AQI panel checks the backend cache every minute. Both the guided Air today screen and Advanced view show only measurements less than three hours old in the live feed; older values appear under Unavailable or delayed. Each card shows its measurement time, while the panel shows the last successful IITM fetch separately. Zero placeholders, invalid dates and future timestamps are excluded. Failed scrapes retain the previous cache, and the browser continues aging cached readings even if API requests fail. CAMS PM2.5 remains separately labeled modeled concentration data.
+
 With sourced historical observations already downloaded and processed, reproduce spatial evidence and test the running API:
 
 ```sh

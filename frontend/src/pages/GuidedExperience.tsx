@@ -42,6 +42,7 @@ import {
   Cell,
 } from "recharts";
 import { SpotlightNavbar } from "../components/ui/spotlight-navbar";
+import { LiveFeed } from "../components/LiveFeed";
 import AnimatedButton from "../components/ui/animated-button";
 
 import { api, loadDashboard } from "../lib/api";
@@ -339,6 +340,8 @@ export function GuidedExperience({ onAdvanced }: { onAdvanced: () => void }) {
     budget: 300000,
     target: 12,
     unavailable: [],
+    replayAt: null,
+    preference: "robust",
   });
   useEffect(() => {
     let active = true;
@@ -1360,6 +1363,7 @@ export function GuidedExperience({ onAdvanced }: { onAdvanced: () => void }) {
               onPlanControls={setPlanControls}
             />
           )}
+          {connected && step === 1 && <LiveFeed replay={false} />}
           {step > 0 && (
             <footer className="at-page-footer">
               <button

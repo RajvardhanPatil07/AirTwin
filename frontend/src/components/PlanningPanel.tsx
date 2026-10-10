@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { operations, type Plan, type ResilienceEvidence } from "../lib/operations";
+import { operations, type Plan, type PlanPreference, type ResilienceEvidence } from "../lib/operations";
+import { ActionEvidence, PlanChoices, PlanningBaseline, PlanningExplanation } from "./PlanningEvidence";
 import { number, timeLabel, dateLabel } from "../lib/format";
 import { AssumptionsPanel } from "./AssumptionsPanel";
 
@@ -14,6 +15,7 @@ export function PlanningPanel({ replayAt, snapshotAt, onPlan, onReplay, onCurren
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [cost, setCost] = useState(1);
   const [response, setResponse] = useState(1);
+  const [preference,setPreference]=useState<PlanPreference>("robust");
   const [storedPlan, setPlan] = useState<Plan | null>(null);
   const plan = storedPlan && storedPlan.replay_at === replayAt &&
     Date.parse(storedPlan.snapshot_at) === Date.parse(snapshotAt) ? storedPlan : null;
@@ -27,13 +29,13 @@ export function PlanningPanel({ replayAt, snapshotAt, onPlan, onReplay, onCurren
     const timer = window.setTimeout(() => {
       setBusy(true); setError(null);
       operations.plan({ budget, sensor_loss_percent: loss, withheld_location_id: withheld && evidence?.available && replayAt ? evidence.report.withheld_station_id : null,
-        unavailable_actions: unavailable, replay_at: replayAt, region: "pcmc", cost_multiplier: cost, response_multiplier: response, target_percent: 12 })
+        unavailable_actions: unavailable, replay_at: replayAt, region: "pcmc", cost_multiplier: cost, response_multiplier: response, target_percent: 12,preference })
         .then(next => { if (active) { setPlan(next); onPlan(next); onCurrent(true); } })
         .catch(() => active && setError("Planning failed. Any retained package is marked outdated and belongs only to the same snapshot; retry by changing a control."))
         .finally(() => active && setBusy(false));
     }, 350);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [budget, loss, withheld, unavailable, replayAt, cost, response, evidence, snapshotAt, onPlan, onCurrent]);
+  }, [budget, loss, withheld, unavailable, replayAt, cost, response, evidence, snapshotAt, onPlan, onCurrent,preference]);
   const rows = evidence?.available ? evidence.report.results.filter(r => r.scope === "withheld_location" && r.horizon === 24) : [];
   return <section className="tab-content planning-panel">
     <div className="section-heading"><h2>Budget and sensor resilience</h2><span className="data-badge modeled">MODELED</span></div>
@@ -47,13 +49,17 @@ export function PlanningPanel({ replayAt, snapshotAt, onPlan, onReplay, onCurren
       <label><input type="checkbox" disabled={!replayAt} checked={withheld} onChange={e => setWithheld(e.target.checked)} /> Withhold this monitor from replay inputs</label></div>}
     <p role="status">{busy ? "Recomputing forecasts and feasible packages…" : error ?? "Results match the displayed controls."}</p>
     {plan && <>
-      <p className="helper">Forecast valid {dateLabel(plan.forecast_valid_at)} · {timeLabel(plan.forecast_valid_at)} IST. {plan.forecast.method}; {plan.forecast.available_sensors}/{plan.forecast.total_sensors} observed PM2.5 inputs available.</p>
+      <PlanningBaseline plan={plan}/>
+      <p className="helper">{plan.baseline_kind === "forecast" ? "Forecast valid" : "Snapshot at"} {dateLabel(plan.forecast_valid_at)} · {timeLabel(plan.forecast_valid_at)} IST. {plan.forecast.method}; {plan.forecast.available_sensors}/{plan.forecast.total_sensors} observed PM2.5 inputs available.</p>
       {plan.forecast.fallback_reason && <p className="api-warning">{plan.forecast.fallback_reason} Forecast uncertainty is unavailable; package stability cannot be established from forecast uncertainty.</p>}
       <fieldset><legend>Unavailable actions</legend>{plan.catalog.actions.map(a => <label className="action-availability" key={a.id}><input type="checkbox" checked={unavailable.includes(a.id)} onChange={e => setUnavailable(prev => e.target.checked ? [...prev, a.id] : prev.filter(id => id !== a.id))} />{a.name}</label>)}</fieldset>
       <h3>Preferred feasible package</h3>
       <p>{plan.selected.actions.map(a => a.name).join(" + ") || "No action"}</p>
       <div className="planning-metrics"><div><span>Expenditure</span><strong>{money(plan.selected.cost)}</strong></div><div><span>Modeled reduction</span><strong>{number(plan.selected.reduction_percent, 2)}%</strong></div><div><span>Remaining</span><strong>{money(plan.selected.budget_remaining)}</strong></div></div>
       <p className="helper">{plan.objective}</p>
+      <PlanChoices plan={plan} onPreference={setPreference}/>
+      <PlanningExplanation plan={plan}/>
+      <ActionEvidence plan={plan}/>
       <p>{plan.feasible_count} feasible packages; {plan.rejected_count} rejected.</p>
       <p className="api-warning">{plan.target_feasible ? "12% target is feasible under the declared assumptions." : `12% target is infeasible. Maximum feasible modeled reduction: ${number(plan.maximum_feasible_reduction_percent, 2)}%.`}</p>
       {plan.heldout_result && <p className="api-warning">Withheld {plan.heldout_result.name}: MODELED 24-hour PM2.5 {number(plan.heldout_result.predicted, 2)} µg/m³, band {number(plan.heldout_result.p10, 2)}–{number(plan.heldout_result.p90, 2)}. OBSERVED held-out target {plan.heldout_result.actual === null ? "unavailable" : `${number(plan.heldout_result.actual, 2)} µg/m³`} at {dateLabel(plan.heldout_result.valid_at)} {timeLabel(plan.heldout_result.valid_at)} IST. The target never enters predictors.</p>}
