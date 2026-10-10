@@ -45,8 +45,12 @@ def metrics(actual, predicted, persistence, low, high):
             'interval_coverage': float(np.mean((actual >= low) & (actual <= high)) * 100)}
 
 
-def choose_holdout(rows):
+def choose_holdout(rows, *, prefer_recent=False):
     first, last = rows.timestamp.min(), rows.timestamp.max()
+    if prefer_recent:
+        times = rows.timestamp.drop_duplicates().sort_values()
+        start = times.iloc[int(len(times) * 0.8)]
+        return start, last + pd.Timedelta(hours=1), 'chronological recent last 20% holdout'
     for year in range(last.year, first.year - 2, -1):
         start = pd.Timestamp(year=year, month=11, day=1, tz=first.tz)
         end = pd.Timestamp(year=year + 1, month=2, day=1, tz=first.tz)
@@ -173,7 +177,8 @@ def evaluate(base, features, start, end):
             'prediction': (blend, low, high), 'seasonal': seasonal}
 
 
-def train(frame, fingerprint, warnings, report_path=None, exog=None, *, persist=True):
+def train(frame, fingerprint, warnings, report_path=None, exog=None, *, persist=True,
+          prefer_recent_holdout=False):
     cache = {}
     def rows_for(horizon):
         if horizon not in cache:
@@ -183,7 +188,7 @@ def train(frame, fingerprint, warnings, report_path=None, exog=None, *, persist=
     if len(base) < 300:
         raise ValueError('Need at least 300 usable hourly examples for training and evaluation')
     features = feature_columns(base)
-    start, end, method = choose_holdout(base)
+    start, end, method = choose_holdout(base, prefer_recent=prefer_recent_holdout)
     main = evaluate(base, features, start, end)
     if main is None:
         raise ValueError('Insufficient chronological train/test coverage')
