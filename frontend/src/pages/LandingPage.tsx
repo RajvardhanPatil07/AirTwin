@@ -1,135 +1,142 @@
-import { ArrowRight, Leaf, MoveUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import "./landing.css";
 
 /**
- * FrameVitals landing-page composition, adapted for AirTwin.
- * No data fetching here: the public entry point stays fast, focused, and honest.
+ * AirTwin's public entry, modeled on the supplied screenshot of the
+ * FrameVitals landing page (framevitals.vercel.app).
+ * No data, maps, or model runs are fetched until a workspace link is opened.
  */
-const LENSES = [
+const DESTINATIONS = [
   {
     number: "01",
-    title: "Pollution, mapped",
-    text: "Inspect Pune–PCMC station references and modeled PM2.5 hotspots on an interactive map. Select a location to carry it into the analysis.",
-    route: "map",
-    label: "Explore map",
+    title: "Explore the map.",
+    body: "Understand PM2.5 levels, station readings and modeled city hotspots.",
+    href: "#/map",
+    action: "Open city map",
   },
   {
     number: "02",
-    title: "Forecasting",
-    text: "Examine a 1–72 hour PM2.5 outlook, its time origin and uncertainty band. Predictions are always separated from readings.",
-    route: "forecast",
-    label: "Open forecast",
+    title: "See what comes next.",
+    body: "Explore air-quality forecasts and their uncertainty over the next 72 hours.",
+    href: "#/forecast",
+    action: "View forecasts",
   },
   {
     number: "03",
-    title: "Source hypotheses",
-    text: "Compare estimated traffic, industrial, road-dust and regional contributions. These are spatial proxies, not measured source apportionment.",
-    route: "sources",
-    label: "View sources",
+    title: "Understand the sources.",
+    body: "Compare the likely contributions from traffic, industry, dust and background.",
+    href: "#/sources",
+    action: "Explore sources",
   },
   {
     number: "04",
-    title: "Policy experiments",
-    text: "Adjust traffic, industrial and dust controls. Compare three interventions and their combined modeled scenario.",
-    route: "scenarios",
-    label: "Compare actions",
+    title: "Test a cleaner future.",
+    body: "Compare traffic, industrial and dust-control interventions before acting.",
+    href: "#/scenarios",
+    action: "Compare actions",
   },
   {
     number: "05",
-    title: "Historical validation",
-    text: "Review held-out prediction errors, persistence baselines and evidence limits before interpreting any forecast.",
-    route: "validation",
-    label: "Check evidence",
-  },
-  {
-    number: "06",
-    title: "Transparent provenance",
-    text: "Distinguish observed station readings, provider-modeled context and synthetic fallback data, with timestamps and assumptions.",
-    route: "map",
-    label: "See provenance",
+    title: "Check the evidence.",
+    body: "Inspect historical tests, reference baselines and model limitations.",
+    href: "#/validation",
+    action: "View validation",
   },
 ] as const;
 
-const NAV = [
-  { label: "Overview", route: "" },
-  { label: "Map", route: "map" },
-  { label: "Forecast", route: "forecast" },
-  { label: "Sources", route: "sources" },
-  { label: "Scenarios", route: "scenarios" },
-  { label: "Validation", route: "validation" },
-] as const;
+function Starburst() {
+  return (
+    <svg className="air-hero-star" viewBox="0 0 160 160" aria-hidden="true" focusable="false">
+      <path d="M80 1V159M1 80H159M24 24L136 136M136 24L24 136" />
+    </svg>
+  );
+}
 
 export function LandingPage() {
   return (
     <div className="air-home">
-      <a className="air-skip" href="#air-home-main">Skip to main content</a>
+      <a className="air-skip" href="#air-main">Skip to content</a>
       <header className="air-home-nav">
-        <div className="air-container air-home-nav-inner">
-          <a href="#/" className="air-home-brand" aria-label="AirTwin home">
-            <span className="air-brand-glyph"><Leaf size={17} strokeWidth={1.8} /></span>
-            <strong>AirTwin</strong>
-            <small>ENR / 01</small>
+        <div className="air-home-nav-inner">
+          <a href="#/" className="air-home-brand" aria-label="AirTwin home">AirTwin</a>
+          <a className="air-home-github" href="https://github.com/RajvardhanPatil07/AirTwin"
+            target="_blank" rel="noopener noreferrer" aria-label="AirTwin on GitHub (opens in a new tab)">
+            GITHUB <ArrowUpRight size={14} strokeWidth={2.5} />
           </a>
-          <nav aria-label="Site navigation" className="air-home-links">
-            {NAV.map(({ label, route }) => (
-              <a key={label} className={route === "" ? "is-current" : ""} aria-current={route === "" ? "page" : undefined}
-                href={route ? "#/" + route : "#/"}>{label}</a>
-            ))}
-          </nav>
         </div>
       </header>
 
-      <main id="air-home-main" className="air-container">
+      <main id="air-main">
         <section className="air-home-hero" aria-labelledby="air-hero-title">
-          <span className="air-hero-watermark" aria-hidden="true">AT/01</span>
-          <p className="air-eyebrow">Urban environmental intelligence · Pune / PCMC</p>
-          <h1 id="air-hero-title">Read the signal<br />in your air.</h1>
-          <p className="air-home-lede">A digital twin for understanding pollution today, testing what might happen tomorrow, and comparing the interventions that could change it.</p>
-          <div className="air-home-actions">
-            <a className="air-btn-primary" href="#/map">Explore the city map <ArrowRight size={17}/></a>
-            <a className="air-btn-secondary" href="#/scenarios">Compare interventions <MoveUpRight size={16}/></a>
-            <span className="air-intro-chip"><i aria-hidden="true"/> Pune–PCMC study area</span>
+          <div className="air-hero-grid" aria-hidden="true" />
+          <div className="air-hero-orb" aria-hidden="true" />
+          <div className="air-red-band" aria-hidden="true" />
+          <div className="air-hero-inner">
+            <Starburst />
+            <div className="air-hero-copy">
+              <p className="air-hero-eyebrow">URBAN AIR INTELLIGENCE</p>
+              <h1 id="air-hero-title" className="air-display">
+                <span>AIR</span>
+                <span className="air-display-indent">HAS A</span>
+                <span>PULSE.</span>
+              </h1>
+              <p className="air-home-lede">
+                Understand where pollution rises, what drives it, and what could make tomorrow's air cleaner.
+              </p>
+              <div className="air-home-actions">
+                <a className="air-hero-button air-hero-button-primary" href="#/map">START THE TOUR</a>
+                <a className="air-hero-button air-hero-button-outline" href="#/forecast">
+                  FORECAST LAB <ArrowUpRight size={14} strokeWidth={2.3}/>
+                </a>
+              </div>
+            </div>
+            <span className="air-hero-caption" aria-hidden="true">PUNE · PIMPRI-CHINCHWAD / ENR–01</span>
           </div>
         </section>
 
-        <div className="air-rule"><span>Inspection map</span></div>
-
-        <section className="air-home-section" aria-labelledby="air-lenses-heading">
-          <p className="air-eyebrow">What AirTwin explores</p>
-          <h2 id="air-lenses-heading">Six analytical lenses.</h2>
-          <p className="air-section-lede">From a citywide view to one practical decision. Each lens has its own page, so you only see the information you need.</p>
-          <div className="air-lenses">
-            {LENSES.map((item) => (
-              <article className="air-lens" key={item.number}>
-                <p className="air-eyebrow">{item.number}</p>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-                <a href={"#/" + item.route}>{item.label} <ArrowRight size={14}/></a>
-              </article>
-            ))}
+        <section className="air-explore" id="explore" aria-labelledby="air-explore-heading">
+          <div className="air-container">
+            <div className="air-section-intro">
+              <p className="air-small-label">01 / THE EXPERIENCE</p>
+              <h2 id="air-explore-heading">See the air.<br/><em>Follow the evidence.</em></h2>
+              <p>Five focused pages. One connected picture of your city's air.</p>
+            </div>
+            <div className="air-destinations">
+              {DESTINATIONS.map((item) => (
+                <a className="air-destination" href={item.href} key={item.number}>
+                  <span className="air-destination-number">{item.number}</span>
+                  <span className="air-destination-content">
+                    <strong>{item.title}</strong>
+                    <small>{item.body}</small>
+                  </span>
+                  <span className="air-destination-action">
+                    <span>{item.action}</span>
+                    <ArrowUpRight size={20} strokeWidth={1.6} />
+                  </span>
+                </a>
+              ))}
+            </div>
           </div>
         </section>
 
-        <div className="air-rule"><span>Important limits</span></div>
-
-        <section className="air-home-section air-home-limits" aria-labelledby="air-limits-heading">
-          <p className="air-eyebrow">Honest about the evidence</p>
-          <h2 id="air-limits-heading">A decision aid. Not proof.</h2>
-          <p className="air-section-lede">AirTwin is a model of possible air-quality outcomes, not a measurement of policies that have already worked.</p>
-          <div className="air-limit-grid">
-            <p><span>01 /</span> Observed means a station or measurement-provider reading, with its original timestamp and freshness limits.</p>
-            <p><span>02 /</span> Map grids, future forecasts and intervention outcomes are modeled, not additional physical sensors.</p>
-            <p><span>03 /</span> Source contributions are assumption-driven estimates rather than causal source-apportionment measurements.</p>
-            <p><span>04 /</span> Historical model results must not be presented as proof of accuracy for a different live provider forecast.</p>
+        <section className="air-caveat" aria-labelledby="air-caveat-title">
+          <div className="air-container air-caveat-inner">
+            <div>
+              <p className="air-small-label">02 / THE EVIDENCE</p>
+              <h2 id="air-caveat-title">Modeled isn't<br/><em>measured.</em></h2>
+            </div>
+            <div className="air-caveat-description">
+              <p>AirTwin distinguishes observed sensor readings from modeled predictions and synthetic demonstrations. Proposed pollution-control outcomes are estimates, not measured policy effects.</p>
+              <a href="#/validation">EXPLORE THE VALIDATION <ArrowRight size={17}/></a>
+            </div>
           </div>
-          <a className="air-evidence-link" href="#/validation">Inspect the evidence <ArrowRight size={17}/></a>
         </section>
       </main>
-      <footer className="air-home-footer air-container">
-        <div className="air-rule"><span>Fin</span></div>
-        <div className="air-home-footer-inner">
-          <span>AirTwin · Dot.local · ENR–01</span>
-          <span>Pune–PCMC · OpenAQ · CAMS · Open-Meteo</span>
+      <footer className="air-home-footer">
+        <div className="air-container air-footer-row">
+          <span className="air-footer-logo">AirTwin</span>
+          <span>DOT.LOCAL / ENR–01</span>
+          <a href="#/map">ENTER THE CITY TWIN <ArrowUpRight size={15}/></a>
         </div>
       </footer>
     </div>
