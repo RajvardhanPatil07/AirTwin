@@ -119,3 +119,17 @@ It uses the existing chronological held-out validation from `model.train`,
 and prints its measured-versus-persistence error after training.
 The general `train_model.py --offline` remains available solely for
 separately labeled offline synthetic demonstration testing.
+
+## Transient provider HTTPS failures
+
+The live Pune/PCMC and Maharashtra CAMS/Open-Meteo refresh, and OpenAQ
+requests called through `state_data.get_payload`, retry HTTPS connection
+resets (including Windows WinError 10054), timeouts, HTTP 429, and HTTP
+5xx with a maximum of four attempts and bounded backoff. Bad credentials,
+HTTP 400/401/403 and other non-retryable requests fail immediately.
+
+If retries are exhausted, the existing background refresh keeps the
+last **timestamped** provider cache and adds a warning; it must not
+relabel the cached CAMS values as fresh or create made-up observations.
+A successful `/api/health` indicates the API responds, not that
+the upstream providers necessarily succeeded on the most recent refresh.

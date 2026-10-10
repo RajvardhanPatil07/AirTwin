@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import threading
+import time
 import pandas as pd
 import requests
 from fastapi import HTTPException
@@ -36,9 +37,54 @@ PUNE_ASSUMPTIONS = [
 
 
 def get_payload(url, params=None, headers=None):
-    response = requests.get(url, params=params, headers=headers, timeout=30)
-    response.raise_for_status()
-    return response.json()
+    """GET modeled/observed provider data, retrying only transient failures.
+
+    Network resets during TLS handshakes, timeouts, HTTP 429, and HTTP 5xx
+    receive at most three retries with bounded backoff. Configuration/auth
+    errors fail immediately. The caller retains previously labeled caches
+    when all attempts are exhausted; no stale value is relabeled as current.
+    """
+    attempts = 4
+    for attempt in range(attempts):
+        try:
+            response = requests.get(
+                url, params=params, headers=headers, timeout=(10, 30)
+            )
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                requests.exceptions.ChunkedEncodingError) as exc:
+            if attempt == attempts - 1:
+                raise
+            delay = min(2 ** attempt, 8)
+            LOG.warning(
+                'Provider connection interrupted (%s); retrying %d/%d in %ds.',
+                type(exc).__name__, attempt + 1, attempts - 1, delay
+            )
+            time.sleep(delay)
+            continue
+
+        if response.status_code == 429 or 500 <= response.status_code < 600:
+            if attempt == attempts - 1:
+                response.raise_for_status()
+            try:
+                retry_after = float(response.headers.get('Retry-After', 2 ** attempt))
+            except (ValueError, TypeError):
+                retry_after = float(2 ** attempt)
+            if not 0 <= retry_after <= 30:
+                retry_after = 30
+            LOG.warning(
+                'Provider HTTP %d; retrying %d/%d in %.1fs.',
+                response.status_code, attempt + 1, attempts - 1, retry_after
+            )
+            time.sleep(retry_after)
+            continue
+
+        # Reject HTTP 4xx (except temporary 429) immediately, including
+        # invalid keys and bad parameters. Never silently synthesize data.
+        response.raise_for_status()
+        return response.json()
+
+    raise RuntimeError('Provider HTTP retry budget exhausted')
 
 
 def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_state,
