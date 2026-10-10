@@ -69,9 +69,18 @@ export function FinalMap({
   const markers = useMemo(() =>
     data.stations.filter((station) => readingFor(station, metric, data.demo) && (layers.observed || station.source_type !== "observed")),
     [data.stations, metric, data.demo, layers.observed]);
-  const featuredIds = useMemo(() => new Set(
-    [...markers].sort((a, b) => (readingFor(b, metric, data.demo)?.value ?? -1) - (readingFor(a, metric, data.demo)?.value ?? -1))
-      .slice(0, 3).map((station) => station.id)), [markers, metric, data.demo]);
+  const featuredIds = useMemo(() => {
+    const featured: Station[] = [];
+    const ranked = [...markers].sort((a, b) =>
+      (readingFor(b, metric, data.demo)?.value ?? -1) - (readingFor(a, metric, data.demo)?.value ?? -1));
+    for (const station of ranked) {
+      const wellSeparated = featured.every((other) =>
+        Math.hypot(station.latitude - other.latitude, (station.longitude - other.longitude) * .95) >= .065);
+      if (wellSeparated) featured.push(station);
+      if (featured.length === 4) break;
+    }
+    return new Set(featured.map((station) => station.id));
+  }, [markers, metric, data.demo]);
   const matches = useMemo(() => [
     ...data.stations.filter((station) =>
       station.name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6),
@@ -120,10 +129,8 @@ export function FinalMap({
             dashArray: station.source_type !== "observed" ? "4 3" : undefined,
           }}
           eventHandlers={{ add: (event) => accessibleTarget(event, "Select location " + station.name), click: () => onSelect(station) }}>
-          <Tooltip direction="top" offset={[0, -8]} permanent={active || featuredIds.has(station.id) || station.id === data.stations[0]?.id}>
-            <strong>{station.short_name || station.name}</strong><br/>
-            {number(reading.value)} {reading.unit} · {reading.source.toUpperCase()}<br/>
-            {dateLabel(reading.timestamp)} {timeLabel(reading.timestamp)} IST
+          <Tooltip direction="top" offset={[0, -8]} permanent={active || featuredIds.has(station.id)}>
+            <strong>{station.short_name || station.name}</strong> · {number(reading.value, 0)} {reading.unit}
           </Tooltip>
         </CircleMarker>;
       })}
