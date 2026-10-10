@@ -102,7 +102,7 @@ export function FinalMap({
       <TileLayer key={tile} url={tile}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
         eventHandlers={{ tileerror: () => setTileError(true), tileload: () => setTileError(false) }}/>
-      <ZoomControl position="bottomleft"/>
+      <ZoomControl position="bottomright"/>
       <ScaleControl position="bottomleft" imperial={false}/>
       <FollowSelected selected={selected} focus={focus}/>
       <RecenterControl/>
