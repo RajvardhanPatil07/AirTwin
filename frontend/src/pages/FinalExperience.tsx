@@ -10,6 +10,7 @@ import { api, loadDashboard } from "../lib/api";
 import { DEFAULT_CUTS } from "../mocks/engine";
 import { dateLabel, number, timeLabel } from "../lib/format";
 import { cellsAtFrame, frameAtOrBefore } from "../lib/finalTimeline";
+import { readRoute, writeRoute, resolveRouteStation } from "../lib/finalRoute";
 import {
   concentrationLabel, interpretChange, isStale, METRICS,
   orderedPlaces, provenanceLabel, readingFor, supportsMetric,
@@ -27,8 +28,7 @@ type Page = "overview" | "map" | "forecast";
 type Subview = "explore" | "analytics";
 
 function routeFromURL(): Page {
-  const page = new URLSearchParams(window.location.search).get("page");
-  return page === "map" || page === "forecast" ? page : "overview";
+  return readRoute(window.location.search).page;
 }
 function isPage(value: string): value is Page {
   return value === "overview" || value === "map" || value === "forecast";
@@ -86,7 +86,7 @@ function ForecastTrend({ forecast, demo }: { forecast: ForecastResponse | null; 
 
 export function FinalExperience() {
   const [page, setPage] = useState<Page>(() => routeFromURL());
-  const [subview, setSubview] = useState<Subview>("explore");
+  const [subview, setSubview] = useState<Subview>(() => readRoute(window.location.search).view);
   const [entered, setEntered] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return window.sessionStorage.getItem("airtwin-guest-entry") === "1" || isPage(params.get("page") ?? "") && params.has("page");
@@ -96,11 +96,11 @@ export function FinalExperience() {
   const [refresh, setRefresh] = useState(0);
   const [selected, setSelected] = useState<Station | null>(null);
   const [focus, setFocus] = useState(false);
-  const [metric, setMetric] = useState<MetricId>("pm25");
+  const [metric, setMetric] = useState<MetricId>(() => readRoute(window.location.search).metric);
   const [metricOpen, setMetricOpen] = useState(false);
   const [rankOpen, setRankOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [hours, setHours] = useState(24);
+  const [hours, setHours] = useState<24 | 48 | 72>(() => readRoute(window.location.search).hours);
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [timeline, setTimeline] = useState<TimelineResponse | null>(null);
   const [timelineError, setTimelineError] = useState("");
@@ -116,10 +116,11 @@ export function FinalExperience() {
   const [mobilePanel, setMobilePanel] = useState(true);
 
   const navigate = useCallback((next: Page, options?: {tab?: Subview; metricMenu?: boolean; ranked?: boolean; location?: Station | null}) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("page", next);
-    if (options?.tab) url.searchParams.set("view", options.tab);
-    else url.searchParams.delete("view");
+    const url = writeRoute(new URL(window.location.href), {
+      page: next,
+      view: options?.tab ?? "explore",
+      ...(options?.location ? {location: options.location.id} : {}),
+    });
     window.history.pushState(null, "", url);
     setPage(next);
     setSubview(options?.tab ?? "explore");
@@ -132,24 +133,27 @@ export function FinalExperience() {
   }, []);
   useEffect(() => {
     const onPop = () => {
-      setPage(routeFromURL());
-      setSubview(new URLSearchParams(window.location.search).get("view") === "analytics" ? "analytics" : "explore");
+      const route = readRoute(window.location.search);
+      setPage(route.page);
+      setSubview(route.view);
+      setMetric(data && !supportsMetric(data, route.metric) ? "pm25" : route.metric);
+      setHours(route.hours);
+      if (data) setSelected(resolveRouteStation(data, route.location));
       setDetailsOpen(false);
       setRankOpen(false);
       setFocus(false);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [data]);
   useEffect(() => {
     let active = true;
     loadDashboard().then((result) => {
       if (!active) return;
       setData(result);
-      setSelected((previous) =>
-        previous && (previous.id.startsWith("cell-") || result.stations.some((station) => station.id === previous.id))
-          ? (result.stations.find((station) => station.id === previous.id) ?? previous)
-          : result.stations.find((station) => station.name.toLowerCase().includes("pune")) ?? result.stations[0]);
+      const route = readRoute(window.location.search);
+      setMetric(supportsMetric(result, route.metric) ? route.metric : "pm25");
+      setSelected((previous) => resolveRouteStation(result, route.location ?? previous?.id ?? null));
     }).catch(() => {});
     return () => { active = false; };
   }, [refresh]);
@@ -213,11 +217,13 @@ export function FinalExperience() {
   const chooseMetric = (id: MetricId) => {
     if (!data || !supportsMetric(data, id)) return;
     setMetric(id);
+    window.history.replaceState(null, "", writeRoute(new URL(window.location.href), {metric: id}));
     setMetricOpen(false);
     setRankOpen(false);
   };
   const chooseLocation = (station: Station) => {
     setSelected(station);
+    window.history.replaceState(null, "", writeRoute(new URL(window.location.href), {location: station.id}));
     setDetailsOpen(true);
     setMobilePanel(true);
     if (page === "forecast") setFocus(true);
@@ -324,7 +330,10 @@ export function FinalExperience() {
           </div>}
           {page === "forecast" && <div className="fv-map-toolbar">
             <span className="fv-select-button">PM2.5 <small>µg/m³</small></span>
-            <div className="fv-segment" role="group" aria-label="Forecast horizon">{[24,48,72].map((h) => <button key={h} type="button" className={hours === h ? "selected" : ""} onClick={() => setHours(h)}>{h}h</button>)}</div>
+            <div className="fv-segment" role="group" aria-label="Forecast horizon">{([24,48,72] as const).map((h) => <button key={h} type="button" className={hours === h ? "selected" : ""} onClick={() => {
+              setHours(h);
+              window.history.replaceState(null, "", writeRoute(new URL(window.location.href), {hours:h}));
+            }}>{h}h</button>)}</div>
             <button type="button" className="fv-select-button fv-effects" aria-pressed={effectsOn} onClick={() => setEffectsOn(!effectsOn)}><SkyIcon night={night}/> Effects {effectsOn ? "on" : "off"}</button>
           </div>}
           <div className="fv-map-frame">
