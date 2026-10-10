@@ -197,8 +197,13 @@ export function FinalExperience() {
   const selectedTime = when?.timestamp || tomorrow?.timestamp;
   const localHour = selectedTime ? Number(new Intl.DateTimeFormat("en-GB", {timeZone:"Asia/Kolkata",hour:"2-digit",hourCycle:"h23"}).format(new Date(selectedTime))) : 12;
   const night = page === "forecast" && (localHour < 6 || localHour >= 19);
+  const selectedWeather = forecast?.weather_forecast?.find((weather) =>
+    selectedTime && Math.abs(Date.parse(weather.timestamp) - Date.parse(selectedTime)) < 3600000);
   const haze = when?.predicted !== null && when?.predicted !== undefined && when.predicted > 60;
-  const atmosphere = night && effectsOn ? haze ? "hazy" : "clear" : "off";
+  const cloudy = selectedWeather?.cloud_cover !== undefined && selectedWeather.cloud_cover >= 65;
+  const atmosphere = night && effectsOn
+    ? cloudy ? "cloudy" : haze ? "hazy" : selectedWeather ? "clear" : "off"
+    : "off";
   const spatialFrame = frameAtOrBefore(timeline, Math.min(timeIndex + 1, 24));
   const forecastCells = useMemo(() => data ? cellsAtFrame(data.cells, spatialFrame) : null, [data, spatialFrame]);
   const spatialTimestamp = forecastCells && spatialFrame?.hour ? formatStamp(spatialFrame.timestamp) : null;
@@ -422,7 +427,7 @@ export function FinalExperience() {
               <div className="fv-forecast-values"><div><span>Latest reference</span><strong>{first !== null ? number(first,0) : "—"}</strong><small>µg/m³ · {selected?.source_type.toUpperCase()}</small></div>
                 <div><span>Selected outlook</span><strong>{when?.predicted !== null && when?.predicted !== undefined ? number(when.predicted,0) : "—"}</strong><small>µg/m³ · {data.demo ? "SYNTHETIC" : "MODELED"}</small></div>
                 <div><span>Tomorrow</span><strong>{trend}</strong><small>Compared with latest reference</small></div></div>
-              <div className="fv-outlook-weather"><SkyIcon night={night}/> {night ? "Night" : "Day"} · {data.weather?.cloud_cover !== undefined ? number(data.weather.cloud_cover,0) + "% modeled cloud cover" : "Weather unavailable"}</div>
+              <div className="fv-outlook-weather"><SkyIcon night={night}/> {night ? "Night" : "Day"} · {selectedWeather?.cloud_cover !== undefined ? number(selectedWeather.cloud_cover,0) + "% modeled forecast cloud cover" : "Forecast cloud cover unavailable"}</div>
             </div>
             <div className="fv-card fv-forecast-chart-card"><div className="fv-chart-heading"><div><span className="fv-card-kicker"><TrendingDown size={16}/> Forecast trend</span><p>{forecast?.forecast_provider ?? "PM2.5 predictions from connected backend"}</p></div><span className="fv-mini-pill">{hours}h</span></div>
               {forecastBusy ? <div className="fv-chart-empty">Loading forecast…</div> : forecastError ? <div className="fv-inline-warning">{forecastError}</div> :
