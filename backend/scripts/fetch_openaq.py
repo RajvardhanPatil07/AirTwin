@@ -48,15 +48,19 @@ def main():
     args = parser.parse_args()
     end = pd.Timestamp.now(tz="UTC").floor("h")
     start = end - pd.DateOffset(months=args.months)
-    try:
-        if args.offline:
-            raise RuntimeError("offline requested")
-        frame = fetch(start, end)
-        if frame.empty:
-            raise RuntimeError("No PM2.5 hours found")
-    except Exception as error:
-        LOG.warning("OpenAQ unavailable (%s); falling back to sample", type(error).__name__)
+    if args.offline:
         frame = sample_frame()[COLUMNS]
+    else:
+        try:
+            frame = fetch(start, end)
+            if frame.empty:
+                raise RuntimeError("No observed PM2.5 hours found")
+        except Exception as error:
+            # Never overwrite previously collected real observations with demo
+            # data after an unexpected live-provider failure.
+            LOG.error("OpenAQ live fetch failed (%s); leaving existing data untouched.",
+                      type(error).__name__)
+            raise SystemExit(1) from error
     RAW.mkdir(parents=True, exist_ok=True)
     frame.to_csv(RAW / "air_quality.csv", index=False)
     LOG.info("Saved %s records to data/raw/air_quality.csv", len(frame))

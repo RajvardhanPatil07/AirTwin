@@ -96,6 +96,13 @@ class ForecastResponse(Provenance):
     series: list[SeriesPoint]
     shap: dict | None = None
     weather_forecast: list[dict] = []
+    # Optional operational metadata preserves compatibility with old clients.
+    forecast_provider: str | None = None
+    model_id: str | None = None
+    model_version: str | None = None
+    issued_at: str | None = None
+    input_cutoff: str | None = None
+    fallback_reason: str | None = None
 
 
 class Metrics(BaseModel):

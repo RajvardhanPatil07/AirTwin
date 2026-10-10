@@ -49,7 +49,7 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
     air = get_payload('https://air-quality-api.open-meteo.com/v1/air-quality',
                       {**coordinates, 'hourly': ','.join(AIR_FIELDS), 'domains': 'cams_global'})
     weather = get_payload('https://api.open-meteo.com/v1/forecast',
-                          {**coordinates, 'hourly': ','.join(WEATHER_FIELDS), 'wind_speed_unit': 'ms'})
+                          {**coordinates, 'hourly': ','.join(WEATHER_FIELDS + ['boundary_layer_height']), 'wind_speed_unit': 'ms'})
     if not isinstance(air, list) or len(air) != len(reference_points) or len(weather) != len(reference_points):
         raise ValueError('Incomplete multi-location provider response')
     points = []
@@ -276,6 +276,38 @@ class PuneRuntime(StateRuntime):
         self.zones = self.spatial_inputs.get('zones', ZONES) if self.spatial_inputs else ZONES
         self.spatial_assumptions = [*spatial_assumptions(self.spatial_inputs), *PUNE_ASSUMPTIONS]
 
+    def forecast(self, location_id, hours=24, replay_at=None):
+        # Historical backtests are routed to the original Runtime, not live ML.
+        if replay_at:
+            return super().forecast(location_id, hours, replay_at)
+        from app.services.forecast_dispatcher import (
+            nearest_provider_frame, run_observed_station_forecast,
+        )
+        sensor = next((item for item in self.payload.get('observed', [])
+                       if item.get('id') == location_id and item.get('source_type') == 'observed'), None)
+        reason = 'location_has_no_observed_sensor'
+        if sensor is not None:
+            try:
+                context = nearest_provider_frame(sensor, self.points, self.all_frame)
+                result, reason = run_observed_station_forecast(sensor, context, hours)
+                if result is not None:
+                    return result
+            except Exception:
+                LOG.warning('Live ML dispatch failed; preserving CAMS fallback.', exc_info=True)
+                reason = 'live_ml_dispatch_error'
+        fallback = super().forecast(location_id, hours, replay_at)
+        fallback.update(
+            forecast_provider='CAMS via Open-Meteo',
+            model_id='cams-global-provider',
+            model_version=None,
+            issued_at=self.payload.get('updated_at', self.origin.isoformat()),
+            input_cutoff=self.origin.isoformat(),
+            fallback_reason=reason,
+        )
+        fallback['assumptions'].append(
+            f'Live LightGBM unavailable ({reason}); CAMS provider forecast shown instead.')
+        return fallback
+
     def backtest(self, location_id, replay_at=None):
         result = super().backtest(location_id, replay_at)
         result['assumptions'].append('Use historical replay for the separate AirTwin model validation.')
@@ -325,6 +357,23 @@ def refresh_pune():
     payload = fetch_context(PUNE_POINTS, BBOX, inside_pune, 'Pune + PCMC', 'pune-cams')
     runtime = PuneRuntime(payload)
     runtime.snapshot()
+    # Only actual OpenAQ hourly readings are stored as station observations.
+    # Failure must not block CAMS provider coverage.
+    try:
+        from app.services.live_observations import ingest_pune_history
+        history_status = ingest_pune_history(payload.get('observed', []), get_payload)
+        if history_status['failures']:
+            message = (f"{history_status['failures']} OpenAQ hourly-history lookups failed; "
+                       "live LightGBM may use CAMS fallback.")
+            payload['warnings'].append(message)
+            runtime.warnings.append(message)
+        LOG.info('OpenAQ hourly history: %s sensors, %s accepted hours, %s errors',
+                 history_status['sensors'], history_status['rows'], history_status['failures'])
+    except Exception:
+        message = 'OpenAQ history persistence unavailable; keeping CAMS fallback.'
+        payload['warnings'].append(message)
+        runtime.warnings.append(message)
+        LOG.warning('OpenAQ hourly history refresh failed.', exc_info=True)
     save_context(payload, PUNE_CACHE, 'pcmc')
     with _pune_lock:
         _pune_runtime = runtime
