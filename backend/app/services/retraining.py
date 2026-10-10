@@ -166,7 +166,10 @@ def _validate(candidate):
     if (int(report["test_rows"]) < MIN_TEST_ROWS or not np.isfinite(mae)
             or not np.isfinite(persistence) or persistence <= 0):
         return "insufficient_or_invalid_holdout"
-    if mae > persistence:
+    # A persistence-only blend (weight=0) can tie the baseline exactly.
+    # Such a candidate must not be advertised as a model improvement.
+    # 1e-6 avoids promoting a numerical rounding artefact.
+    if mae >= persistence - 1e-6:
         return "24h_model_does_not_beat_persistence"
     return None
 
