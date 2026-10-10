@@ -59,11 +59,15 @@ def _exclusive_training():
             acquired = connection.execute(
                 "SELECT pg_try_advisory_lock(67204102)"
             ).fetchone()[0]
+            # The lock is session-scoped: end the SQL transaction before the
+            # long CPU-bound fit to avoid idle-in-transaction timeouts.
+            connection.commit()
             try:
                 yield bool(acquired)
             finally:
                 if acquired:
                     connection.execute("SELECT pg_advisory_unlock(67204102)")
+                    connection.commit()
         return
 
     # Linux/Mac deployment. Without an external database, models are local
