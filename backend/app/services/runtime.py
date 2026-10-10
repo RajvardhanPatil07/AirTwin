@@ -29,7 +29,7 @@ class Runtime:
         now = monotonic()
         if entry is not None and entry[0] > now:
             return entry[1]
-        snapshot = self.cached_snapshot(replay_at)
+        snapshot = self.snapshot(replay_at)
         if len(cache) >= 8:
             cache.clear()
         cache[key] = (now + 30, snapshot)
