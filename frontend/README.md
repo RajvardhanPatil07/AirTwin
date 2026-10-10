@@ -1,81 +1,69 @@
-# AirTwin frontend
+# AirTwin finalv1 — map-first environmental application
 
-The React/Vite/TypeScript frontend opens the eight-step AirTwin guide for Pune and Pimpri-Chinchwad. **Advanced view** provides the full dashboard with map layers, forecast playback, observed AQI, historical replay, and sensor-resilience planning.
+This is the complete redesigned frontend on the **finalv1** branch. The former guided eight-step interface is archived in source and is no longer the default view.
 
-![Connected source estimates and Ask AirTwin](docs/guided-evidence/connected-chat.png)
+## Main application pages
 
-*Verified capture from 10 October 2026; values and model availability depend on the running backend.*
+| Page | User functions |
+| --- | --- |
+| **Overview** | Full-bleed live-provider/synthetic-fallback map, four accessible summary cards, location search and clear source labels |
+| **Map** | Location selection, ranked reference readings, available pollutant switching, observed monitors versus interpolated modeled cells, detailed area drawer |
+| **Forecast** | 24/48/72-hour PM2.5 trend, selected-location outlook, backend spatial forecast frames, day/night effects and focus mode |
 
-## Run locally
+**Analytics** is a subview of Map, not a fourth page. It contains the connected Ask AirTwin service, public exposure guidance and a collapsible Research workbench for four backend computations: hypothetical traffic/industry/dust scenarios, source-proxy attribution, historical validation and budget optimization.
 
-Install the Python and frontend dependencies using the [project setup](../README.md#run-it-locally), then run this from the repository root:
+## Map and numerical integrity
 
-```sh
-python scripts/dev.py
-```
+- Uses Leaflet and correctly attributed CARTO/OpenStreetMap basemaps, not copied Apple map tiles.
+- Its smooth heat overlay is only a visual resampling of the backend's existing coarse 12×12 modeled grid. It is not additional observed or street-level data.
+- Uses API timestamps, µg/m³ units and OBSERVED/MODELED/SYNTHETIC source labels. Data older than 24 hours remains marked stale.
+- Does not fabricate official AQI or CO2/O2. Unsupported pollutant selectors remain disabled. PM10, NO2, SO2 and ozone depend on actual provider availability.
+- For available backend spatial forecasts, renders /api/timeline output at 0, 3, 6, 9, 12, 18 and 24 hours. The 48/72-hour chart remains supported, but the spatial map is not falsely extrapolated beyond its final frame.
+- No public user can execute governmental actions. Scenarios are non-operational models. Secure public registration and authenticated PMC/PCMC privileges require a real identity-provider/backend role-integration; until provided, these options are explicitly locked.
 
-Open [AirTwin](http://127.0.0.1:5188/). FastAPI runs on port 8000; Vite forwards `/backend` requests to it. The launcher starts both services and reuses an already healthy backend. It does not rerun the data pipeline, although backend startup can train a missing model artifact.
+## Start on Windows
 
-To start only the frontend from this directory:
+**PowerShell 1 — FastAPI server**, working directory C:\Users\mayur\AirTwin\backend:
 
-```sh
+~~~powershell
+cd C:\Users\mayur\AirTwin\backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+~~~
+
+**PowerShell 2 — Vite frontend**, working directory C:\Users\mayur\AirTwin:
+
+~~~powershell
+cd C:\Users\mayur\AirTwin
+git fetch origin
+git switch finalv1
+git pull --ff-only origin finalv1
+cd frontend
 npm ci
 npm run dev
-```
+~~~
 
-Vite prints its frontend URL. Keep FastAPI running separately for backend results. The proxy also works with `npm run preview`. `AIRTWIN_BACKEND_URL` can change the proxy target when starting Vite.
+Visit the URL printed by Vite, usually http://localhost:5173. Vite forwards /backend requests to the running FastAPI instance. To deploy separately, set frontend VITE_API_BASE_URL to the public FastAPI URL and configure backend CORS_ORIGINS for the frontend origin. Keep Gemini/OpenAQ/database secrets on the server, not in VITE_ variables.
 
-## Guided flow
+## Verification
 
-1. **Place:** choose a backend-supported area reference point.
-2. **Air today:** inspect PM2.5, modeled weather, nearby reference points, and map cells.
-3. **Forecast:** select a 24-, 48-, or 72-hour horizon and inspect provider/model information.
-4. **Understand:** inspect assumed source contributions and ask AirTwin about computed evidence.
-5. **Try actions:** adjust traffic, industry, and dust cuts; calculate backend scenario results.
-6. **Plan:** set an INR budget and target; exclude unavailable actions and check feasibility.
-7. **Evidence:** inspect historical measured targets, model errors, and persistence comparisons.
-8. **Review:** compare the current estimate and calculated actions; export backend results as JSON.
-
-The guide uses adapted Vengeance UI Spotlight Navbar and Animated Button components, Leaflet geography, and Recharts visualizations. It supports mobile layouts, dark theme, and reduced motion. Budgets and selected cuts persist during guided navigation; page reloads and switching between guided and Advanced view reset guide state.
-
-## Backend and assistant configuration
-
-Provider credentials belong in the **root** `.env`, which FastAPI loads. Set `GEMINI_API_KEY` to enable Gemini and use `GEMINI_MODEL` to select its model; the root example currently sets `gemini-3.5-flash-lite`. Ask AirTwin sends the selected location, horizon, calculated cuts, and recent conversation to `/api/explain`. Answers display the actual model and backend evidence citations. A provider failure or missing key produces a labeled evidence summary.
-
-For a hosted frontend, copy this directory's `.env.example` to `.env`, set `VITE_API_BASE_URL` to the public backend URL, and allow the frontend origin in backend `CORS_ORIGINS`. Restart Vite after changing frontend environment variables. Provider keys and database passwords must never use `VITE_` variables.
-
-For local development, leave `VITE_API_BASE_URL` unset to use `/backend`. Set `VITE_API_BASE_URL=` explicitly for the illustrative frontend-only demo.
-
-Initial API failure switches the guide to an **Offline example** with a connection warning. **Refresh connection** retries the backend. Analysis failures display errors and Retry; connected analyses do not substitute mock outputs. Demo chat explains its availability without claiming an AI answer.
-
-## Reading the results
-
-- Observed, modeled, and synthetic labels identify provenance. Check the displayed timestamps.
-- Named CAMS points are model samples, not monitors at those locations. Current provider forecasts and historical LightGBM evaluation are separate.
-- Source shares and intervention responses are assumption-based proxies. Simulated reductions are not measured improvements or health benefits.
-- Scenario statistics and before/after maps use the same backend result. Population provenance follows the response; offline examples use synthetic inputs.
-- Station backtests can underperform persistence. Missing history, uncertainty bands, and optional metrics remain unavailable.
-- Planning costs and response factors are synthetic assumptions. Targets can be infeasible.
-- OpenStreetMap tiles require network access. Fonts are bundled. Retain map/provider credits and [Vengeance component attribution](src/components/ui/ATTRIBUTION.md).
-
-## Checks and implementation
-
-```sh
+~~~sh
 npm run lint
 npm test
 npm run build
 npm run test:sites
-```
+~~~
 
-The build performs TypeScript checks, bundles the app, and prepares the Sites artifacts. The frontend currently has 15 unit tests and four Sites packaging checks. Mock-engine tests verify demo behavior, not backend model accuracy.
+GitHub Actions on this branch also runs Python offline-backend validation and **AirTwin finalv1 browser QA**, which starts Vite in Chromium, exercises guest entry, Map, ranked selection, Analytics scenarios, Forecast, and a mobile-width overflow check. Screenshots of the tested offline application are downloadable from that workflow's artifact. They are labeled synthetic and not proof of live observed data.
 
-| Path | Purpose |
+| Source | Responsibility |
 | --- | --- |
-| `src/pages/GuidedExperience.tsx` | Guided navigation, area selection, connection state, and review export |
-| `src/components/GuidedBackendPanels.tsx` | Connected analyses, planning, and inline Ask AirTwin |
-| `src/components/GuidedAirMap.tsx` | Guide map and backend concentration cells |
-| `src/pages/Dashboard.tsx` | Advanced dashboard |
-| `src/lib/api.ts` / `src/lib/operations.ts` | Shared backend requests and planning contracts |
-| `src/guided.css` | Scoped guide theme and responsive styles |
+| src/pages/FinalExperience.tsx | Guest entry, three-page navigation, API-based cards, Map/Analytics/Forecast views |
+| src/components/FinalMap.tsx | Licensed Leaflet tiles, clickable stations and grid, locality search, focus mode |
+| src/components/SmoothHeatLayer.tsx | Visualized 12×12 backend PM2.5 interpolation |
+| src/components/ResearchWorkbench.tsx | Modeled scenario, source, backtest and planning API clients |
+| src/lib/finalMetrics.ts | Typed metrics, provenance, freshness and capability gating |
+| src/lib/finalPlaces.ts | Named localities resolved to existing modeled cells, never invented sensors |
+| src/lib/finalTimeline.ts | Honest selection of available spatial forecast frames |
+| src/final.css | Approved warm-bone / ocean-blue visual direction |
 
-See [API documentation](../docs/api.md), [design](DESIGN.md), [verification](design-qa.md), and [screenshots](docs/guided-evidence/). [Component licensing](src/components/ui/ATTRIBUTION.md) applies to the adapted UI components; no project-wide software license has been selected.
+See DESIGN.md for visual rationale and ../docs/api.md for backend contracts. Older GuidedExperience/Dashboard files remain as archived references only.
