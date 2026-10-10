@@ -7,6 +7,7 @@ from app.routers import forecast, backtest, map, attribution, scenarios, explain
 from app.services.runtime import get_runtime
 from app.services.state_data import get_pune_runtime
 from app.services import database
+from app.services.retraining import retraining_loop, retraining_status
 
 @asynccontextmanager
 async def lifespan(app):
@@ -21,6 +22,9 @@ async def lifespan(app):
     if os.getenv('LIVE_REFRESH_ENABLED', '1') == '1' and not os.getenv('PYTEST_CURRENT_TEST'):
         from app.services.state_data import live_loop
         threading.Thread(target=live_loop, args=(stop,), daemon=True, name='airtwin-provider-refresh').start()
+    if os.getenv('RETRAIN_ENABLED', '1') == '1' and not os.getenv('PYTEST_CURRENT_TEST'):
+        threading.Thread(target=retraining_loop, args=(stop,), daemon=True,
+                         name='airtwin-model-retraining').start()
     yield
     stop.set()
 
@@ -40,6 +44,7 @@ def health():
                           'updated_at': pune.payload['updated_at'] if pune else None,
                           'modeled_points': len(pune.points) if pune else 0,
                           'observed_points': len(pune.payload.get('observed', [])) if pune else 0},
+            'retraining': retraining_status(),
             'model': runtime.artifact['report'].get('model', 'LightGBM direct horizons'), 'dataset_rows': len(runtime.frame),
             'target_source_types': sorted(runtime.frame.source_type.unique()),
             'last_dataset_time': runtime.frame.timestamp.max().isoformat(),
