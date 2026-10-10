@@ -1,0 +1,32 @@
+name: AirTwin retraining tests
+
+on:
+  push:
+    branches: [dev/raj]
+    paths:
+      - 'backend/app/services/retraining.py'
+      - 'backend/app/services/model.py'
+      - 'backend/app/services/live_observations.py'
+      - 'backend/app/services/forecast_dispatcher.py'
+      - 'backend/app/main.py'
+      - 'backend/tests/test_retraining.py'
+      - '.github/workflows/retraining-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  retraining-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Run retraining unit tests
+        run: python -m pytest -q backend/tests/test_retraining.py
+      - name: Check Python syntax
+        run: python -m compileall -q backend/app
