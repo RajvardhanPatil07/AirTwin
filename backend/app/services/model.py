@@ -173,7 +173,7 @@ def evaluate(base, features, start, end):
             'prediction': (blend, low, high), 'seasonal': seasonal}
 
 
-def train(frame, fingerprint, warnings, report_path=None, exog=None):
+def train(frame, fingerprint, warnings, report_path=None, exog=None, *, persist=True):
     cache = {}
     def rows_for(horizon):
         if horizon not in cache:
@@ -224,11 +224,14 @@ def train(frame, fingerprint, warnings, report_path=None, exog=None):
             cache.pop(horizon, None)
     artifact = {'models': production, 'features': features, 'report': report,
                 'backtest': results, 'fingerprint': fingerprint, 'validation_models': main['bundle'], 'version': VERSION}
-    MODELS.mkdir(parents=True, exist_ok=True)
-    joblib.dump(artifact, ARTIFACT)
-    (MODELS / 'metrics.json').write_text(json.dumps(report, indent=2))
-    if report_path:
-        write_card(report, report_path)
+    # Candidate retraining uses persist=False: evaluation must finish before any
+    # serving artifact is touched. Promotion happens atomically in retraining.py.
+    if persist:
+        MODELS.mkdir(parents=True, exist_ok=True)
+        joblib.dump(artifact, ARTIFACT)
+        (MODELS / 'metrics.json').write_text(json.dumps(report, indent=2))
+        if report_path:
+            write_card(report, report_path)
     return artifact
 
 
