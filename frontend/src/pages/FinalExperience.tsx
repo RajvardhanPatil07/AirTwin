@@ -9,7 +9,7 @@ import type { DashboardData, ForecastResponse, Station, TimelineResponse } from 
 import { api, loadDashboard } from "../lib/api";
 import { DEFAULT_CUTS } from "../mocks/engine";
 import { dateLabel, number, timeLabel } from "../lib/format";
-import { cellsAtFrame, frameAtOrBefore } from "../lib/finalTimeline";
+import { alignedForecastFrame, cellsAtFrame, frameAtOrBefore } from "../lib/finalTimeline";
 import { readRoute, writeRoute, resolveRouteStation } from "../lib/finalRoute";
 import { forecastReferenceRange, selectedForecastPeak } from "../lib/finalOutlook";
 import {
@@ -209,7 +209,7 @@ export function FinalExperience() {
   const atmosphere = night && effectsOn
     ? cloudy ? "cloudy" : haze ? "hazy" : selectedWeather ? "clear" : "off"
     : "off";
-  const spatialFrame = frameAtOrBefore(timeline, Math.min(timeIndex + 1, 24));
+  const spatialFrame = alignedForecastFrame(timeline, forecast, timeIndex);
   const forecastCells = useMemo(() => data ? cellsAtFrame(data.cells, spatialFrame) : null, [data, spatialFrame]);
   const spatialTimestamp = forecastCells && spatialFrame?.hour ? formatStamp(spatialFrame.timestamp) : null;
   const dayReferenceRange = useMemo(() => forecastReferenceRange(frameAtOrBefore(timeline, 24), data?.stations ?? []), [timeline, data]);
@@ -354,7 +354,7 @@ export function FinalExperience() {
             <input type="range" min="0" max={Math.max(0, Math.min(hours, forecast?.series.filter((p) => p.predicted !== null).length ?? hours) - 1)} value={timeIndex}
               onChange={(event) => setTimeIndex(Number(event.target.value))} aria-label="Select forecast time"/>
             <span>{selectedTime ? timeLabel(selectedTime) + " IST" : "Unavailable"}</span></div>}
-          {page === "forecast" && <div className="fv-map-disclaimer"><Info size={13}/> {spatialTimestamp ? "Map updates at available provider forecast frames (0, 3, 6, 9, 12, 18, 24 hours); chart can extend to 72 hours." : "Map uses the baseline when a compatible spatial forecast is unavailable."} {timelineError && "Spatial feed: " + timelineError}</div>}
+          {page === "forecast" && <div className="fv-map-disclaimer"><Info size={13}/> {spatialTimestamp ? "Spatial forecast map uses aligned provider frames (0, 3, 6, 9, 12, 18, 24 hours); the location chart can extend to 72 hours." : "Map uses the baseline when a time-aligned spatial forecast is unavailable."} {timelineError && "Spatial feed: " + timelineError}</div>}
           {page !== "forecast" && <div className="fv-map-disclaimer"><Info size={13}/> Map grid is interpolated PM2.5, not a street-level monitor network. {data.demo && "All readings in this fallback are synthetic."}</div>}
         </div>
         <aside className={"fv-side" + (!mobilePanel ? " fv-side-collapsed" : "")}>
@@ -448,7 +448,7 @@ export function FinalExperience() {
               {forecast?.fallback_reason && <div className="fv-inline-warning">{forecast.fallback_reason}</div>}
             </div>
             <section className="fv-card fv-tomorrow-insights" aria-label="Tomorrow's computed outlook">
-              <span className="fv-card-kicker"><CloudSun size={16}/> Tomorrow outlook · Backend evidence</span>
+              <span className="fv-card-kicker"><CloudSun size={16}/> Forecast outlook · Backend evidence</span>
               <div className="fv-forecast-insights-grid">
                 <div><span>Highest modeled reference</span><strong>{dayReferenceRange.highest?.name ?? "Unavailable"}</strong>
                   <small>{dayReferenceRange.highest ? number(dayReferenceRange.highest.pm25, 0) + " µg/m³ · modeled" : "No spatial forecast"}</small></div>
