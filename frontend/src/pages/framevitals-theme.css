@@ -712,3 +712,135 @@ body { background-image: none !important; }
   .fv-section-divider {margin:27px 0 16px;}
   .tw-introduction {margin-bottom:14px;}
 }
+
+
+/* Routed AirTwin workspace: each URL shows only the relevant information.
+   The landing page is kept independent of maps, forecasts and providers. */
+.tw-route-introduction {
+  min-height:0;
+  margin-bottom:17px;
+  padding:15px 0 20px;
+  align-items:center;
+  gap:22px;
+}
+.tw-route-introduction::before {display:none;}
+.tw-route-introduction .fv-hero-copy {max-width:870px;}
+.tw-route-introduction h1 {
+  font-size:clamp(34px,4vw,57px);
+  line-height:1.03;
+  max-width:880px;
+  margin:12px 0 13px;
+  letter-spacing:-.055em;
+}
+.tw-route-introduction p {
+  max-width:730px;
+  font-size:14px;
+  line-height:1.75;
+}
+.tw-route-introduction .tw-provenance-key {
+  flex-direction:row;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  align-items:center;
+  max-width:310px;
+  padding:0;
+}
+.tw-route-introduction .fv-key-label {width:100%;text-align:right;}
+.tw-route-readout {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  border-top:1px solid var(--fv-line);
+  border-bottom:1px solid var(--fv-line);
+  margin:0 0 12px;
+  gap:0;
+}
+.tw-route-readout > div {
+  min-width:0;
+  display:flex;flex-direction:column;
+  gap:10px;padding:19px 21px;
+  border-right:1px solid var(--fv-line);
+}
+.tw-route-readout > div:first-child {padding-left:0;}
+.tw-route-readout > div:last-child {border-right:0;}
+.tw-route-readout strong {
+  display:block;color:var(--fv-ink);
+  font-size:clamp(29px,3.6vw,48px);
+  letter-spacing:-.05em;line-height:1;
+  font-weight:800;
+}
+.tw-route-readout strong small {color:var(--fv-dim);font-size:12px;letter-spacing:0;}
+.tw-route-readout > div > span:last-child {
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  font-size:11px;color:var(--fv-dim);line-height:1.45;
+}
+.tw-workspace-detail {
+  display:block;
+  max-width:1140px;
+  margin:auto;
+}
+.tw-workspace-detail .tw-inspector {
+  width:100%;min-height:400px;
+}
+.tw-workspace-detail .tw-inspector-header {
+  padding:24px clamp(18px,2.4vw,32px);
+}
+.tw-workspace-detail .tw-inspector-content {
+  padding:30px clamp(18px,3.4vw,44px);
+  min-height:320px;
+}
+.tw-workspace-detail .tw-inspector .chart {
+  min-height:320px;
+}
+.tw-workspace-detail .tw-inspector .chart .recharts-responsive-container {
+  min-height:280px;
+}
+.tw-workspace-detail .tw-location-search {
+  max-width:560px;
+}
+.tw-workspace-detail .tw-inspector-header select {
+  max-width:560px;
+}
+.tw-workspace-detail .tw-inspector .tab-content {
+  max-width:none;
+}
+.tw-workspace-detail .tw-inspector .tw-validation-gate {
+  max-width:820px;
+}
+.tw-workspace-detail .tw-inspector .scenario-panel {
+  max-width:880px;
+}
+.tw-shell .fv-nav-link {
+  text-decoration:none;
+}
+.tw-shell .fv-nav-link:hover {color:var(--fv-ink);}
+.tw-shell .fv-nav-link.is-active {color:var(--fv-accent);}
+.air-route-loading {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100dvh;background:#0a0a0a;color:#f5efe6;
+  font-family:Inter,system-ui,sans-serif;gap:16px;padding:22px;
+}
+.air-route-loading > span {
+  color:#5eead4;
+  font:650 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.27em;text-transform:uppercase;
+}
+.air-route-loading p {color:#c9c1b4;font-size:17px;}
+@media(max-width:950px) {
+ .tw-route-introduction {display:block;padding:9px 0 13px;}
+ .tw-route-introduction h1 {font-size:clamp(32px,6vw,50px);}
+ .tw-route-introduction .tw-provenance-key {
+   display:flex;justify-content:flex-start;max-width:none;
+   margin-top:14px;padding:0;
+ }
+ .tw-route-introduction .fv-key-label {width:100%;text-align:left;}
+ .tw-workspace-detail {max-width:100%;}
+}
+@media(max-width:640px) {
+ .tw-route-introduction h1 {font-size:clamp(32px,8vw,44px);}
+ .tw-route-introduction p {font-size:13px;}
+ .tw-route-readout > div {padding:15px 10px;}
+ .tw-route-readout > div:first-child {padding-left:0;}
+ .tw-route-readout strong {font-size:30px;}
+ .tw-route-readout > div > span:last-child {font-size:10px;}
+ .tw-workspace-detail .tw-inspector-content {padding:19px 15px;}
+ .tw-workspace-detail .tw-inspector-header {padding:20px 16px;}
+}
