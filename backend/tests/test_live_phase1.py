@@ -87,6 +87,31 @@ def test_real_openaq_hours_response_shape(monkeypatch, tmp_path):
     assert len(observations.read_observations("openaq-123")) == 70
 
 
+def test_hourly_history_recovers_outage_gap(monkeypatch, tmp_path):
+    """Restarting after a three-day outage must fetch missed hourly observations."""
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-only")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(observations, "SQLITE_PATH", tmp_path / "catchup.sqlite")
+    now = pd.Timestamp.now(tz="UTC").floor("h")
+    previous_time = now - pd.Timedelta(hours=72)
+    previous = {**station(previous_time), "station_id": "openaq-123", "pm25": 40}
+    assert observations.persist_observations([previous]) == 1
+    requested = []
+
+    def provider_response(url, params, headers):
+        requested.append(pd.Timestamp(params["datetime_from"]))
+        return {"results": [
+            {"period": {"datetimeFrom": {
+                "utc": (previous_time + pd.Timedelta(hours=24)).isoformat()}},
+             "value": 42.0},
+        ]}
+
+    result = observations.ingest_pune_history([station(now)], provider_response)
+    assert result == {"sensors": 1, "rows": 1, "failures": 0}
+    assert requested[0] <= previous_time
+    assert len(observations.read_observations("openaq-123", hours=96)) == 2
+
+
 def test_live_feature_alignment_and_history_gates():
     t = pd.Timestamp.now(tz=TIMEZONE).floor("h")
     records, reference = history(t), provider(t)
