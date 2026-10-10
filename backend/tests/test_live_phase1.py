@@ -135,3 +135,102 @@ def test_model_fallback_and_pune_cams_preserved():
     assert output["fallback_reason"] == "location_has_no_observed_sensor"
     assert all(p["p10"] is None for p in output["series"])
     assert runtime.backtest(location)["available"] is False
+
+
+def test_stale_openaq_sensor_is_discovered_for_history_not_live(monkeypatch):
+    """A 64-hour-old monitor must still qualify for an hourly backfill."""
+    from app.services import state_data
+    now = pd.Timestamp.now(tz="UTC")
+    last = (now - pd.Timedelta(hours=64)).isoformat()
+    urls = []
+
+    def fake_payload(url, params=None, headers=None):
+        urls.append(url)
+        if "air-quality-api.open-meteo.com" in url:
+            return [{"hourly": {}, "hourly_units": {}}]
+        if "api.open-meteo.com" in url:
+            return [{"hourly": {}, "hourly_units": {}}]
+        if url.endswith("/v3/locations"):
+            return {"results": [{
+                "id": 42, "name": "Stale PCMC monitor",
+                "coordinates": {"latitude": 18.62, "longitude": 73.85},
+                "datetimeLast": {"utc": last},
+                "sensors": [
+                    {"id": 123, "parameter": {"name": "pm25", "units": "µg/m³"}},
+                    {"id": 124, "parameter": {"name": "pm25", "units": "ppm"}},
+                    {"id": 125, "parameter": {"name": "pm10", "units": "µg/m³"}},
+                ],
+            }]}
+        raise AssertionError("Stale sensor must not trigger a live latest request")
+
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-only")
+    monkeypatch.setattr(state_data, "get_payload", fake_payload)
+    result = state_data.fetch_context(
+        [("PCMC", 18.62, 73.85)], (73.7, 18.45, 73.98, 18.8),
+        lambda lat, lon: 18.45 <= lat <= 18.8 and 73.7 <= lon <= 73.98,
+        "Pune + PCMC", "pune-cams",
+    )
+    assert result["observed"] == []
+    assert result["discovered_pm25_sensors"] == 2
+    assert [s["id"] for s in result["history_sensor_candidates"]] == ["openaq-123"]
+    assert "latest" not in " ".join(urls)
+    assert "64 hours" in result["warnings"][0]
+
+
+def test_stale_sensor_history_is_persisted_without_becoming_live(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENAQ_API_KEY", "test-only")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(observations, "SQLITE_PATH", tmp_path / "stale.sqlite")
+    now = pd.Timestamp.now(tz="UTC").floor("h")
+    candidate = {"id": "openaq-123", "name": "Old PCMC monitor",
+                 "latitude": 18.62, "longitude": 73.85,
+                 "timestamp": (now - pd.Timedelta(hours=64)).isoformat()}
+
+    def hourly(url, params, headers):
+        assert url.endswith("/v3/sensors/123/hours")
+        return {"results": [
+            {"period": {"datetimeFrom": {"utc": (now - pd.Timedelta(hours=i)).isoformat()}},
+             "value": 36.0}
+            for i in (64, 65, 66)
+        ]}
+
+    outcome = observations.ingest_pune_history([candidate], hourly)
+    assert outcome == {"sensors": 1, "rows": 3, "failures": 0}
+    saved = observations.read_observations("openaq-123", hours=96)
+    assert len(saved) == 3
+    assert set(row["source_type"] for row in saved) == {"observed"}
+    assert max(pd.Timestamp(row["timestamp"]) for row in saved) <= now - pd.Timedelta(hours=64)
+
+
+def test_refresh_pune_backfills_candidates_not_just_live_stations(monkeypatch):
+    from app.services import state_data
+    candidate = {"id": "openaq-123", "name": "Stale monitor",
+                 "latitude": 18.62, "longitude": 73.85,
+                 "timestamp": "2026-10-07T00:00:00+00:00"}
+    payload = {"points": [{"id": "pune-cams-0"}], "observed": [],
+               "history_sensor_candidates": [candidate], "warnings": []}
+    calls = {}
+
+    class StubRuntime:
+        def __init__(self, data):
+            self.warnings = []
+
+        def snapshot(self):
+            return None
+
+    def fake_ingest(sensors, get_payload):
+        calls["sensors"] = sensors
+        return {"sensors": 1, "rows": 3, "failures": 0}
+
+    def fake_save(data, path, region):
+        calls["saved"] = data
+        assert region == "pcmc"
+
+    monkeypatch.setattr(state_data, "fetch_context", lambda *args: payload)
+    monkeypatch.setattr(state_data, "PuneRuntime", StubRuntime)
+    monkeypatch.setattr(state_data, "save_context", fake_save)
+    monkeypatch.setattr(observations, "ingest_pune_history", fake_ingest)
+    state_data.refresh_pune()
+    assert calls["sensors"] == [candidate]
+    assert calls["saved"]["observed"] == []
+    assert calls["saved"]["history_ingestion"]["rows"] == 3

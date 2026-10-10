@@ -2,7 +2,7 @@
 
 ## Implemented behavior
 
-Pune–PCMC continues to load CAMS and Open-Meteo model context in the background. When an OpenAQ API key is configured, the refresh additionally backfills real hourly station measurements via the OpenAQ v3 /sensors/{id}/hours endpoint, using period.datetimeFrom.utc as the actual measurement hour. The observation table rejects synthetic and CAMS data.
+Pune–PCMC continues to load CAMS and Open-Meteo model context in the background. When an OpenAQ API key is configured, the refresh discovers PM2.5 sensors even if their most recent measurement is older than 24 hours. Eligible sensors are used only for historical backfilling via the OpenAQ v3 /sensors/{id}/hours endpoint, using period.datetimeFrom.utc as the actual measurement hour. The 24-hour freshness gate remains mandatory for showing a station as a live observed point. The observation table rejects synthetic and CAMS data.
 
 At actual OpenAQ monitor locations, AirTwin attempts LightGBM inference using an observed-target model artifact, 49 contiguous recent measured hours, and properly aligned CAMS and weather covariates. If prerequisites fail, the existing CAMS forecast remains available and is explicitly labeled with a fallback reason. Named CAMS points and IDW grid cells do not claim independent station-level ML accuracy.
 
@@ -20,7 +20,7 @@ Install the pinned backend requirements with Python 3.11. Configure these enviro
 
 Never commit real credentials or paste them in chat. The existing model and user interface do not need a Supabase JavaScript client or an anon key. For Supabase, create an AirTwin project close to the backend region, open Connect in the Supabase dashboard and obtain a PostgreSQL connection URI. Use the correct direct/session/transaction pooling mode for your hosting setup.
 
-On first successful hourly ingestion the backend creates a private airtwin.station_observations PostgreSQL table (not in Supabase's default exposed public schema). Without DATABASE_URL, a local SQLite file is used under data/raw/live_station_history.sqlite3. SQLite on ephemeral cloud storage is not durable.
+On first successful hourly ingestion the backend creates a private airtwin.station_observations PostgreSQL table (not in Supabase's default exposed public schema). PCMC snapshots include history_sensor_candidates (OpenAQ station metadata, not measured values) and history_ingestion (number of attempted sensors, accepted hourly rows, and failures). Without DATABASE_URL, a local SQLite file is used under data/raw/live_station_history.sqlite3. SQLite on ephemeral cloud storage is not durable.
 
 ## Model artifact warning
 
@@ -48,7 +48,7 @@ Inspect forecast_provider, model_id, fallback_reason, history_source_type, issue
 
 ## Notes on data freshness, cost and reliability
 
-- OpenAQ data may be delayed, incomplete, absent, or rate-limited. The 49-hour no-gap requirement is deliberately strict in this first version.
+- OpenAQ data may be delayed, incomplete, absent, or rate-limited. A historical backfill does not make a stale station live. The 49-hour no-gap requirement and live freshness gate remain strict in this first version.
 - Hourly historical measurements are different from the latest unaggregated observation.
 - Current CAMS context is modeled, not 25 independent local monitors.
 - Current provider refresh is hourly by default (minimum 15 minutes) and runs only while one Python backend scheduler is running.

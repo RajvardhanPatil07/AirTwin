@@ -57,7 +57,7 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
         points.append({'id': f'{prefix}-{index}', 'name': name, 'latitude': lat, 'longitude': lon,
                        'air': air[index]['hourly'], 'air_units': air[index]['hourly_units'],
                        'weather': weather[index]['hourly'], 'weather_units': weather[index]['hourly_units']})
-    observed, warnings, discovered = [], [], 0
+    observed, warnings, discovered, history_sensor_candidates = [], [], 0, []
     key = os.getenv('OPENAQ_API_KEY')
     if key:
         try:
@@ -75,6 +75,26 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
                                                    (p.get('coordinates') or {}).get('longitude', 0))]
             discovered = sum(s.get('parameter', {}).get('name') == 'pm25' for p in valid for s in p.get('sensors', []))
             latest_dates = [pd.Timestamp(p['datetimeLast']['utc']) for p in valid if (p.get('datetimeLast') or {}).get('utc')]
+            # Discover historical sensors independently of the 24-hour live-reading
+            # gate. Stale sensor metadata is not itself an observed measurement.
+            if prefix == 'pune-cams':
+                seen = set()
+                for location in valid:
+                    coords = location['coordinates']
+                    last = (location.get('datetimeLast') or {}).get('utc')
+                    for sensor in location.get('sensors', []):
+                        parameter = sensor.get('parameter') or {}
+                        sid = str(sensor.get('id', ''))
+                        if (parameter.get('name') != 'pm25'
+                                or parameter.get('units') not in ('µg/m³', 'μg/m³', 'ug/m3')
+                                or not sid.isdigit() or sid in seen):
+                            continue
+                        seen.add(sid)
+                        history_sensor_candidates.append({
+                            'id': f'openaq-{sid}', 'name': location.get('name') or f'OpenAQ sensor {sid}',
+                            'latitude': coords['latitude'], 'longitude': coords['longitude'],
+                            'timestamp': last or '',
+                        })
             for location in valid:
                 last = (location.get('datetimeLast') or {}).get('utc')
                 if not last or now - pd.Timestamp(last) > pd.Timedelta(hours=24):
@@ -105,7 +125,8 @@ def fetch_context(reference_points=CITY_POINTS, bbox=STATE_BBOX, inside=inside_s
     else:
         warnings.append('OpenAQ key absent: current coverage is entirely CAMS MODELED data.')
     return {'updated_at': pd.Timestamp.now(tz='UTC').isoformat(), 'points': points,
-            'observed': observed, 'discovered_pm25_sensors': discovered, 'warnings': warnings,
+            'observed': observed, 'discovered_pm25_sensors': discovered,
+        'history_sensor_candidates': history_sensor_candidates, 'warnings': warnings,
             'source_type': 'modeled', 'provider': 'CAMS / Open-Meteo', 'assumptions': STATE_ASSUMPTIONS}
 
 
@@ -361,7 +382,8 @@ def refresh_pune():
     # Failure must not block CAMS provider coverage.
     try:
         from app.services.live_observations import ingest_pune_history
-        history_status = ingest_pune_history(payload.get('observed', []), get_payload)
+        history_status = ingest_pune_history(payload.get('history_sensor_candidates', []), get_payload)
+        payload['history_ingestion'] = history_status
         if history_status['failures']:
             message = (f"{history_status['failures']} OpenAQ hourly-history lookups failed; "
                        "live LightGBM may use CAMS fallback.")
