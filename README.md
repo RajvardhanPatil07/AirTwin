@@ -222,8 +222,8 @@ available) with retained OpenAQ station-hours in PostgreSQL/Supabase or local
 SQLite. It never treats CAMS-modeled or synthetic PM2.5 as observed targets.
 Missing historical weather is left missing, not imputed using future conditions.
 It uses a recent chronological 20% holdout with purged training boundaries;
-promotion requires an adequate holdout and 24-hour MAE no worse than the
-persistence baseline. Failed training/validation leaves the previously served
+promotion requires an adequate holdout and 24-hour MAE strictly better than the
+persistence baseline (ties are rejected). Failed training/validation leaves the previously served
 model unchanged. No fixed improvement in live forecast accuracy is claimed.
 
 Approved candidates are atomically installed as
