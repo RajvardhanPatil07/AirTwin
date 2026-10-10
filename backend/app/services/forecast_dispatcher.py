@@ -12,6 +12,7 @@ import pandas as pd
 from app.services.live_features import LiveFeatureError, build_live_input
 from app.services.live_observations import read_observations
 from app.services.model import ARTIFACT, VERSION, predict, explain_features
+from app.services.retraining import LIVE_ARTIFACT
 from app.services.spatial import distance_km
 
 LOG = logging.getLogger("airtwin.live.dispatch")
@@ -25,8 +26,7 @@ def _load_artifact(path, last_modified_ns):
         raise LiveFeatureError("model_artifact_unreadable") from exc
 
 
-def verified_artifact(path=ARTIFACT):
-    file = Path(path)
+def _verified_file(file):
     if not file.is_file():
         raise LiveFeatureError("observed_model_artifact_missing")
     artifact = _load_artifact(str(file), file.stat().st_mtime_ns)
@@ -37,6 +37,18 @@ def verified_artifact(path=ARTIFACT):
     if not artifact.get("models") or 24 not in artifact["models"]:
         raise LiveFeatureError("missing_model_horizons")
     return artifact
+
+
+def verified_artifact(path=ARTIFACT):
+    # Retained historical model is still used for replay/backtests. The
+    # independently validated live candidate takes precedence *only* for
+    # observed-station inference. A failed live read falls back safely.
+    if Path(path) == ARTIFACT and LIVE_ARTIFACT.is_file():
+        try:
+            return _verified_file(LIVE_ARTIFACT)
+        except (LiveFeatureError, OSError, ValueError, EOFError):
+            LOG.warning("Invalid live retrained artifact; using historical fallback")
+    return _verified_file(Path(path))
 
 
 def nearest_provider_frame(station, provider_points, all_frame):
