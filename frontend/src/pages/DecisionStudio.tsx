@@ -413,6 +413,7 @@ export function DecisionStudio({ view, onNavigate }: { view: View; onNavigate: (
                 </div>
               </section>
 
+              <details className="tw-map-details"><summary>More details: hotspots and data provenance <ChevronRight size={15}/></summary>
               <div className="tw-bottom-cards">
                 <section className="tw-mini-panel">
                   <div className="tw-mini-title"><span><MapPin size={16}/> Highest modeled cells</span><DataBadge source="modeled"/></div>
@@ -441,6 +442,7 @@ export function DecisionStudio({ view, onNavigate }: { view: View; onNavigate: (
                   <p>CAMS samples, gridded estimates and scenarios remain explicitly <b>MODELED</b>.</p>
                 </section>
               </div>
+              </details>
             </div>
 
             )}
@@ -462,11 +464,7 @@ export function DecisionStudio({ view, onNavigate }: { view: View; onNavigate: (
                   {!filtered.length && <option value={location.id}>{location.name}</option>}
                 </select>
               </div>
-              <div className="tw-section-tabs" role="tablist" aria-label="Analytical views">
-                {NAV.map(({ id, label }) => <button key={id} type="button" role="tab" id={"tw-tab-" + id} aria-controls="tw-analysis-content" aria-selected={view === id}
-                  onClick={() => navigateTo(id)} className={view === id ? "selected" : ""}>{label.split(" ")[0]}</button>)}
-              </div>
-              <div className="tw-inspector-content" id="tw-analysis-content" role="tabpanel" aria-labelledby={"tw-tab-" + view}>
+              <div className="tw-inspector-content" id="tw-analysis-content" aria-label={view + " analysis"}>
                 <Suspense fallback={<div className="tw-loading" role="status">Loading visualization…</div>}>
                 {error && <ModelNotice>{error} <button onClick={() => setReload((n) => n + 1)}>Retry</button></ModelNotice>}
                 {analysisLoading && <div className="tw-loading" role="status"><RefreshCw className="tw-spin" size={17}/> Updating analytical context…</div>}
@@ -477,14 +475,11 @@ export function DecisionStudio({ view, onNavigate }: { view: View; onNavigate: (
                   <div className="tw-overview-step"><span>01</span><div><strong>Predict what changes</strong><p>{hours}-hour modeled outlook with uncertainty intervals and an origin timestamp.</p></div><button aria-label="Open forecast" onClick={() => navigateTo("forecast")}><ArrowRight size={17}/></button></div>
                   <div className="tw-overview-step"><span>02</span><div><strong>Explore source hypotheses</strong><p>Traffic, industry, dust and background based on configured spatial proxies.</p></div><button aria-label="Open source analysis" onClick={() => navigateTo("sources")}><ArrowRight size={17}/></button></div>
                   <div className="tw-overview-step"><span>03</span><div><strong>Compare interventions</strong><p>Rank three individual actions and their combined modeled effect.</p></div><button aria-label="Open interventions" onClick={() => navigateTo("scenarios")}><ArrowRight size={17}/></button></div>
-                  <div className="tw-compact-summary">
-                    <span>Selected area's potential modeled benefit</span>
-                    <div><strong>{selected ? number(selected.reduction) : "—"}</strong><small>µg/m³</small></div>
-                    <p>{selected ? number(selected.reduction_low) + "–" + number(selected.reduction_high) + " µg/m³ sensitivity range" : "No result available"}</p>
-                  </div>
                   {backtest?.metrics && backtest.metrics.improvement_percent < 0 &&
                     <ModelNotice>Model MAE is worse than persistence for this holdout. Do not interpret the forecast as verified superior.</ModelNotice>}
-                  <AssumptionsPanel assumptions={location.assumptions} title="Input provenance and limitations"/>
+                  <details className="tw-map-details tw-inspector-details"><summary>See inputs and assumptions <ChevronRight size={15}/></summary>
+                    <AssumptionsPanel assumptions={location.assumptions} title="Input provenance and limitations"/>
+                  </details>
                 </div>}
                 {view === "forecast" && (forecast
                   ? <><ForecastChart data={forecast} hours={hours} onHours={setHours} demo={data.demo} replay={Boolean(replayAt)}/>
