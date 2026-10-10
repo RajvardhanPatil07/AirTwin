@@ -1,9 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowRight, BarChart3, CheckCircle2,
-  ChevronRight, CircleHelp, CloudSun, Database, Gauge, GitCompareArrows,
+  ChevronRight, CircleHelp, Database, Gauge,
   Layers3, Leaf, MapPin, RefreshCw, Search, ShieldCheck, SlidersHorizontal,
-  TriangleAlert, Wind,
+  TriangleAlert,
 } from "lucide-react";
 import type {
   ActionId, AttributionResponse, BacktestResponse, Cuts, DashboardData,
@@ -43,8 +43,7 @@ function ModelNotice({ children }: { children: React.ReactNode }) {
   return <div className="tw-model-notice"><TriangleAlert size={15} /><p>{children}</p></div>;
 }
 
-export function DecisionStudio() {
-  const [view, setView] = useState<View>("overview");
+export function DecisionStudio({ view, onNavigate }: { view: View; onNavigate: (next: View) => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [replayAt, setReplayAt] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState("");
@@ -207,8 +206,6 @@ export function DecisionStudio() {
     [...(data?.cells ?? [])].sort((a, b) => b.pm25 - a.pm25).slice(0, 4),
     [data],
   );
-  const forecastValues = forecast?.series.filter((point) => point.predicted != null) ?? [];
-  const future24 = forecastValues[23]?.predicted;
   const stale = Boolean(location?.timestamp && Date.now() - Date.parse(location.timestamp) > 24 * 3600000);
   const dirty = !compare(cuts, appliedCuts);
   const counts = data?.stations.reduce((acc, item) => {
@@ -218,10 +215,7 @@ export function DecisionStudio() {
   const filtered = data?.stations.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())) ?? [];
 
   function navigateTo(next: View) {
-    setView(next);
-    if (window.matchMedia("(max-width: 1100px)").matches) {
-      window.requestAnimationFrame(() => document.getElementById("analysis-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }
+    onNavigate(next);
   }
 
   const chooseLocation = useCallback((next: Station) => {
@@ -252,7 +246,7 @@ export function DecisionStudio() {
       const replay = await api.replay();
       setSelectedId(replay.location_id);
       setReplayAt(replay.timestamp);
-      setView("validation");
+      navigateTo("validation");
     } catch {
       setError("Historical replay is currently unavailable.");
     }
@@ -309,12 +303,13 @@ export function DecisionStudio() {
       <div className="tw-main" id="tw-content">
         <header className="fv-topbar">
           <div className="fv-topbar-inner">
-            <a className="fv-brand" href="#tw-content" aria-label="AirTwin city overview" onClick={() => setView("overview")}>
+            <a className="fv-brand" href="#/" aria-label="AirTwin home">
               <span className="fv-brand-symbol"><Leaf size={18} strokeWidth={1.8}/></span>
               <span className="fv-brand-name">AirTwin</span>
               <span className="fv-build-label">ENR / 01</span>
             </a>
-            <nav className="fv-nav" aria-label="AirTwin workspace views">
+            <nav className="fv-nav" aria-label="AirTwin pages">
+              <a className="fv-nav-link" href="#/">Overview</a>
               {NAV.map(({ id, label }) => (
                 <button type="button" key={id} className={"fv-nav-link" + (view === id ? " is-active" : "")}
                   aria-current={view === id ? "page" : undefined} onClick={() => navigateTo(id)}>
@@ -332,17 +327,25 @@ export function DecisionStudio() {
             </div>
           </div>
         </header>
-        <div className="tw-body">
-          <div className="tw-introduction">
+        <div className={"tw-body tw-body-" + view}>
+          <div className="tw-introduction tw-route-introduction">
             <div className="fv-hero-copy">
-              <div className="tw-overline"><span className="tw-live-dot"/> URBAN ENVIRONMENTAL INTELLIGENCE · PUNE / PCMC</div>
-              <h1>Read the air.<span> Shape what happens next.</span></h1>
-              <p>From pollution observations to modeled forecasts and intervention comparisons. Every prediction keeps its evidence, timestamp and limitations visible.</p>
-              <div className="tw-hero-actions">
-                <button type="button" className="tw-primary-action" onClick={() => navigateTo("scenarios")}>Compare interventions <ArrowRight size={16}/></button>
-                <button type="button" className="tw-secondary-action" onClick={() => navigateTo("forecast")}>Explore forecast <Activity size={16}/></button>
-              </div></div>
-            <div className="tw-provenance-key" aria-label="Evidence provenance legend"><span className="fv-key-label">EVIDENCE KEY</span>
+              <div className="tw-overline"><span className="tw-live-dot"/>
+                AIR QUALITY DECISION STUDIO / {view === "overview" ? "CITY MAP" : view.toUpperCase()}
+              </div>
+              <h1>{view === "overview" ? "Explore the air." :
+                view === "forecast" ? "Understand the outlook." :
+                view === "sources" ? "Trace likely sources." :
+                view === "scenarios" ? "Test what could change." :
+                "Check the evidence."}</h1>
+              <p>{view === "overview" ? "Find modeled PM2.5 hotspots, inspect station references and choose a location to investigate." :
+                view === "forecast" ? "Examine PM2.5 predictions over time, with uncertainty and clearly identified model inputs." :
+                view === "sources" ? "See estimated traffic, industrial, dust and regional shares, with assumptions displayed." :
+                view === "scenarios" ? "Change three hypothetical pollution controls and compare the estimated outcomes." :
+                "Review held-out historical errors, baselines, and the limits of the available evidence."}</p>
+            </div>
+            <div className="tw-provenance-key" aria-label="Evidence provenance legend">
+              <span className="fv-key-label">DATA LABELS</span>
               <DataBadge source="observed"/><DataBadge source="modeled"/><DataBadge source="synthetic"/>
             </div>
           </div>
@@ -357,32 +360,25 @@ export function DecisionStudio() {
             {data.demo && <button onClick={() => setReload((n) => n + 1)}>Retry API</button>}
           </div>}
 
-          <div className="fv-section-divider"><span>01 / CITY READOUT</span><span>Reference values · {dateLabel(location.timestamp)}</span></div>
-          <section className="tw-kpis" aria-label="City workspace metrics">
-            <div className="tw-kpi tw-kpi-main">
-              <span><Wind size={16}/> SELECTED PM2.5 <DataBadge source={location.source_type}/></span>
-              <div><strong>{number(location.pm25)}</strong><small>µg/m³</small></div>
-              <p>{location.short_name} · {timeLabel(location.timestamp)} IST</p>
-            </div>
-            <div className="tw-kpi">
-              <span><CloudSun size={16}/> +24H OUTLOOK <DataBadge source="modeled"/></span>
-              <div><strong>{future24 == null ? "—" : number(future24)}</strong><small>µg/m³</small></div>
-              <p>Projection from the selected origin</p>
-            </div>
-            <div className="tw-kpi">
-              <span><GitCompareArrows size={16}/> POTENTIAL REDUCTION <DataBadge source="modeled"/></span>
-              <div><strong>{selected ? number(selected.reduction_percent) : "—"}</strong><small>%</small></div>
-              <p>{selected ? selected.name : "Awaiting analysis"} · assumed action</p>
-            </div>
-            <div className="tw-kpi">
-              <span><ShieldCheck size={16}/> HISTORICAL MAE <DataBadge source="modeled"/></span>
-              <div><strong>{backtest?.metrics ? number(backtest.metrics.mae) : "—"}</strong><small>µg/m³</small></div>
-              <p>{backtest?.metrics ? (backtest.metrics.improvement_percent >= 0 ? "Compared with persistence baseline" : "Underperforms persistence on this holdout") : view === "validation" ? "No held-out metrics for this location" : "Open Validation to load historical evidence"}</p>
-            </div>
-          </section>
-
-          <div className="fv-section-divider"><span>02 / SPATIAL WORKSPACE</span><span>Observed inputs · modeled output</span></div>
-          <div className="tw-workspace">
+          {view === "overview" && <>
+            <div className="fv-section-divider"><span>01 / CITY READOUT</span><span>{dateLabel(location.timestamp)} · {timeLabel(location.timestamp)} IST</span></div>
+            <section className="tw-route-readout" aria-label="Selected city location">
+              <div>
+                <span className="tw-eyebrow">SELECTED LOCATION / PM2.5</span>
+                <strong>{number(location.pm25)}<small> µg/m³</small></strong>
+                <span>{location.short_name} <DataBadge source={location.source_type}/></span>
+              </div>
+              <div>
+                <span className="tw-eyebrow">MAP COVERAGE</span>
+                <strong>{data.cells.length}<small> cells</small></strong>
+                <span>Modeled spatial interpolation <DataBadge source="modeled"/></span>
+              </div>
+            </section>
+            <div className="fv-section-divider"><span>02 / EXPLORE HOTSPOTS</span><span>Choose a point to explore</span></div>
+          </>}
+          {view !== "overview" && <div className="fv-section-divider"><span>ANALYSIS / {view.toUpperCase()}</span><span>Selected: {location.short_name}</span></div>}
+          <div className={"tw-workspace" + (view !== "overview" ? " tw-workspace-detail" : "")}>
+            {view === "overview" && (
             <div className="tw-map-column">
               <section className="tw-map-panel" id="pollution-map" aria-label="PM2.5 hotspot exploration">
                 <div className="tw-panel-heading"><div>
@@ -447,9 +443,11 @@ export function DecisionStudio() {
               </div>
             </div>
 
+            )}
+
             <aside className="tw-inspector" id="analysis-panel" aria-label="Selected location analysis">
               <div className="tw-inspector-header">
-                <div className="tw-eyebrow">03 / LOCAL DECISION STUDIO</div>
+                <div className="tw-eyebrow">{view === "overview" ? "03 / PICK AN ANALYSIS" : "LOCATION / ANALYTICAL DETAIL"}</div>
                 <h2>{location.short_name}</h2>
                 <div className="tw-selection-caption"><DataBadge source={location.source_type} detail="BASELINE"/> · {dateLabel(location.timestamp)} {timeLabel(location.timestamp)} IST</div>
                 <label className="tw-location-search"><Search size={16}/>
