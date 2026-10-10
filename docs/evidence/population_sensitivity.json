@@ -1,0 +1,86 @@
+{
+  "dataset_fingerprint": "cd3b2dcfa09df604a3150978dd356b81d1af450ab0bbb8f480d53f20727b0600",
+  "snapshot": "2026-09-24T22:00:00+05:30",
+  "target_sources": [
+    "observed"
+  ],
+  "cuts_percent": {
+    "traffic": 20,
+    "industry": 30,
+    "dust": 30
+  },
+  "population_provenance": "synthetic",
+  "profiles": [
+    {
+      "profile": "configured_synthetic",
+      "total_synthetic_weight": 455663,
+      "scores": [
+        {
+          "action": "combined",
+          "exposure_index": 991461.1846912655
+        },
+        {
+          "action": "industry",
+          "exposure_index": 351292.2206238582
+        },
+        {
+          "action": "dust",
+          "exposure_index": 329496.20486421115
+        },
+        {
+          "action": "traffic",
+          "exposure_index": 310672.75920319674
+        }
+      ],
+      "leading_individual": "industry"
+    },
+    {
+      "profile": "uniform_synthetic",
+      "total_synthetic_weight": 455663,
+      "scores": [
+        {
+          "action": "combined",
+          "exposure_index": 976094.4944703621
+        },
+        {
+          "action": "industry",
+          "exposure_index": 339276.5007816911
+        },
+        {
+          "action": "dust",
+          "exposure_index": 330573.8426322479
+        },
+        {
+          "action": "traffic",
+          "exposure_index": 306244.1510564231
+        }
+      ],
+      "leading_individual": "industry"
+    },
+    {
+      "profile": "edge_weighted_synthetic",
+      "total_synthetic_weight": 455663,
+      "scores": [
+        {
+          "action": "combined",
+          "exposure_index": 962828.5144544961
+        },
+        {
+          "action": "industry",
+          "exposure_index": 335244.845919857
+        },
+        {
+          "action": "dust",
+          "exposure_index": 327856.092901185
+        },
+        {
+          "action": "traffic",
+          "exposure_index": 299727.5756334539
+        }
+      ],
+      "leading_individual": "industry"
+    }
+  ],
+  "ranking_changed": false,
+  "limitations": "Fixed meteorology, geometry, source proxies and cuts. All three population profiles are hypothetical, normalized to the same synthetic total. No demographic, causal or health validation."
+}

@@ -1,0 +1,143 @@
+"""IDW and explicitly assumed source/population proxies."""
+import json
+import math
+import numpy as np
+import yaml
+from app.config import ROOT, BBOX
+from app.services.spatial_inputs import load_spatial_inputs
+
+CONFIG = yaml.safe_load((ROOT / 'config/assumptions.yaml').read_text())
+ZONES = json.loads((ROOT / 'data/zones.geojson').read_text())
+ASSUMPTIONS = [
+    'Grid PM2.5 is IDW interpolation (power 2), not additional station observations.',
+    'When the offline fixture exposes only one SYNTHETIC target, the map uses six illustrative SYNTHETIC spatial anchors to create a non-uniform demo surface; these are not observed stations.',
+    'Regional background is the 15th percentile of a simultaneous station snapshot, capped at cell concentration.',
+    'When fewer than 3 spatial anchors are available, regional background falls back to the recent 30-day PM2.5 15th percentile; this remains a MODELED assumption.',
+    'Source shares use hand-drawn zone proximity, assumed traffic profiles and weather proxies; they are not chemical source apportionment.',
+    'Industrial upwind weighting uses meteorological wind-from direction; zone coordinates and activity are approximate.',
+    'Emission-to-concentration pass-through is 0.7 (sensitivity 0.6–0.8 with ±20% source scaling). Weather is held fixed.',
+    'Population weights are SYNTHETIC, not WorldPop; exposure benefit is person·µg/m³, not people protected.',
+    'Source categories have regional report support; local shares and response coefficients are not empirically calibrated.',
+    'Rankings compare the chosen emission cuts, not equal cost or feasibility; independent source/response stress tests can reverse the central leader.',
+]
+
+
+def distance_km(lat, lon, other_lat, other_lon):
+    return 111.32 * math.hypot(lat - other_lat, (lon - other_lon) * math.cos(math.radians(lat)))
+
+
+def idw(lat, lon, stations):
+    distances = np.array([distance_km(lat, lon, s['latitude'], s['longitude']) for s in stations])
+    if distances.min() < 1e-6:
+        return float(stations[int(distances.argmin())]['pm25'])
+    weights = 1 / distances ** CONFIG['idw_power']
+    return float(np.dot(weights, [s['pm25'] for s in stations]) / weights.sum())
+
+
+def interpolation_anchors(stations):
+    """Return explicit synthetic map anchors only for the one-target offline fixture."""
+    if len(stations) != 1 or stations[0].get('source_type') != 'synthetic':
+        return stations
+    base = float(stations[0]['pm25'])
+    # Coordinates are illustrative Pune/PCMC demo anchors. Factors are deterministic
+    # and only shape the synthetic map; they do not create monitoring observations.
+    presets = [
+        ('bhosari-demo', 18.62, 73.85, 1.18),
+        ('pimpri-demo', 18.63, 73.80, 0.94),
+        ('chakan-demo', 18.76, 73.86, 1.28),
+        ('hinjawadi-demo', 18.59, 73.74, 0.82),
+        ('shivajinagar-demo', 18.53, 73.85, 1.00),
+        ('hadapsar-demo', 18.50, 73.93, 0.90),
+    ]
+    return [dict(stations[0])] + [
+        {**stations[0], 'id': key, 'latitude': lat, 'longitude': lon,
+         'pm25': max(5.0, base * factor), 'source_type': 'synthetic'}
+        for key, lat, lon, factor in presets
+    ]
+
+
+def bearing(lat, lon, other_lat, other_lon):
+    return math.degrees(math.atan2((other_lon - lon) * math.cos(math.radians(lat)), other_lat - lat)) % 360
+
+
+def zone_center(feature):
+    geometry = feature['geometry']
+    coords = geometry['coordinates'][0][:-1] if geometry['type'] == 'Polygon' else geometry['coordinates']
+    return float(np.mean([c[1] for c in coords])), float(np.mean([c[0] for c in coords]))
+
+
+def spatial_assumptions(spatial_inputs=None):
+    if not spatial_inputs:
+        return ASSUMPTIONS
+    revised = []
+    for statement in ASSUMPTIONS:
+        if statement.startswith('Source shares use hand-drawn') and spatial_inputs.get('zones'):
+            revised.append('Source shares use mapped OpenStreetMap zone/road proximity, assumed activity and weather proxies; they are not chemical source apportionment.')
+        elif statement.startswith('Industrial upwind weighting') and spatial_inputs.get('zones'):
+            revised.append('Industrial upwind weighting uses meteorological wind-from direction; OSM mapped locations are incomplete and do not measure activity or emissions.')
+        elif statement.startswith('Population weights are SYNTHETIC'):
+            revised.append('Population counts are WorldPop 2020 MODELED 1 km estimates redistributed to cells by area; exposure benefit is person·µg/m³, not people protected.')
+        else:
+            revised.append(statement)
+    return revised
+
+
+def local_weights(lat, lon, hour, weather, zones=None):
+    traffic = CONFIG['traffic']['base']
+    industry = CONFIG['industry']['base']
+    dust = CONFIG['dust']['base']
+    humidity = weather.get('relative_humidity_2m', 60) or 60
+    rain = weather.get('precipitation', 0) or 0
+    wind_from = weather.get('wind_direction_10m')
+    dryness = max(0.1, 1 - humidity / 100) * (0.2 if rain > 0 else 1)
+    for feature in (zones or ZONES)['features']:
+        zlat, zlon = zone_center(feature)
+        distance = distance_km(lat, lon, zlat, zlon)
+        category = feature['properties']['category']
+        if category == 'industry':
+            angle = bearing(lat, lon, zlat, zlon)
+            upwind = 1 if wind_from is None else max(0, math.cos(math.radians(angle - wind_from)))
+            upwind = max(CONFIG['industry']['minimum_wind_weight'], upwind)
+            industry += CONFIG['industry']['strength'] * math.exp(-distance / CONFIG['industry']['scale_km']) * upwind
+        elif category == 'traffic':
+            coords = feature['geometry']['coordinates']
+            closest = min(distance_km(lat, lon, p[1], p[0]) for p in coords)
+            traffic += CONFIG['traffic']['corridor_strength'] * math.exp(-closest / 3)
+        elif category == 'dust':
+            dust += CONFIG['dust']['strength'] * math.exp(-distance / CONFIG['dust']['scale_km']) * dryness
+    if hour in CONFIG['traffic']['peak_hours']:
+        traffic *= CONFIG['traffic']['peak_multiplier']
+    total = traffic + industry + dust
+    return {'traffic': traffic / total, 'industry': industry / total, 'dust': dust / total}
+
+
+def make_grid(stations, weather, timestamp, bbox=BBOX, grid_size=12, mask=None, weather_at=None, background_override=None, spatial_inputs=None):
+    west, south, east, north = bbox
+    background = (
+        float(background_override)
+        if background_override is not None
+        else float(np.percentile([s['pm25'] for s in stations], CONFIG['background_percentile']))
+    )
+    population = CONFIG['population']
+    map_anchors = interpolation_anchors(stations)
+    use_sourced = bool(spatial_inputs and tuple(spatial_inputs['bbox']) == tuple(bbox) and
+                       spatial_inputs['grid_size'] == grid_size)
+    zones = spatial_inputs.get('zones') if use_sourced else None
+    assumptions = spatial_assumptions(spatial_inputs if use_sourced else None)
+    cells = []
+    for row in range(grid_size):
+        for col in range(grid_size):
+            a, b = south + row * (north - south) / grid_size, west + col * (east - west) / grid_size
+            c, d = a + (north - south) / grid_size, b + (east - west) / grid_size
+            lat, lon = (a + c) / 2, (b + d) / 2
+            if mask and not mask(lat, lon):
+                continue
+            value = idw(lat, lon, map_anchors)
+            density = math.exp(-((lat - population['latitude']) ** 2 + (lon - population['longitude']) ** 2) / population['scale_degrees_squared'])
+            cells.append({'id': f'cell-{row}-{col}', 'latitude': lat, 'longitude': lon,
+                          'bounds': [[a, b], [c, d]], 'pm25': value, 'background': min(background, value),
+                          'population': spatial_inputs['population_counts'][row * grid_size + col] if use_sourced else round(population['base'] + population['core_extra'] * density),
+                          'population_source_type': 'modeled' if use_sourced else 'synthetic',
+                          'local_weights': local_weights(lat, lon, timestamp.hour, weather_at(lat, lon) if weather_at else weather, zones),
+                          'source_type': 'modeled', 'assumptions': assumptions})
+    return cells, background

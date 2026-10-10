@@ -1,0 +1,79 @@
+name: Quality checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  pipeline:
+    name: Python pipeline and offline fallback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: airtwin
+          POSTGRES_PASSWORD: airtwin_ci_only
+          POSTGRES_DB: airtwin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U airtwin -d airtwin"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: python -m pip install -r backend/requirements.txt
+      - run: python -m pytest backend/tests -q
+      - name: PostgreSQL decision-store integration
+        env:
+          DATABASE_URL: postgresql://airtwin:airtwin_ci_only@localhost:5432/airtwin
+        run: PYTHONPATH=backend python backend/scripts/verify_decision_store.py
+      - run: bash scripts/pipeline.sh --offline
+      - run: python backend/scripts/train_model.py --offline
+      - run: python scripts/check_repository.py
+      - run: python scripts/check_documentation.py
+      - run: python backend/scripts/validate_forecasts.py --offline --horizons 24 --policies pollution_only --output /tmp/seasonal-smoke.json
+      - run: python backend/scripts/validate_forecasts.py --offline --challenger --horizons 24 --policies pollution_only --output /tmp/challenger-smoke.json
+      - run: python scripts/validate_interventions.py --offline --output /tmp/intervention-smoke.json
+      - run: python backend/scripts/run_experiments.py --offline --horizons 24 --policies pollution_only --arms history --n-estimators 30 --no-challenger --output /tmp/paired-smoke.json
+      - name: Verify connected offline API
+        run: |
+          LIVE_REFRESH_ENABLED=0 python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8012 > /tmp/airtwin-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8012/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          python scripts/verify_runtime.py --url http://127.0.0.1:8012
+  frontend:
+    name: Frontend types, lint, tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:sites
