@@ -48,9 +48,47 @@ async function request<T>(
   return data as T;
 }
 
+// Browser read model: deduplicate overlapping requests and keep bounded, short-lived
+// snapshots. Mutations (decision runs and explanations) always bypass this cache.
+type CacheEntry = { until: number; value?: unknown; pending?: Promise<unknown> };
+const readCache = new Map<string, CacheEntry>();
+const MAX_CACHE_ENTRIES = 64;
+
+function cachedRead<T>(path: string, ttlMs = 60_000, force = false): Promise<T> {
+  const now = Date.now();
+  const current = readCache.get(path);
+  if (!force && current?.value !== undefined && current.until > now) {
+    return Promise.resolve(current.value as T);
+  }
+  if (!force && current?.pending) return current.pending as Promise<T>;
+
+  const entry: CacheEntry = { until: 0 };
+  const pending = request<T>(path).then(
+    (value) => {
+      entry.value = value;
+      entry.until = Date.now() + ttlMs;
+      delete entry.pending;
+      return value;
+    },
+    (error) => {
+      // Do not poison future attempts with failed/aborted requests.
+      if (readCache.get(path) === entry) readCache.delete(path);
+      throw error;
+    },
+  );
+  entry.pending = pending;
+  if (readCache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = readCache.keys().next().value;
+    if (oldest !== undefined) readCache.delete(oldest);
+  }
+  readCache.set(path, entry);
+  return pending;
+}
+
 export async function loadDashboard(
   replayAt: string | null = null,
   region: RegionId = "pcmc",
+  forceRefresh = false,
 ): Promise<DashboardData> {
   if (!base)
     return {
@@ -60,14 +98,31 @@ export async function loadDashboard(
       warning: null,
     };
   try {
-    const [stations, hotspots] = await Promise.all([
-      request<StationsResponse>(
-        withReplay(`/api/stations?region=${region}`, replayAt),
-      ),
-      request<HotspotsResponse>(
-        withReplay(`/api/hotspots?mode=before&region=${region}`, replayAt),
-      ),
-    ]);
+    // A single response replaces two expensive spatial queries on upgraded APIs.
+    // Older deployments keep working through the original version-one routes.
+    let stations: StationsResponse;
+    let hotspots: HotspotsResponse;
+    try {
+      const bundle = await cachedRead<StationsResponse & HotspotsResponse>(
+        withReplay(`/api/v2/bootstrap?region=${region}`, replayAt),
+        30_000,
+        forceRefresh,
+      );
+      stations = bundle;
+      hotspots = bundle;
+    } catch (error) {
+      // Only retry via v1 when the API reports a missing endpoint. Network
+      // failures should fall back promptly rather than wait for extra timeouts.
+      if (!(error instanceof Error) || !error.message.includes("404")) throw error;
+      [stations, hotspots] = await Promise.all([
+        cachedRead<StationsResponse>(
+          withReplay(`/api/stations?region=${region}`, replayAt), 30_000, forceRefresh,
+        ),
+        cachedRead<HotspotsResponse>(
+          withReplay(`/api/hotspots?mode=before&region=${region}`, replayAt), 30_000, forceRefresh,
+        ),
+      ]);
+    }
     if (!stations.stations?.length || !hotspots.cells?.length)
       throw new Error("API returned no locations or grid cells");
     return {
@@ -106,11 +161,7 @@ export const api = {
       body: JSON.stringify({ location_id: locationId, cuts, replay_at: replayAt, region }),
     }, 60000),
   timeline: (replayAt: string | null, region: RegionId) =>
-    request<TimelineResponse>(
-      withReplay(`/api/timeline?region=${region}`, replayAt),
-      undefined,
-      60000,
-    ),
+    cachedRead<TimelineResponse>(withReplay(`/api/timeline?region=${region}`, replayAt), 120_000),
   explain: (
     locationId: string,
     question: string,
@@ -145,7 +196,7 @@ export const api = {
   ) =>
     isDemo
       ? Promise.resolve(demo.forecast(station, hours))
-      : request<ForecastResponse>(
+      : cachedRead<ForecastResponse>(
           withReplay(
             `/api/forecast?location_id=${encodeURIComponent(station.id)}&hours=${hours}&region=${region}`,
             replayAt,
@@ -159,7 +210,7 @@ export const api = {
   ) =>
     isDemo
       ? Promise.resolve(demo.backtest(station))
-      : request<BacktestResponse>(
+      : cachedRead<BacktestResponse>(
           withReplay(
             `/api/backtest?location_id=${encodeURIComponent(station.id)}&region=${region}`,
             replayAt,
@@ -173,7 +224,7 @@ export const api = {
   ) =>
     isDemo
       ? Promise.resolve(demo.attribution(station))
-      : request<AttributionResponse>(
+      : cachedRead<AttributionResponse>(
           withReplay(
             `/api/attribution?location_id=${encodeURIComponent(station.id)}&region=${region}`,
             replayAt,
