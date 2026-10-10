@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frameAtOrBefore, cellsAtFrame } from "./finalTimeline";
+import { frameAtOrBefore, cellsAtFrame, alignedForecastFrame } from "./finalTimeline";
 import { localityMatches, nearestGridCell } from "./finalPlaces";
 import type { Cell, DashboardData, TimelineResponse } from "../types";
 
@@ -36,6 +36,23 @@ describe("finalv1 mapped forecast and locality integration", () => {
     expect(future?.[0].source_type).toBe("modeled");
     expect(cells[0].pm25).toBe(48);
     expect(cellsAtFrame(cells,null)).toBeNull();
+  });
+  it("refuses to draw a forecast grid issued for a different datetime", () => {
+    const forecast = {
+      location_id:"model-reference",
+      source_type:"modeled" as const,
+      history_source_type:"modeled" as const,
+      assumptions:[],
+      series:[
+        {timestamp:"2026-10-10T13:00:00Z",actual:null,predicted:40,p10:null,p90:null,persistence:null},
+        {timestamp:"2026-10-10T18:00:00Z",actual:null,predicted:34,p10:null,p90:null,persistence:null},
+      ],
+    };
+    expect(alignedForecastFrame(frame,forecast,1)?.hour).toBe(6);
+    const mismatch = {...forecast,series:forecast.series.map((point) => ({
+      ...point,timestamp:point.timestamp.replace("2026-10-10","2026-10-08"),
+    }))};
+    expect(alignedForecastFrame(frame,mismatch,1)).toBeNull();
   });
   it("keeps locality search on already modeled grid cells", () => {
     const data: DashboardData = {stations:[],cells,demo:false,warning:null};
