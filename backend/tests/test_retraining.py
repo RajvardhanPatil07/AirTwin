@@ -89,6 +89,14 @@ def test_retraining_rejects_candidate_worse_than_persistence(monkeypatch):
     assert calls == []
 
 
+def test_retraining_rejects_persistence_tie(monkeypatch):
+    calls = _stub_check(monkeypatch, candidate_mae=10.0, baseline_mae=10.0)
+    result = rt.run_retraining_check()
+    assert result["status"] == "rejected"
+    assert result["reason"] == "24h_model_does_not_beat_persistence"
+    assert calls == []
+
+
 def test_retraining_waits_for_new_readings(monkeypatch):
     calls = _stub_check(monkeypatch)
     monkeypatch.setattr(rt, "MIN_NEW_ROWS", 61)
