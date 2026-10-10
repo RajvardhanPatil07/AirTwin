@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from fastapi import APIRouter, HTTPException, Query
+from typing import Literal
 from pydantic import BaseModel, Field
 from app.schemas import Cuts, Region
 from app.services import decision_store
@@ -98,5 +99,26 @@ def hotspot_summary(region: Region = "pcmc"):
             {"cell_id": cell["id"], "pm25": cell["pm25"],
              "latitude": cell["latitude"], "longitude": cell["longitude"]}
             for cell in top
+        ],
+    }
+
+
+@router.get("/samples")
+def samples(region: Region = "pcmc",
+            source_type: Literal["observed", "modeled", "synthetic"] | None = None,
+            limit: int = Query(50, ge=1, le=100)):
+    try:
+        readings = decision_store.recent_samples(region, source_type, limit)
+    except Exception:
+        LOG.warning("Sample history unavailable", exc_info=True)
+        raise HTTPException(status_code=503, detail="Sample database unavailable")
+    return {
+        "region": region,
+        "samples": readings,
+        "source_type": "modeled",
+        "assumptions": [
+            "Each sample carries its own source_type; modeled CAMS fields are not observed station readings.",
+            "No gridded interpolation or intervention output is stored as an observed sample.",
+            "The collection is query metadata. Use each row's source_type when interpreting its value.",
         ],
     }

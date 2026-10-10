@@ -61,7 +61,10 @@ def snapshot_rows(region: str, payload: dict[str, Any]) -> list[tuple]:
         times = hourly.get("time", [])
         values = hourly.get("pm2_5", [])
         # Bound refresh writes; older history remains in the database.
-        for stamp, value in list(zip(times, values))[-48:]:
+        cutoff = _aware(payload.get("updated_at", datetime.now(IST).isoformat()))
+        # Forecast hours after the refresh are not historical concentration samples.
+        historical = [(stamp, value) for stamp, value in zip(times, values) if _aware(stamp) <= cutoff]
+        for stamp, value in historical[-48:]:
             pm25 = _valid_pm25(value)
             if pm25 is None:
                 continue
@@ -191,3 +194,33 @@ def safe_overview(region: str = "pcmc") -> dict[str, Any]:
     except Exception:
         LOG.warning("Decision store unavailable", exc_info=True)
         return {"configured": enabled(), "connected": False, "samples": 0, "runs": 0}
+
+
+def recent_samples(region: str = "pcmc", source_type: str | None = None,
+                   limit: int = 50) -> list[dict[str, Any]]:
+    """Return actual normalized point samples (never gridded IDW cells)."""
+    if region not in ALLOWED_REGIONS:
+        raise ValueError("Unsupported region")
+    if source_type not in (None, "observed", "modeled", "synthetic"):
+        raise ValueError("Invalid provenance filter")
+    if not enabled():
+        return []
+    sql = """
+        SELECT location_id, location_name, sample_time, source_type, provider,
+               latitude, longitude, pm25_ugm3
+        FROM air_quality_samples WHERE region=%s
+    """
+    params: list[Any] = [region]
+    if source_type:
+        sql += " AND source_type=%s"
+        params.append(source_type)
+    sql += " ORDER BY sample_time DESC LIMIT %s"
+    params.append(max(1, min(limit, 100)))
+    with _connect() as connection:
+        rows = connection.execute(sql, params).fetchall()
+    return [{
+        "location_id": row[0], "name": row[1],
+        "timestamp": row[2].isoformat(), "source_type": row[3],
+        "provider": row[4], "latitude": row[5], "longitude": row[6],
+        "pm25": row[7], "unit": "µg/m³",
+    } for row in rows]

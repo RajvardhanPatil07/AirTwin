@@ -45,3 +45,20 @@ def test_scenario_summary_does_not_store_grid_copies():
     assert summary["source_type"] == "modeled"
     assert summary["results"][0]["after"] == 84
     assert "cells" not in summary["results"][0]
+
+
+def test_future_cams_forecast_not_misfiled_as_historical_sample():
+    payload = {
+        "updated_at": "2026-10-08T10:00:00+05:30",
+        "points": [{
+            "id": "pune-cams-0", "name": "Pune", "latitude": 18.52,
+            "longitude": 73.86,
+            "air": {
+                "time": ["2026-10-08T09:00", "2026-10-08T11:00"],
+                "pm2_5": [40, 45],
+            },
+        }],
+    }
+    samples = snapshot_rows("pcmc", payload)
+    assert len(samples) == 1
+    assert samples[0][-1] == 40

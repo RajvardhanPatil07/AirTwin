@@ -25,6 +25,7 @@ FastAPI v1 endpoints stay compatible. New versioned endpoints:
 | GET /api/v2/decision-runs?region=pcmc | Recent modeled decision outcomes, not observations |
 | GET /api/v2/data-health?region=pcmc | Persistence state and lineage limitations |
 | GET /api/v2/hotspot-summary?region=pcmc | IDW-derived hotspot ranking with explicit interpolation caveat |
+| GET /api/v2/samples?region=pcmc&source_type=observed | Actual timestamped records only, each labeled with its own provenance |
 
 The existing LightGBM + persistence blend, pre-holdout evaluation, SHAP explanation and CAMS/OpenAQ ingestion pipelines remain in place rather than substituting an untrained neural network.
 
@@ -36,7 +37,7 @@ The old \`provider_snapshots\` table remains for reliable restore. The idempoten
 2. \`decision_runs\`: execution ID, original input source type, region, assumptions, controls and outcome summary, with modeled-only result label.
 3. \`forecast_evaluations\`: explicit schema for imported validation evidence (not automatically fabricated or populated).
 
-On a provider refresh, CAMS hourly samples retain modeled provenance while OpenAQ stations retain observed provenance. Data expires after 180 days in \`air_quality_samples\`; scenario runs are not automatically deleted. The decision store is **optional** so offline demos still work. Never claim a decision is saved without a returned run ID.
+On a provider refresh, only past/present CAMS hourly fields (not forecast future hours) retain modeled provenance while OpenAQ stations retain observed provenance. Data expires after 180 days in \`air_quality_samples\`; scenario runs are not automatically deleted. The decision store is **optional** so offline demos still work. Never claim a decision is saved without a returned run ID.
 
 ## Validation gates
 

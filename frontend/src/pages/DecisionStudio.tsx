@@ -456,7 +456,14 @@ export function DecisionStudio() {
                 {view === "validation" && <div>
                   <div className="tw-inspector-intro"><div className="tw-eyebrow">EVIDENCE CHECK</div>
                     <p>Look at held-out historical prediction error, persistence comparisons and uncertainty coverage.</p></div>
-                  {backtest ? <BacktestChart data={backtest} demo={data.demo}/> : <div className="tw-empty">Historical evaluation unavailable.</div>}
+                  {backtest?.available === false && !data.demo && !replayAt
+                    ? <div className="tw-validation-gate">
+                        <ShieldCheck size={27}/>
+                        <h3>Validate the AirTwin model separately</h3>
+                        <p>This live Pune–PCMC layer uses CAMS provider output, which has no local held-out validation here. The separate historical LightGBM model was evaluated on past station observations; its accuracy must not be presented as CAMS accuracy.</p>
+                        <button onClick={toggleReplay}>Open historical model validation <ArrowRight size={15}/></button>
+                      </div>
+                    : backtest ? <BacktestChart data={backtest} demo={data.demo}/> : <div className="tw-empty">Historical evaluation unavailable.</div>}
                 </div>}
               </div>
               <div className="tw-inspector-footer"><ArrowDownRight size={16}/> Interpretation is for decision support only. Always inspect data age, provenance and model limitations.</div>
