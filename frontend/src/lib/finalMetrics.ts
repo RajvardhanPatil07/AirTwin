@@ -2,6 +2,7 @@ import type { Cell, DashboardData, SourceType, Station } from "../types";
 
 export type MetricId = "pm25" | "aqi" | "pm10" | "no2" | "co2" | "o2" | "so2" | "o3";
 export type Reading = {
+  modelReferenceId?: string | null;
   metric: MetricId;
   value: number;
   unit: string;
@@ -41,6 +42,7 @@ export function readingFor(station: Station, id: MetricId, demo: boolean, now = 
   if (!Number.isFinite(value) || value < 0) return null;
   return {
     metric: id, value,
+    modelReferenceId: supplied ? supplied.model_reference_id : station.model_reference_id,
     unit: supplied?.unit || metric.unit,
     timestamp,
     source,
@@ -92,4 +94,32 @@ export function interpretChange(first: number | null, later: number | null): str
 
 export function provenanceLabel(source: SourceType, stale = false): string {
   return (source.toUpperCase()) + (stale ? " · STALE" : "");
+}
+
+export function rankedReferences(stations: Station[], metric: MetricId, demo: boolean) {
+  const groups = new Map<string, { locations: Station[]; reading: Reading; rank: number }>();
+  for (const station of orderedPlaces(stations, metric, demo)) {
+    const reading = readingFor(station, metric, demo)!;
+    const key = reading.source === "modeled" && reading.modelReferenceId
+      ? JSON.stringify([reading.modelReferenceId, reading.timestamp, reading.unit, reading.value])
+      : station.id;
+    const group = groups.get(key);
+    if (group) group.locations.push(station);
+    else groups.set(key, {locations: [station], reading, rank: 0});
+  }
+  const ranked = [...groups.values()];
+  let rank = 0;
+  let previous: number | null = null;
+  for (const group of ranked) {
+    const displayed = Math.round(group.reading.value * 10);
+    if (displayed !== previous) rank += 1;
+    group.rank = rank;
+    previous = displayed;
+  }
+  return ranked;
+}
+
+export function referenceName(locations: Station[]) {
+  return locations.length > 1 ? `Shared model reading · ${locations.length} areas`
+    : locations[0]?.short_name || locations[0]?.name || "Unavailable";
 }

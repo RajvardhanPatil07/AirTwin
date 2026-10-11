@@ -3,11 +3,11 @@ import type { LeafletEvent } from "leaflet";
 import { CircleMarker, GeoJSON, MapContainer, Rectangle, ScaleControl, TileLayer, Tooltip, useMap, ZoomControl } from "react-leaflet";
 import { ChevronDown, Layers3, LocateFixed, MapPin, Search, X } from "lucide-react";
 import type { GeoJsonObject } from "geojson";
-import type { Cell, DashboardData, Station } from "../types";
+import type { Cell, DashboardData, Station, TimelineFrame } from "../types";
 import { concentrationColor, METRICS, readingFor, type MetricId } from "../lib/finalMetrics";
 import { localityMatches } from "../lib/finalPlaces";
 import { SmoothHeatLayer } from "./SmoothHeatLayer";
-import { number } from "../lib/format";
+import { dateLabel, number, timeLabel } from "../lib/format";
 
 function accessibleTarget(event: LeafletEvent, label: string, retries = 1) {
   const layer = event.target as { getElement?: () => SVGElement | undefined; fire: (name: string) => void };
@@ -27,36 +27,60 @@ function accessibleTarget(event: LeafletEvent, label: string, retries = 1) {
   });
 }
 
-function FollowSelected({ selected, focus }: { selected: Station | null; focus: boolean }) {
+function mapPadding(widePanel: boolean): [number, number] {
+  return [window.innerWidth >= 1100 ? (widePanel ? Math.min(720, window.innerWidth * .48) : 380) + 40 : 30, 80];
+}
+function FollowSelected({ selected, focus, widePanel }: { selected: Station | null; focus: boolean; widePanel: boolean }) {
   const map = useMap();
   const previousFocus = useRef(focus);
   useEffect(() => {
-    if (focus && selected) map.flyTo([selected.latitude, selected.longitude], 12, { duration: 0.65 });
-    else if (previousFocus.current && !focus) map.flyTo([18.60, 73.835], 11, { duration: 0.65 });
+    const fitCity = () => {
+      map.invalidateSize();
+      if (window.innerWidth >= 1100 && !focus) {
+        map.setView([18.60, 73.835], 11, {animate:false});
+        map.panBy([mapPadding(widePanel)[0] / 2, -35], {animate:false});
+      }
+    };
+    fitCity();
+    window.addEventListener("resize", fitCity);
+    return () => window.removeEventListener("resize", fitCity);
+  }, [map, widePanel, focus]);
+  useEffect(() => {
+    if (focus && selected) map.flyToBounds([[selected.latitude-.025, selected.longitude-.025], [selected.latitude+.025, selected.longitude+.025]], {
+      paddingTopLeft: [30, 180], paddingBottomRight: mapPadding(widePanel), maxZoom: 13, duration: .65,
+    });
+    else if (previousFocus.current && !focus && window.innerWidth < 1100) map.flyTo([18.60, 73.835], 11, {duration:.65});
     previousFocus.current = focus;
-  }, [focus, selected?.id, map]);
+  }, [focus, selected?.id, map, widePanel]);
   return null;
 }
-
-function RecenterControl() {
+function RecenterControl({ widePanel }: { widePanel: boolean }) {
   const map = useMap();
-  return <button className="fm-recenter" type="button" aria-label="Reset map to Pune and PCMC" onClick={() => map.flyTo([18.60, 73.835], 11)}><LocateFixed size={17}/></button>;
+  return <button className="fm-recenter" type="button" aria-label="Reset map to Pune and PCMC" onClick={() => {
+    if (window.innerWidth >= 1100) {
+      map.setView([18.60, 73.835], 11, {animate:false});
+      map.panBy([mapPadding(widePanel)[0] / 2, -35], {animate:false});
+    }
+    else map.flyTo([18.60, 73.835], 11);
+  }}><LocateFixed size={17}/></button>;
 }
 
 export function FinalMap({
-  data, selected, onSelect, metric, night = false, focus = false, atmosphere = "off",
-  onClearFocus, forecast = false, forecastCells = null, spatialTimestamp = null,
+  data, selected, onSelect, metric, night = false, focus = false, atmosphere = "off", widePanel = false,
+  onClearFocus, forecast = false, forecastCells = null, spatialTimestamp = null, forecastStations = [],
 }: {
   data: DashboardData;
   selected: Station | null;
   onSelect: (station: Station) => void;
   metric: MetricId;
+  widePanel?: boolean;
   night?: boolean;
   focus?: boolean;
   atmosphere?: "off" | "clear" | "hazy" | "cloudy";
   onClearFocus?: () => void;
   forecast?: boolean;
   forecastCells?: Cell[] | null;
+  forecastStations?: TimelineFrame["stations"];
   spatialTimestamp?: string | null;
 }) {
   const [layers, setLayers] = useState({ modeled: true, observed: true, boundaries: false });
@@ -70,10 +94,15 @@ export function FinalMap({
   }, []);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    setSearch("");
+    setSearchOpen(false);
+  }, [selected?.id]);
   const [tileError, setTileError] = useState(false);
   const metricInfo = METRICS.find((item) => item.id === metric)!;
   const showGrid = layers.modeled && metric === "pm25";
   const displayedCells = forecastCells ?? data.cells;
+  const forecastValues = new Map(forecastStations.map(station => [station.id, station.pm25]));
   const markers = useMemo(() =>
     data.stations.filter((station) => readingFor(station, metric, data.demo) && (layers.observed || station.source_type !== "observed")),
     [data.stations, metric, data.demo, layers.observed]);
@@ -104,8 +133,8 @@ export function FinalMap({
         eventHandlers={{ tileerror: () => setTileError(true), tileload: () => setTileError(false) }}/>
       <ZoomControl position="bottomright"/>
       <ScaleControl position="bottomleft" imperial={false}/>
-      <FollowSelected selected={selected} focus={focus}/>
-      <RecenterControl/>
+      <FollowSelected selected={selected} focus={focus} widePanel={widePanel}/>
+      <RecenterControl widePanel={widePanel}/>
       {showGrid && <SmoothHeatLayer cells={displayedCells} opacity={selected && focus ? 0.66 : 1}/>} 
       {showGrid && data.cells.map((cell) => <Rectangle key={cell.id} bounds={cell.bounds}
         pathOptions={{
@@ -126,19 +155,23 @@ export function FinalMap({
         style={{ color: "#1f77b4", weight: 2, fillOpacity: 0.025, dashArray: "5 4" }}/>}
       {markers.map((station) => {
         const reading = readingFor(station, metric, data.demo)!;
+        const projected = forecast && spatialTimestamp ? forecastValues.get(station.id) : undefined;
+        const value = projected ?? reading.value;
         const active = selected?.id === station.id;
         return <CircleMarker key={station.id} center={[station.latitude, station.longitude]}
-          radius={active ? 10 : station.source_type === "observed" ? 6 : 4.5}
+          radius={active ? 12 : station.source_type === "observed" ? 6 : 4.5}
           pathOptions={{
-            color: active ? "#fff" : station.source_type === "observed" ? "#0e5a86" : "#fff",
+            color: active ? "#0b1f3a" : station.source_type === "observed" ? "#0e5a86" : "#fff",
             weight: active ? 3 : 1.5,
-            fillColor: metric === "pm25" ? concentrationColor(reading.value) : "#168bb6",
+            fillColor: metric === "pm25" ? concentrationColor(value) : "#168bb6",
             fillOpacity: focus && !active ? 0.35 : 0.97,
             dashArray: station.source_type !== "observed" ? "4 3" : undefined,
           }}
           eventHandlers={{ add: (event) => accessibleTarget(event, "Select location " + station.name), click: () => onSelect(station) }}>
-          <Tooltip direction="top" offset={[0, -8]} permanent={active || featuredIds.has(station.id)}>
-            <strong>{station.short_name || station.name}</strong> · {number(reading.value, 0)} {reading.unit}
+          <Tooltip key={station.id + String(active) + String(!selected)} direction={active ? "bottom" : "top"} offset={active ? [0, 12] : [0, -8]} permanent={active || (!selected && featuredIds.has(station.id))}>
+            <strong>{active ? "Selected · " : ""}{station.short_name || station.name}</strong> · {number(value, 0)} {reading.unit}
+            {!forecast && reading.modelReferenceId && <><br/><small>Shared CAMS model series · not a local monitor</small></>}
+            {forecast && <><br/><small>{projected !== undefined ? (data.demo ? "SYNTHETIC" : "MODELED") + " FORECAST · " + spatialTimestamp : "LATEST REFERENCE · " + dateLabel(station.timestamp) + " · " + timeLabel(station.timestamp) + " IST"}</small></>}
           </Tooltip>
         </CircleMarker>;
       })}
@@ -153,7 +186,7 @@ export function FinalMap({
       </div>
       {searchOpen && search.trim() && <div className="fm-search-results">
         {matches.length ? matches.map((station) => <button key={station.id} type="button"
-          onClick={() => { onSelect(station); setSearch(station.name); setSearchOpen(false); }}>
+          onClick={() => { onSelect(station); setSearch(""); setSearchOpen(false); }}>
           <MapPin size={15}/><span>{station.name}</span><small>{station.source_type.toUpperCase()}</small>
         </button>) : <p>No mapped location matches that name.</p>}
       </div>}

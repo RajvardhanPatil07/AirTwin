@@ -1,69 +1,99 @@
-# AirTwin finalv1 — map-first environmental application
+# AirTwin frontend
 
-This is the complete redesigned frontend on the **finalv1** branch. The former guided eight-step interface is archived in source and is no longer the default view.
+The React frontend for AirTwin, an environmental digital twin for Pune and Pimpri-Chinchwad. Users can inspect air quality, explore forecasts and compare hypothetical pollution controls through a map-based interface.
 
-## Main application pages
+## Application pages
 
-| Page | User functions |
+| Page | What it provides |
 | --- | --- |
-| **Overview** | Full-bleed live-provider/synthetic-fallback map, four accessible summary cards, location search and clear source labels |
-| **Map** | Location selection, ranked reference readings, available pollutant switching, observed monitors versus interpolated modeled cells, detailed area drawer |
-| **Forecast** | 24/48/72-hour PM2.5 trend, selected-location outlook, backend spatial forecast frames, day/night effects and focus mode |
+| Overview | Regional map, summary readings, location search and source/freshness information |
+| Map | Area selection, pollutant readings, grouped provider rankings and location details |
+| Forecast | Selected-area PM2.5 outlook for 24, 48 or 72 hours, time navigation and available spatial forecast frames |
 
-**Analytics** is a subview of Map, not a fourth page. It contains the connected Ask AirTwin service, public exposure guidance and a collapsible Research workbench for four backend computations: hypothetical traffic/industry/dust scenarios, source-proxy attribution, historical validation and budget optimization.
+Analytics sits within Map. It contains Ask AirTwin and a Research workbench for hypothetical interventions, source proxies, historical validation and budget planning. Guest entry is separate from the three main pages.
 
-## Map and numerical integrity
+## Technology
 
-- Uses Leaflet and correctly attributed CARTO/OpenStreetMap basemaps, not copied Apple map tiles.
-- Its smooth heat overlay is only a visual resampling of the backend's existing coarse 12×12 modeled grid. It is not additional observed or street-level data.
-- Uses API timestamps, µg/m³ units and OBSERVED/MODELED/SYNTHETIC source labels. Data older than 24 hours remains marked stale.
-- Does not fabricate official AQI or CO2/O2. Unsupported pollutant selectors remain disabled. PM10, NO2, SO2 and ozone depend on actual provider availability.
-- For available backend spatial forecasts, renders /api/timeline output at 0, 3, 6, 9, 12, 18 and 24 hours. The 48/72-hour chart remains supported, but the spatial map is not falsely extrapolated beyond its final frame.
-- No public user can execute governmental actions. Scenarios are non-operational models. Secure public registration and authenticated PMC/PCMC privileges require a real identity-provider/backend role-integration; until provided, these options are explicitly locked.
+React 19, TypeScript and Vite power the application. Leaflet renders maps with attributed CARTO/OpenStreetMap tiles. Recharts renders forecast charts. Tailwind CSS and application styles provide the interface, with Zod validation for selected API contracts.
 
-## Start on Windows
+## Run with the backend
 
-**PowerShell 1 — FastAPI server**, working directory C:\Users\mayur\AirTwin\backend:
+From the repository root, after installing the Python and frontend dependencies:
 
-~~~powershell
-cd C:\Users\mayur\AirTwin\backend
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-~~~
+```sh
+python scripts/dev.py
+```
 
-**PowerShell 2 — Vite frontend**, working directory C:\Users\mayur\AirTwin:
+Open [http://127.0.0.1:5188/](http://127.0.0.1:5188/). The launcher starts the backend on port 8000 and frontend on port 5188. Full setup instructions are in the [project README](../README.md).
 
-~~~powershell
-cd C:\Users\mayur\AirTwin
-git fetch origin
-git switch finalv1
-git pull --ff-only origin finalv1
+To run the services separately, use two terminals:
+
+```sh
+# Repository root, with the Python environment activated:
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+```
+
+```sh
 cd frontend
 npm ci
-npm run dev
-~~~
+npm run dev -- --port 5188 --strictPort
+```
 
-Visit the URL printed by Vite, usually http://localhost:5173. Vite forwards /backend requests to the running FastAPI instance. To deploy separately, set frontend VITE_API_BASE_URL to the public FastAPI URL and configure backend CORS_ORIGINS for the frontend origin. Keep Gemini/OpenAQ/database secrets on the server, not in VITE_ variables.
+## API connection and deployment
 
-## Verification
+Vite forwards `/backend` requests to `http://127.0.0.1:8000` in development and preview. Set `AIRTWIN_BACKEND_URL` to change the proxy target.
 
-~~~sh
+For a separately hosted frontend, set `VITE_API_BASE_URL` to the public FastAPI URL before building and configure backend `CORS_ORIGINS` for the frontend origin. Leave the variable unset for the local proxy. An explicitly empty value selects demo mode.
+
+Keep Gemini, OpenAQ and database credentials on the backend. Frontend `VITE_` variables are public build inputs.
+
+```sh
+npm run build
+npm run preview -- --port 5188
+```
+
+The build outputs static assets to `dist/client` and runs the existing Sites packaging adapter. Static frontend hosting does not run the Python backend. Preserve the worker and hosting contract when changing deployment settings.
+
+## Data behavior
+
+- Readings carry observed, modeled or synthetic labels, timestamps and units.
+- Equal neighborhood values can share a provider reference. Rankings group those shared readings rather than imply independent monitors.
+- PM2.5 is the supported spatial grid layer. Other pollutant selectors depend on provider availability; official AQI, CO₂ and O₂ are not fabricated.
+- The smooth heat overlay resamples the coarse backend grid for display. It adds no measured detail.
+- Grid forecasts use backend spatial interpolation. Map frames must align with the selected forecast origin and available timeline; missing cells or unsupported times are not filled with current values.
+- Initial API failure can show a labeled synthetic demonstration. Refresh connection allows users to retry the backend.
+- Changing selected context clears outdated answers and analysis outputs where needed. Edited scenario and budget inputs invalidate previous results.
+
+Source-proxy shares are assumptions, and SHAP explains forecast inputs. Hypothetical intervention results are not validated causal effects. Verified municipal sign-in and governmental execution are unavailable until backend authentication and authorization are connected.
+
+## Checks
+
+Run from `frontend`:
+
+```sh
 npm run lint
 npm test
 npm run build
 npm run test:sites
-~~~
+```
 
-GitHub Actions on this branch also runs Python offline-backend validation and **AirTwin finalv1 browser QA**, which starts Vite in Chromium, exercises guest entry, Map, ranked selection, Analytics scenarios, Forecast, and a mobile-width overflow check. Screenshots of the tested offline application are downloadable from that workflow's artifact. They are labeled synthetic and not proof of live observed data.
+Backend checks are listed in the project README. Local user journeys and remaining limitations are recorded in [user journey verification](../docs/user-journey-verification.md). Browser and mobile testing are needed before claiming visual behavior is fully verified.
 
-| Source | Responsibility |
+## Source guide
+
+| File | Responsibility |
 | --- | --- |
-| src/pages/FinalExperience.tsx | Guest entry, three-page navigation, API-based cards, Map/Analytics/Forecast views |
-| src/components/FinalMap.tsx | Licensed Leaflet tiles, clickable stations and grid, locality search, focus mode |
-| src/components/SmoothHeatLayer.tsx | Visualized 12×12 backend PM2.5 interpolation |
-| src/components/ResearchWorkbench.tsx | Modeled scenario, source, backtest and planning API clients |
-| src/lib/finalMetrics.ts | Typed metrics, provenance, freshness and capability gating |
-| src/lib/finalPlaces.ts | Named localities resolved to existing modeled cells, never invented sensors |
-| src/lib/finalTimeline.ts | Honest selection of available spatial forecast frames |
-| src/final.css | Approved warm-bone / ocean-blue visual direction |
+| `src/App.tsx` | Application entry component |
+| `src/pages/FinalExperience.tsx` | Guest entry, navigation, Overview, Map, Analytics and Forecast |
+| `src/components/FinalMap.tsx` | Map interaction, location selection, search and overlays |
+| `src/components/SmoothHeatLayer.tsx` | Visual resampling of the backend pollution grid |
+| `src/components/ResearchWorkbench.tsx` | Scenario, source, validation and planning controls |
+| `src/lib/api.ts` | Backend requests and fallback handling |
+| `src/lib/finalMetrics.ts` | Readings, freshness, capabilities and provider-reference grouping |
+| `src/lib/finalPlaces.ts` | Supported locality lookup |
+| `src/lib/finalTimeline.ts` | Spatial forecast frame selection and alignment |
+| `src/final.css` | Application styling |
 
-See DESIGN.md for visual rationale and ../docs/api.md for backend contracts. Older GuidedExperience/Dashboard files remain as archived references only.
+Older `GuidedExperience` and `Dashboard` components remain in source as references; `FinalExperience` is the active application.
+
+See [design rationale](DESIGN.md), [design checks](design-qa.md), [component attribution](src/components/ui/ATTRIBUTION.md) and the [backend API reference](../docs/api.md).

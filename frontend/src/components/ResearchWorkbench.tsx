@@ -38,6 +38,20 @@ export function ResearchWorkbench({ selected, demo }: { selected: Station | null
     setLoading(false);
   }, [selected?.id, demo]);
 
+  useEffect(() => {
+    version.current += 1;
+    setScenario(null);
+    setLoading(false);
+    setError("");
+  }, [cuts]);
+
+  useEffect(() => {
+    version.current += 1;
+    setPlan(null);
+    setLoading(false);
+    setError("");
+  }, [budget, target]);
+
   async function run(next: Mode = mode) {
     if (!selected) return;
     const active = ++version.current;

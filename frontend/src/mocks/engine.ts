@@ -297,7 +297,7 @@ export function forecast(location: Station, hours = 24): ForecastResponse {
     (_, index) => {
       const offset = index - 48;
       const predicted =
-        offset >= 0
+        offset > 0
           ? Math.max(5, location.pm25 + 10 * Math.sin((offset * Math.PI) / 12))
           : null;
       return {
@@ -305,7 +305,7 @@ export function forecast(location: Station, hours = 24): ForecastResponse {
         actual: offset <= 0 ? syntheticHistory(location, offset) : null,
         predicted,
         persistence: null,
-        p10: predicted === null ? null : predicted - 14,
+        p10: predicted === null ? null : Math.max(0, predicted - 14),
         p90: predicted === null ? null : predicted + 14,
       };
     },

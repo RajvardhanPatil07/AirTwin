@@ -65,3 +65,22 @@ describe("finalv1 mapped forecast and locality integration", () => {
     expect(nearestGridCell(cells,18.56,73.78)?.id).toBe("cell-baner");
   });
 });
+
+it("uses published 48 and 72 hour map frames without freezing at 24 hours", () => {
+  const origin = Date.parse(frame.origin);
+  const stamp = (hour: number) => new Date(origin + hour * 3600_000).toISOString();
+  const extended = {...frame, frames: [0,24,48,72].map(hour => ({
+    hour, timestamp:stamp(hour), source_type:"modeled" as const,
+    stations:[], cells:[{id:"cell-baner",pm25:48-hour/2},{id:"cell-city",pm25:64-hour/2}],
+  }))};
+  const forecast = {location_id:"model-reference",source_type:"modeled" as const,
+    history_source_type:"modeled" as const,assumptions:[],
+    series:Array.from({length:72}, (_, i) => ({timestamp:stamp(i+1),actual:null,predicted:40,p10:null,p90:null,persistence:null}))};
+  expect(alignedForecastFrame(extended,forecast,47)?.hour).toBe(48);
+  expect(alignedForecastFrame(extended,forecast,71)?.hour).toBe(72);
+  expect(alignedForecastFrame({...extended,frames:extended.frames.slice(0,2)},forecast,71)).toBeNull();
+});
+
+it("does not mix old baseline pixels into an incomplete future grid", () => {
+  expect(cellsAtFrame(cells, {...frame.frames[1],cells:[{id:"cell-baner",pm25:31}]})).toBeNull();
+});

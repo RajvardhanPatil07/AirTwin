@@ -28,6 +28,4 @@ def hotspots(mode: Literal['before', 'after'] = 'before', scenario_id: str | Non
 @router.get('/timeline')
 def timeline(replay_at: str | None = None, region: Region = 'pcmc'):
     runtime = get_region_runtime(region, replay_at)
-    if getattr(runtime, 'region_name', None) == 'Pune + PCMC':
-        return runtime.timeline(None, (0, 3, 6, 9, 12, 18, 24))
     return runtime.timeline(replay_at)

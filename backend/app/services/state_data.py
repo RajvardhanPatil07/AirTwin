@@ -1,8 +1,11 @@
 """Pune–PCMC coverage from CAMS; measured stations retain independent timestamps."""
 import json
+import hashlib
 import logging
+import math
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import requests
 from fastapi import HTTPException
@@ -10,7 +13,7 @@ from app.config import RAW, ROOT, TIMEZONE, BBOX
 from app.services.regions import PUNE_POINTS, inside_pune, region_metadata
 from app.services.runtime import Runtime, get_runtime
 from app.services import database
-from app.services.spatial import make_grid, distance_km, CONFIG, ZONES, ASSUMPTIONS, spatial_assumptions
+from app.services.spatial import make_grid, distance_km, idw, CONFIG, ZONES, ASSUMPTIONS, spatial_assumptions
 from app.services.spatial_inputs import load_spatial_inputs
 from app.services.scenarios import simulate
 
@@ -34,6 +37,46 @@ def get_payload(url, params=None, headers=None, timeout=30):
     return response.json()
 
 
+def fetch_observed_locations(locations, key, now):
+    def fetch(location):
+        sensors = {s['id']: s for s in location.get('sensors', [])
+                   if (s.get('parameter') or {}).get('name') == 'pm25'
+                   and (s.get('parameter') or {}).get('units') in ('µg/m³', 'μg/m³', 'ug/m3')}
+        if not sensors:
+            return [], 0
+        try:
+            rows = get_payload(f"https://api.openaq.org/v3/locations/{location['id']}/latest",
+                               {'limit': 1000}, {'X-API-Key': key})['results']
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            return [], 1
+        accepted = []
+        for row in rows:
+            try:
+                sensor = sensors.get(row.get('sensorsId'))
+                stamp = pd.Timestamp(row['datetime']['utc'])
+                value = float(row['value'])
+                coords = row.get('coordinates') or location['coordinates']
+                if (not sensor or stamp.tzinfo is None or not math.isfinite(value)
+                        or not 0 <= value <= 1000
+                        or not pd.Timedelta(0) <= now - stamp <= pd.Timedelta(hours=24)):
+                    continue
+                if not all(math.isfinite(float(coords[k])) for k in ('latitude', 'longitude')):
+                    continue
+                name = location.get('name') or f"OpenAQ sensor {sensor['id']}"
+                accepted.append({'id': f"openaq-{sensor['id']}", 'name': name,
+                    'short_name': name.split(',')[0], 'latitude': coords['latitude'],
+                    'longitude': coords['longitude'], 'pm25': value,
+                    'timestamp': stamp.tz_convert(TIMEZONE).isoformat(), 'source_type': 'observed',
+                    'assumptions': ['OpenAQ station concentration; freshness uses its measurement timestamp.',
+                        f"Provider: {(location.get('provider') or {}).get('name', 'OpenAQ upstream provider')}."]})
+            except (ValueError, KeyError, TypeError):
+                continue
+        return accepted, 0
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        results = list(pool.map(fetch, locations))
+    return [row for rows, _ in results for row in rows], sum(errors for _, errors in results)
+
+
 def fetch_context(reference_points=PUNE_POINTS, bbox=BBOX, inside=inside_pune,
                   region_name='Pune + PCMC', prefix='pune-cams'):
     coordinates = {'latitude': ','.join(str(p[1]) for p in reference_points),
@@ -49,8 +92,10 @@ def fetch_context(reference_points=PUNE_POINTS, bbox=BBOX, inside=inside_pune,
     for index, (name, lat, lon) in enumerate(reference_points):
         points.append({'id': f'{prefix}-{index}', 'name': name, 'latitude': lat, 'longitude': lon,
                        'air': air[index]['hourly'], 'air_units': air[index]['hourly_units'],
+                       'air_grid': {'latitude': air[index].get('latitude'), 'longitude': air[index].get('longitude')},
                        'weather': weather[index]['hourly'], 'weather_units': weather[index]['hourly_units']})
     observed, warnings, discovered, observed_sensors, history_sensor_candidates = [], [], 0, [], []
+    failures = 0
     key = os.getenv('OPENAQ_API_KEY')
     if key:
         try:
@@ -97,26 +142,10 @@ def fetch_context(reference_points=PUNE_POINTS, bbox=BBOX, inside=inside_pune,
                             'name': location.get('name', f"OpenAQ sensor {sensor['id']}"),
                             'latitude': coords.get('latitude'), 'longitude': coords.get('longitude'),
                             'source_type': 'observed'})
-                last = (location.get('datetimeLast') or {}).get('utc')
-                if not last or now - pd.Timestamp(last) > pd.Timedelta(hours=24):
-                    continue
-                sensors = {s['id']: s for s in location.get('sensors', [])}
-                latest = get_payload(f"https://api.openaq.org/v3/locations/{location['id']}/latest", {'limit': 1000}, {'X-API-Key': key})['results']
-                for row in latest:
-                    sensor = sensors.get(row.get('sensorsId'))
-                    if not sensor or sensor['parameter']['name'] != 'pm25':
-                        continue
-                    unit = sensor['parameter'].get('units')
-                    time = row['datetime']['utc']
-                    value = row.get('value')
-                    if unit not in ['µg/m³', 'μg/m³', 'ug/m3'] or value is None or not 0 <= value <= 1000:
-                        continue
-                    if not pd.Timedelta(0)<=now - pd.Timestamp(time)<=pd.Timedelta(hours=24):
-                        continue
-                    observed.append({'id': f"openaq-{sensor['id']}", 'name': location['name'],
-                        'short_name': location['name'].split(',')[0], 'latitude': coords['latitude'],
-                        'longitude': coords['longitude'], 'pm25': value, 'timestamp': pd.Timestamp(time).tz_convert(TIMEZONE).isoformat(),
-                        'source_type': 'observed', 'assumptions': ['OpenAQ latest station concentration; timestamp is independent of CAMS.', f"Provider: {(location.get('provider') or {}).get('name', 'OpenAQ upstream provider')}."]})
+            observed, failures = fetch_observed_locations(valid, key, now)
+            observed = [p for p in observed if inside(p['latitude'], p['longitude'])]
+            if failures:
+                warnings.append(f'{failures} OpenAQ location checks failed; other monitors were checked independently.')
             if not observed:
                 age = round((now - max(latest_dates)).total_seconds() / 3600) if latest_dates else None
                 warnings.append(f'No {region_name} OpenAQ PM2.5 readings passed the 24-hour freshness filter; latest location update age: {age} hours. CAMS coverage remains MODELED.')
@@ -127,6 +156,7 @@ def fetch_context(reference_points=PUNE_POINTS, bbox=BBOX, inside=inside_pune,
     return {'updated_at': pd.Timestamp.now(tz='UTC').isoformat(), 'points': points,
             'observed': observed, 'discovered_pm25_sensors': discovered, 'warnings': warnings,
             'observed_sensors': observed_sensors, 'history_sensor_candidates': history_sensor_candidates,
+            'monitor_check_failures': failures,
             'source_type': 'modeled', 'provider': 'CAMS / Open-Meteo', 'assumptions': PUNE_ASSUMPTIONS}
 
 
@@ -164,6 +194,13 @@ class ProviderRuntime(Runtime):
         self.spatial_assumptions = self.assumptions
         rows = []
         self.points = {p['id']: p for p in payload['points']}
+        self.model_references = {
+            point['id']: {field: 'cams-series-' + hashlib.sha256(json.dumps(
+                [point['air']['time'], point['air'].get(field), point['air_units'].get(field)],
+                separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+                for field in AIR_FIELDS if field in point['air']}
+            for point in payload['points']
+        }
         for point in payload['points']:
             weather = pd.DataFrame(point['weather']).rename(columns={'time': 'timestamp'})
             air = pd.DataFrame(point['air']).rename(columns={'time': 'timestamp', 'pm2_5': 'pm25'})
@@ -181,6 +218,20 @@ class ProviderRuntime(Runtime):
         self.frame = self.all_frame[self.all_frame.timestamp <= self.origin]
         self.future_weather = []
 
+    def map_anchors(self, stations):
+        anchors = {}
+        for station in stations:
+            if station['id'] not in self.points:
+                continue
+            grid = self.points[station['id']].get('air_grid') or {}
+            lat, lon = grid.get('latitude'), grid.get('longitude')
+            if lat is not None and lon is not None:
+                key = (lat, lon, station['model_reference_id'])
+                anchors.setdefault(key, {**station, 'latitude': lat, 'longitude': lon})
+            else:
+                anchors[station['id']] = station
+        return list(anchors.values())
+
     def snapshot(self, replay_at=None):
         if replay_at:
             raise HTTPException(422, 'Historical held-out replay is available in the Pune + PCMC region only.')
@@ -190,13 +241,15 @@ class ProviderRuntime(Runtime):
             point = self.points[row.station_id]
             pollutants = {key: {'value': float(getattr(row, 'pm25' if key == 'pm2_5' else key)),
                                   'unit': point['air_units'].get(key, ''), 'source_type': 'modeled',
-                                  'timestamp': self.origin.isoformat()}
+                                  'timestamp': self.origin.isoformat(),
+                                  'model_reference_id': self.model_references[row.station_id][key]}
                           for key in AIR_FIELDS if pd.notna(getattr(row, 'pm25' if key == 'pm2_5' else key, None))}
             weather = {key: float(getattr(row, key)) for key in WEATHER_FIELDS if pd.notna(getattr(row, key, None))}
             stations.append({'id': row.station_id, 'name': f'{row.station_name} · CAMS reference',
                 'short_name': row.station_name, 'latitude': row.latitude, 'longitude': row.longitude,
                 'pm25': float(row.pm25), 'timestamp': self.origin.isoformat(), 'source_type': 'modeled',
                 'assumptions': self.assumptions, 'pollutants': pollutants,
+                'model_reference_id': self.model_references[row.station_id]['pm2_5'],
                 'weather': {**weather, 'source_type': 'modeled', 'timestamp': self.origin.isoformat()}})
         if not stations:
             raise HTTPException(503, 'No valid CAMS points in provider cache')
@@ -205,11 +258,21 @@ class ProviderRuntime(Runtime):
             return nearest['weather']
         weather = weather_at(18.52, 73.86)
         observed = [point for point in self.payload.get('observed', []) if 0<=(pd.Timestamp.now(tz=TIMEZONE) - pd.Timestamp(point['timestamp'])).total_seconds()<=86400]
-        interpolation_points = stations + [point for point in observed
+        synchronized = [point for point in observed
             if pd.Timestamp(point['timestamp']).tz_convert(TIMEZONE).floor('h') == self.origin]
+        interpolation_points = [*self.map_anchors(stations), *synchronized]
         cells, background = make_grid(interpolation_points, weather, self.origin, self.bbox, self.grid_size,
                                       self.mask, weather_at, spatial_inputs=self.spatial_inputs)
         for cell in cells:
+            nearest = min(observed, key=lambda p: distance_km(cell['latitude'], cell['longitude'],
+                          p['latitude'], p['longitude'])) if observed else None
+            cell['measurement_support'] = {
+                'nearest_monitor_km': round(distance_km(cell['latitude'], cell['longitude'],
+                    nearest['latitude'], nearest['longitude']), 1) if nearest else None,
+                'nearest_monitor_timestamp': nearest['timestamp'] if nearest else None,
+                'synchronized_monitor_count': len(synchronized),
+                'uncertainty': 'Local spatial error has not been validated; no calibrated interval is available.',
+            }
             cell['assumptions'] = self.spatial_assumptions
         return stations + observed, cells, background, weather, self.origin
 
@@ -227,6 +290,12 @@ class ProviderRuntime(Runtime):
             'coverage': {'modeled_points': len(self.points), 'observed_points': sum(p['source_type'] == 'observed' for p in stations),
                          'distinct_modeled_pm25_levels': len(modeled_values),
                          'discovered_pm25_sensors': self.payload.get('discovered_pm25_sensors', 0),
+                         'monitor_check_failures': self.payload.get('monitor_check_failures', 0),
+                         'synchronized_monitor_count': sum(p['source_type'] == 'observed' and
+                             pd.Timestamp(p['timestamp']).tz_convert(TIMEZONE).floor('h') == self.origin for p in stations),
+                         'native_model_resolution_km': 45,
+                         'spatial_validation': 'Local spatial error is unvalidated. Finer map cells do not add measured detail.',
+                         **self.payload.get('history_readiness', {}),
                          'updated_at': self.payload['updated_at'], 'refresh_interval_seconds': max(900, int(os.getenv('LIVE_REFRESH_SECONDS', '900'))), 'variables': AIR_FIELDS + WEATHER_FIELDS}}
 
     def location(self, location_id, replay_at=None):
@@ -244,22 +313,47 @@ class ProviderRuntime(Runtime):
         return found, series, cells, background, nearest['weather'], timestamp, nearest['id']
 
     def forecast(self, location_id, hours=24, replay_at=None):
-        _, history, _, _, _, timestamp, nearest = self.location(location_id, replay_at)
-        future = self.all_frame[(self.all_frame.station_id == nearest) & (self.all_frame.timestamp > timestamp)].head(hours)
-        future = future.dropna(subset=['pm25'])
-        if len(future) < hours:
-            raise HTTPException(503, 'CAMS cache lacks the requested horizon; refresh provider data.')
+        location, history, _, _, _, timestamp, nearest = self.location(location_id, replay_at)
+        targets = pd.date_range(timestamp + pd.Timedelta(hours=1), periods=hours, freq='h')
+        future = self.all_frame[(self.all_frame.station_id == nearest) & self.all_frame.timestamp.isin(targets)].sort_values('timestamp')
+        if (len(future) != hours or list(future.timestamp) != list(targets)
+                or not all(pd.notna(value) and math.isfinite(value) and value >= 0 for value in future.pm25)):
+            raise HTTPException(503, 'CAMS cache lacks complete hourly values for the requested horizon; refresh provider data.')
         points = [{'timestamp': row.timestamp.isoformat(), 'actual': float(row.pm25), 'predicted': None,
                    'p10': None, 'p90': None, 'persistence': None}
                   for row in history.tail(49).itertuples()]
         points += [{'timestamp': row.timestamp.isoformat(), 'actual': None, 'predicted': float(row.pm25),
                     'p10': None, 'p90': None, 'persistence': None} for row in future.itertuples()]
+        reference = nearest
+        spatial_notes = []
+        if location_id.startswith('cell-'):
+            stations = {s['id']: s for s in self.snapshot(replay_at)[0] if s['id'] in self.points}
+            selected_times = {pd.Timestamp(p['timestamp']) for p in points}
+            rows = self.all_frame[self.all_frame.timestamp.isin(selected_times)]
+            values = {}
+            for time, group in rows.groupby('timestamp'):
+                samples = [{**stations[row.station_id], 'pm25': float(row.pm25)}
+                    for row in group.itertuples() if row.station_id in stations
+                    and pd.notna(row.pm25) and math.isfinite(row.pm25) and row.pm25 >= 0]
+                anchors = self.map_anchors(samples)
+                if time in targets and len({s['id'] for s in samples}) != len(stations):
+                    raise HTTPException(503, 'CAMS cache lacks complete spatial forecast values; refresh provider data.')
+                if anchors:
+                    values[time] = idw(location['latitude'], location['longitude'], anchors)
+            for point in points:
+                value = values.get(pd.Timestamp(point['timestamp']))
+                if value is None:
+                    raise HTTPException(503, 'CAMS cache lacks values for the selected grid cell; refresh provider data.')
+                point['predicted' if point['predicted'] is not None else 'actual'] = value
+            reference = location_id
+            spatial_notes = ['Grid-cell history and forecasts interpolate native CAMS model anchors by IDW, using the same spatial method as the forecast map.',
+                             f'Weather uses the nearest named CAMS reference: {nearest}.']
         return {'location_id': location_id, 'source_type': 'modeled', 'history_source_type': 'modeled',
-            'history_reference': nearest, 'series': points, 'shap': None, 'weather_forecast': [
+            'history_reference': reference, 'series': points, 'shap': None, 'weather_forecast': [
                 {'timestamp': row.timestamp.isoformat(), 'source_type': 'modeled',
                  **{key: float(getattr(row, key)) for key in WEATHER_FIELDS if pd.notna(getattr(row, key, None))}}
                 for row in future.itertuples()],
-            'assumptions': [*self.assumptions, f'Forecast reference: {nearest}; origin: {timestamp.isoformat()}.',
+            'assumptions': [*self.assumptions, *spatial_notes, f'Forecast reference: {reference}; origin: {timestamp.isoformat()}.',
                             'This is a CAMS provider forecast, not the locally validated LightGBM model. No calibrated p10/p90 bands or TreeSHAP are claimed.']}
 
     def backtest(self, location_id, replay_at=None):
@@ -473,11 +567,24 @@ def refresh_pune():
         from app.services.live_observations import ingest_pune_history, latest_cached_monitors
         history_status = ingest_pune_history(payload.get('history_sensor_candidates', []), get_payload)
         payload['history_ingestion'] = history_status
+        from app.services.live_observations import read_training_observations
+        records = read_training_observations(hours=720)
+        counts = {}
+        for record in records:
+            counts[record['station_id']] = counts.get(record['station_id'], 0) + 1
+        payload['history_readiness'] = {
+            'training_observed_hours': len(records), 'training_monitor_count': len(counts),
+            'largest_monitor_history_hours': max(counts.values(), default=0),
+            'local_model_status': 'Spatial validation against withheld monitors is required before a finer local model can be used.',
+        }
         merged={s['id']:s for s in payload.get('observed',[])}
         for point in latest_cached_monitors(payload.get('history_sensor_candidates',[])):
             if point['id'] not in merged or pd.Timestamp(point['timestamp'])>pd.Timestamp(merged[point['id']]['timestamp']):
                 merged[point['id']]=point
         payload['observed']=list(merged.values())
+        if payload['observed']:
+            payload['warnings'] = [w for w in payload['warnings'] if 'passed the 24-hour freshness filter' not in w]
+            runtime.warnings = [w for w in runtime.warnings if 'passed the 24-hour freshness filter' not in w]
         if history_status['failures']:
             message = (f"{history_status['failures']} OpenAQ hourly-history lookups failed; "
                        "live LightGBM may use CAMS fallback.")

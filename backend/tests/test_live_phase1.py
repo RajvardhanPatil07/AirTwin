@@ -207,7 +207,9 @@ def test_stale_openaq_sensor_is_discovered_for_history_not_live(monkeypatch):
                     {"id": 125, "parameter": {"name": "pm10", "units": "µg/m³"}},
                 ],
             }]}
-        raise AssertionError("Stale sensor must not trigger a live latest request")
+        if url.endswith("/42/latest"):
+            return {"results": [{"sensorsId": 123, "value": 35, "datetime": {"utc": last}}]}
+        raise AssertionError("Unexpected provider request")
 
     monkeypatch.setenv("OPENAQ_API_KEY", "test-only")
     monkeypatch.setattr(state_data, "get_payload", fake_payload)
@@ -219,7 +221,7 @@ def test_stale_openaq_sensor_is_discovered_for_history_not_live(monkeypatch):
     assert result["observed"] == []
     assert result["discovered_pm25_sensors"] == 2
     assert [s["id"] for s in result["history_sensor_candidates"]] == ["openaq-123"]
-    assert "latest" not in " ".join(urls)
+    assert any(url.endswith("/42/latest") for url in urls)
     assert "64 hours" in result["warnings"][0]
 
 
@@ -274,6 +276,8 @@ def test_refresh_pune_backfills_candidates_not_just_live_stations(monkeypatch):
 
     monkeypatch.setattr(state_data, "fetch_context", lambda *args: payload)
     monkeypatch.setattr(state_data, "PuneRuntime", StubRuntime)
+    monkeypatch.setattr(state_data, "_pune_runtime", None)
+    monkeypatch.setattr(observations, "read_training_observations", lambda **kwargs: [])
     monkeypatch.setattr(state_data, "save_context", fake_save)
     monkeypatch.setattr(observations, "ingest_pune_history", fake_ingest)
     monkeypatch.setattr(observations, "latest_cached_monitors", lambda *a: [])

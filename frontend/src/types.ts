@@ -9,6 +9,7 @@ export interface RegionInfo {
   forecast_provider: string;
 }
 export interface DataPoint {
+  model_reference_id?: string | null;
   value: number;
   unit: string;
   source_type: SourceType;
@@ -19,6 +20,7 @@ export interface Provenance {
   assumptions: string[];
 }
 export interface Station extends Provenance {
+  model_reference_id?: string | null;
   id: string;
   name: string;
   short_name: string;
@@ -30,6 +32,7 @@ export interface Station extends Provenance {
   weather?: Weather;
 }
 export interface Cell extends Provenance {
+  measurement_support?: { nearest_monitor_km: number | null; nearest_monitor_timestamp: string | null; synchronized_monitor_count: number; uncertainty: string } | null;
   id: string;
   latitude: number;
   longitude: number;
@@ -203,6 +206,6 @@ export interface ExplainResponse extends Provenance {
   method: string;
   context: Record<string, unknown>;
   model: string;
-  claims: { text: string; source_type: SourceType; evidence_ids: string[] }[];
+  claims: { audience?: "residents" | "municipality" | "general"; kind?: "finding" | "conclusion" | "action" | "limitation"; text: string; source_type: SourceType; evidence_ids: string[] }[];
 }
 import type { StationSelection } from "./lib/operations";

@@ -5,6 +5,7 @@ import {
   background,
   cells,
   delta,
+  forecast,
   idw,
   localWeights,
   runScenario,
@@ -111,5 +112,17 @@ describe("transparent demo scenario engine", () => {
       });
       expect(attribution(station).background).toBeLessThanOrEqual(station.pm25);
     });
+  });
+});
+
+
+describe("demo forecast timestamps", () => {
+  it.each([24,48,72])("returns exactly %i future hours with nonnegative bands", (hours) => {
+    const result = forecast({...stations[0],pm25:2},hours);
+    const future = result.series.filter(point => point.predicted !== null);
+    const lastHistory = result.series.filter(point => point.actual !== null).at(-1);
+    expect(future).toHaveLength(hours);
+    expect(Date.parse(future[0].timestamp) - Date.parse(lastHistory!.timestamp)).toBe(3600_000);
+    expect(future.every(point => point.p10 !== null && point.p10 >= 0)).toBe(true);
   });
 });

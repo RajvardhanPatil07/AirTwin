@@ -13,13 +13,14 @@ export function cellsAtFrame(baseline: Cell[], frame: TimelineFrame | null): Cel
   const values = new Map(frame.cells
     .filter((cell) => Number.isFinite(cell.pm25) && cell.pm25 >= 0)
     .map((cell) => [cell.id, cell.pm25]));
-  if (values.size < Math.max(1, baseline.length / 2)) return null;
-  // Preserve spatial extent, cell provenance, and metadata from the baseline.
-  return baseline.map((cell) => ({
-    ...cell,
-    pm25: values.get(cell.id) ?? cell.pm25,
-    source_type: cell.source_type === "synthetic" ? "synthetic" : "modeled",
-  }));
+  if (!baseline.length) return null;
+  const projected: Cell[] = [];
+  for (const cell of baseline) {
+    const pm25 = values.get(cell.id);
+    if (pm25 === undefined) return null;
+    projected.push({...cell, pm25, source_type: cell.source_type === "synthetic" ? "synthetic" : "modeled"});
+  }
+  return projected;
 }
 
 /** Match a spatial map to the same forecast issue time as the selected-area
@@ -39,8 +40,10 @@ export function alignedForecastFrame(
   const timestamp = Date.parse(predicted[Math.min(Math.max(0,selection),predicted.length - 1)].timestamp);
   if (![origin,first,timestamp].every(Number.isFinite)) return null;
   // A direct forecast starts one hour after its issue timestamp.
-  if (Math.abs(first - origin - 3600_000) > 3600_000) return null;
+  if (Math.abs(first - origin - 3600_000) > 1000) return null;
   const hour = Math.floor((timestamp - origin) / 3600_000 + 1e-6);
   if (hour < 0) return null;
-  return frameAtOrBefore(timeline, Math.min(hour,24));
+  const lastHour = Math.max(...timeline.frames.map(frame => frame.hour));
+  if (hour > lastHour) return null;
+  return frameAtOrBefore(timeline, hour);
 }

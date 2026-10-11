@@ -25,11 +25,13 @@ class Station(Provenance):
     longitude: float
     pm25: float
     timestamp: str
+    model_reference_id: str | None = None
     pollutants: dict = Field(default_factory=dict)
     weather: dict = Field(default_factory=dict)
 
 
 class Cell(Provenance):
+    measurement_support: dict | None = None
     id: str
     latitude: float
     longitude: float
@@ -159,6 +161,7 @@ class ChatMessage(BaseModel):
 
 class ExplainRequest(BaseModel):
     location_id: str
+    metric: Literal['pm25', 'pm10', 'aqi', 'no2', 'so2', 'o3', 'co2', 'o2'] = 'pm25'
     question: str = Field(min_length=1, max_length=1000)
     replay_at: str | None = None
     region: Region = 'pcmc'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { concentrationColor, interpretChange, isStale, orderedPlaces, readingFor, supportsMetric } from "./finalMetrics";
+import { concentrationColor, interpretChange, isStale, orderedPlaces, rankedReferences, readingFor, supportsMetric } from "./finalMetrics";
 import type { DashboardData, Station } from "../types";
 
 const now = Date.parse("2026-10-11T00:00:00Z");
@@ -56,5 +56,25 @@ describe("finalv1 scientific UI data contract", () => {
     expect(interpretChange(20, 40)).toBe("Worse");
     expect(interpretChange(20, 20)).toBe("Similar");
     expect(interpretChange(null, 20)).toBe("Unavailable");
+  });
+});
+
+describe("shared provider readings", () => {
+  it("groups proven identical model series while preserving independent equal readings", () => {
+    const a = {...station("a",55.5),model_reference_id:"series-1"};
+    const b = {...station("b",55.5),model_reference_id:"series-1"};
+    const independent = {...station("independent",55.5),model_reference_id:"series-2"};
+    const monitor = {...station("monitor",55.5,"observed"),model_reference_id:"series-1"};
+    const ranked = rankedReferences([a,b,independent,monitor,station("low",20)],"pm25",false);
+    expect(ranked).toHaveLength(4);
+    expect(ranked[0].locations.map(item => item.id)).toEqual(["a","b"]);
+    expect(ranked.map(group => group.rank)).toEqual([1,1,1,2]);
+  });
+  it("keeps different timestamps and pollutant-specific references separate", () => {
+    const a = {...station("a",55),model_reference_id:"same",pollutants:{pm10:{value:70,unit:"µg/m³",timestamp:"2026-10-10T12:00:00Z",source_type:"modeled" as const,model_reference_id:"pm10-a"}}};
+    const b = {...a,id:"b",pollutants:{pm10:{...a.pollutants.pm10,model_reference_id:"pm10-b"}}};
+    expect(rankedReferences([a,b],"pm25",false)).toHaveLength(1);
+    expect(rankedReferences([a,b],"pm10",false)).toHaveLength(2);
+    expect(rankedReferences([a,{...b,timestamp:"2026-10-10T13:00:00Z"}],"pm25",false)).toHaveLength(2);
   });
 });

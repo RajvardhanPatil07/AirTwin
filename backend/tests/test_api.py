@@ -194,3 +194,33 @@ def test_provider_bare_claim_array_keeps_evidence_checks(monkeypatch):
     context['evidence']['population']['data']['population'] = 10
     with pytest.raises(ValueError, match='numbers outside'):
         explainer.gemini_claims('test-key', 'test-model', context, 'Explain', [])
+
+
+def test_gemini_retries_a_structured_data_dump_to_get_an_action_plan(monkeypatch):
+    import json
+    from app.services import explainer
+    context = {'evidence': {'baseline': {'source_type': 'modeled', 'data': {'pm25': 34.2}},
+                           'action_guidance': {'source_type': 'modeled', 'data': {'advice': 'Request an inspection.'}}}}
+    finding = {'kind': 'finding', 'text': 'Modeled PM2.5 is 34.2 µg/m³.', 'source_type': 'modeled', 'evidence_ids': ['baseline']}
+    complete = [finding,
+        {**finding, 'kind': 'conclusion', 'text': 'The model cannot establish a local pollution cause.'},
+        {'kind': 'action', 'text': 'Residents can document visible dust and request an inspection.', 'source_type': 'modeled', 'evidence_ids': ['action_guidance']},
+        {'kind': 'action', 'text': 'Officials can check local evidence before planning a pilot.', 'source_type': 'modeled', 'evidence_ids': ['action_guidance']},
+        {**finding, 'kind': 'limitation', 'text': 'These readings are modeled; check recent measurements.'}]
+    requests_seen = []
+    class Reply:
+        status_code = 200
+        def raise_for_status(self):
+            pass
+        def json(self):
+            return {'candidates': [{'content': {'parts': [{'text': json.dumps({'claims': [finding] if len(requests_seen) == 1 else complete})}]}}]}
+    def provider(url, **kwargs):
+        requests_seen.append(kwargs['json'])
+        return Reply()
+    monkeypatch.setattr(explainer.requests, 'post', provider)
+    claims = explainer.gemini_claims('test-key', 'test-model', context, 'What should we do?', [])
+    assert len(requests_seen) == 2
+    retry_input = json.loads(requests_seen[1]['contents'][0]['parts'][0]['text'])
+    assert 'at least two action steps' in retry_input['previous_answer_rejected_because']
+    assert [claim['kind'] for claim in claims] == ['finding', 'conclusion', 'action', 'action', 'limitation']
+    assert 'responseSchema' in requests_seen[0]['generationConfig']

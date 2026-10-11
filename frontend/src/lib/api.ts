@@ -110,6 +110,7 @@ export const api = {
     cuts: Cuts,
     hours: number,
     history: { role: string; content: string }[],
+    metric = "pm25",
   ) =>
     request<ExplainResponse>(
       "/api/explain",
@@ -118,6 +119,7 @@ export const api = {
         body: JSON.stringify({
           location_id: locationId,
           question,
+          metric,
           replay_at: replayAt,
           region,
           cuts,
@@ -141,6 +143,8 @@ export const api = {
             `/api/forecast?location_id=${encodeURIComponent(station.id)}&hours=${hours}&region=${region}`,
             replayAt,
           ),
+          undefined,
+          60000,
         ),
   backtest: (
     station: Station,

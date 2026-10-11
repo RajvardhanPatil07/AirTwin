@@ -178,6 +178,9 @@ class Runtime:
         self.scenarios[result['scenario_id']] = result
         return result
 
+    def map_anchors(self, stations):
+        return interpolation_anchors(stations)
+
     def timeline(self, replay_at=None, steps=(0, 3, 6, 9, 12, 18, 24, 48, 72)):
         """Hotspot grid at future hours: per-station forecasts interpolated by IDW."""
         stations, cells, background, weather, timestamp = self.snapshot(replay_at)
@@ -190,14 +193,26 @@ class Runtime:
         forecasts = {}
         for station in stations:
             try:
-                forecasts[station['id']] = self.forecast(station['id'], horizon, replay_at)['series'][-horizon:]
+                result = self.forecast(station['id'], horizon, replay_at)
             except (HTTPException, ValueError, KeyError, IndexError):
-                continue
+                result = None
+                for shorter in sorted((step for step in steps if 0 < step < horizon), reverse=True):
+                    try:
+                        result = self.forecast(station['id'], shorter, replay_at)
+                        break
+                    except (HTTPException, ValueError, KeyError, IndexError):
+                        continue
+                if result is None:
+                    continue
+            forecasts[station['id']] = {
+                pd.Timestamp(point['timestamp']): point['predicted'] for point in result['series']
+                if point.get('predicted') is not None
+            }
         frames = []
         for step in steps:
             points = []
             for s in stations:
-                value = s['pm25'] if step == 0 else (forecasts.get(s['id']) or [{}] * horizon)[step - 1].get('predicted')
+                value = s['pm25'] if step == 0 else forecasts.get(s['id'], {}).get(timestamp + pd.Timedelta(hours=step))
                 if value is not None and pd.notna(value):
                     points.append({**s, 'pm25': float(value)})
             if not points:
@@ -205,7 +220,7 @@ class Runtime:
             if step == 0:
                 frame_cells = [{'id': c['id'], 'pm25': c['pm25']} for c in cells]
             else:
-                anchors = interpolation_anchors(points)
+                anchors = self.map_anchors(points)
                 frame_cells = [{'id': c['id'], 'pm25': idw(c['latitude'], c['longitude'], anchors)} for c in cells]
             frames.append({'hour': step, 'timestamp': (timestamp + pd.Timedelta(hours=step)).isoformat(),
                            'source_type': stations[0]['source_type'] if step == 0 else 'modeled',
